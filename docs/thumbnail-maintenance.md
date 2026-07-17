@@ -170,7 +170,7 @@ backend/app/sync_manual_thumbnails.py
 ```
 
 Purpose:
-
+Note: this script needs to run inside docker compose
 - Read PNG files from:
 
 ```text
@@ -210,7 +210,7 @@ manual_thumbnails/
 Run:
 
 ```bash
-python3 backend/app/sync_manual_thumbnails.py
+docker exec -it mvls_catalogue_backend python3 /app/app/sync_manual_thumbnails.py
 ```
 
 ---
@@ -353,7 +353,7 @@ manual_thumbnails/
 Synchronise to catalogue format:
 
 ```bash
-python3 backend/app/sync_manual_thumbnails.py
+docker exec -it mvls_catalogue_backend python3 /app/app/sync_manual_thumbnails.py
 ```
 
 Verify results:

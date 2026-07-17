@@ -52,6 +52,11 @@ function mvlsRenderAuthArea(user) {
     label.className = "mvls-auth-user";
     label.textContent = "Signed in: " + user.display_name + " (" + user.role + ")";
 
+    const accountLink = document.createElement("a");
+    accountLink.className = "mvls-auth-button";
+    accountLink.href = "/my-account.html";
+    accountLink.textContent = "My account";
+
     const button = document.createElement("button");
     button.className = "mvls-auth-button";
     button.type = "button";
@@ -59,6 +64,7 @@ function mvlsRenderAuthArea(user) {
     button.addEventListener("click", mvlsLogout);
 
     area.appendChild(label);
+    area.appendChild(accountLink);
     area.appendChild(button);
   } else {
     const link = document.createElement("a");

@@ -389,6 +389,241 @@ class ActivationRequest(BaseModel):
     password: str
 
 
+class ProfileUpdateRequest(BaseModel):
+    username: Optional[str] = None
+    full_name: Optional[str] = None
+    email: Optional[str] = None
+    institution: Optional[str] = None
+    guid: Optional[str] = None
+    authentication_method: Optional[str] = None
+    current_password: Optional[str] = None
+    new_password: Optional[str] = None
+
+
+@app.get("/api/me/profile")
+def get_profile(user: dict = Depends(require_user)):
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    user_id,
+                    username,
+                    email,
+                    full_name,
+                    institution,
+                    guid,
+                    role,
+                    authentication_method,
+                    account_status
+                FROM users
+                WHERE username = %s
+                """,
+                (user["username"],),
+            )
+            row = cur.fetchone()
+
+        if not row:
+            raise HTTPException(status_code=404, detail="User profile not found")
+
+        return {
+            "status": "ok",
+            "profile": clean_row(row),
+        }
+
+    finally:
+        conn.close()
+
+
+@app.put("/api/me/profile")
+def update_profile(
+    response: Response,
+    payload: ProfileUpdateRequest,
+    user: dict = Depends(require_user),
+):
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT
+                    user_id,
+                    username,
+                    email,
+                    full_name,
+                    institution,
+                    guid,
+                    role,
+                    authentication_method,
+                    account_status,
+                    password_hash
+                FROM users
+                WHERE username = %s
+                """,
+                (user["username"],),
+            )
+            current_row = cur.fetchone()
+
+        if not current_row:
+            raise HTTPException(status_code=404, detail="User profile not found")
+
+        updates = []
+        params = []
+
+        def normalize_optional(value: Optional[str]) -> Optional[str]:
+            if value is None:
+                return None
+            cleaned = str(value).strip()
+            return cleaned or None
+
+        if payload.username is not None:
+            new_username = normalize_optional(payload.username)
+            if not new_username:
+                raise HTTPException(status_code=400, detail="Username cannot be empty")
+            if payload.guid is not None:
+                guid_value = normalize_optional(payload.guid)
+                if guid_value and new_username != guid_value:
+                    raise HTTPException(status_code=400, detail="When a GUID is present, the username must match the GUID")
+            elif current_row["guid"]:
+                if new_username != current_row["guid"]:
+                    raise HTTPException(status_code=400, detail="When a GUID is present, the username must match the GUID")
+            if new_username != current_row["username"]:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT user_id FROM users WHERE username = %s AND user_id != %s",
+                        (new_username, current_row["user_id"]),
+                    )
+                    duplicate = cur.fetchone()
+                if duplicate:
+                    raise HTTPException(status_code=400, detail="Username is already in use")
+                updates.append("username = %s")
+                params.append(new_username)
+
+        if payload.email is not None:
+            new_email = normalize_optional(payload.email)
+            if not new_email:
+                raise HTTPException(status_code=400, detail="Email cannot be empty")
+            if new_email != current_row["email"]:
+                with conn.cursor() as cur:
+                    cur.execute(
+                        "SELECT user_id FROM users WHERE email = %s AND user_id != %s",
+                        (new_email, current_row["user_id"]),
+                    )
+                    duplicate = cur.fetchone()
+                if duplicate:
+                    raise HTTPException(status_code=400, detail="Email is already in use")
+                updates.append("email = %s")
+                params.append(new_email)
+
+        if payload.full_name is not None:
+            full_name = normalize_optional(payload.full_name)
+            if full_name is not None and full_name != current_row["full_name"]:
+                updates.append("full_name = %s")
+                params.append(full_name)
+
+        if payload.institution is not None:
+            institution = normalize_optional(payload.institution)
+            if institution != current_row["institution"]:
+                updates.append("institution = %s")
+                params.append(institution)
+
+        if payload.guid is not None:
+            guid = normalize_optional(payload.guid)
+            if guid != current_row["guid"]:
+                updates.append("guid = %s")
+                params.append(guid)
+
+        if payload.authentication_method is not None:
+            auth_method = normalize_optional(payload.authentication_method)
+            if auth_method not in (None, "LOCAL", "LDAP"):
+                raise HTTPException(status_code=400, detail="Invalid authentication method")
+            if auth_method is not None and auth_method != current_row["authentication_method"]:
+                updates.append("authentication_method = %s")
+                params.append(auth_method)
+
+        if payload.new_password is not None:
+            if not payload.current_password:
+                raise HTTPException(status_code=400, detail="Current password is required")
+            if len(payload.new_password) < 8:
+                raise HTTPException(status_code=400, detail="Password must be at least 8 characters")
+            if not any(char.isupper() for char in payload.new_password):
+                raise HTTPException(status_code=400, detail="Password must include an uppercase letter")
+            if not any(char.islower() for char in payload.new_password):
+                raise HTTPException(status_code=400, detail="Password must include a lowercase letter")
+            if not any(char.isdigit() for char in payload.new_password):
+                raise HTTPException(status_code=400, detail="Password must include a number")
+            try:
+                password_hasher.verify(current_row["password_hash"], payload.current_password)
+            except Exception as exc:
+                raise HTTPException(status_code=400, detail="Current password is invalid") from exc
+
+            updates.append("password_hash = %s")
+            params.append(password_hasher.hash(payload.new_password))
+
+        if not updates:
+            return {
+                "status": "ok",
+                "profile": clean_row(current_row),
+            }
+
+        with conn.cursor() as cur:
+            query = "UPDATE users SET " + ", ".join(updates) + " WHERE user_id = %s"
+            params.append(current_row["user_id"])
+            cur.execute(query, tuple(params))
+            conn.commit()
+
+            cur.execute(
+                """
+                SELECT
+                    user_id,
+                    username,
+                    email,
+                    full_name,
+                    institution,
+                    guid,
+                    role,
+                    authentication_method,
+                    account_status
+                FROM users
+                WHERE user_id = %s
+                """,
+                (current_row["user_id"],),
+            )
+            updated_row = cur.fetchone()
+
+        session_payload = {
+            "username": updated_row["username"],
+            "email": updated_row["email"],
+            "display_name": updated_row["full_name"],
+            "role": updated_row["role"],
+            "exp": int(time.time()) + SESSION_DURATION_SECONDS,
+        }
+
+        token = sign_payload(session_payload)
+        secure_cookie = os.getenv("APP_COOKIE_SECURE", "false").lower() == "true"
+
+        response.set_cookie(
+            key=SESSION_COOKIE_NAME,
+            value=token,
+            httponly=True,
+            secure=secure_cookie,
+            samesite="lax",
+            max_age=SESSION_DURATION_SECONDS,
+            path="/",
+        )
+
+        return {
+            "status": "ok",
+            "profile": clean_row(updated_row),
+        }
+
+    finally:
+        conn.close()
+
+
 @app.post("/api/access-request")
 def create_access_request(request: AccessRequestCreate):
 
