@@ -1,0 +1,60 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Slide Detail · MVLS Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/mvls.css">
+  
+  <script src="/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="mvls-top-strip">
+    University of Glasgow · MVLS
+  </div>
+
+  <header class="mvls-header">
+    <div class="mvls-header-inner">
+      <div class="mvls-brand-block">
+        <div class="mvls-university">University of Glasgow</div>
+        <h1 class="mvls-title">MVLS Virtual Microscopy Catalogue</h1>
+        <p class="mvls-subtitle">Slide detail</p>
+      </div>
+
+      <nav class="mvls-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/">Help</a>
+        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mvls-page">
+    <div class="mvls-return-bar">
+      <button id="back-to-results" class="mvls-button mvls-button-secondary" type="button">← Back to Results</button>
+    </div>
+
+    <section id="slide-detail" class="mvls-slide-detail-shell">
+      <p class="mvls-muted">Loading slide details...</p>
+    </section>
+  </main>
+
+  <div id="image-modal" class="mvls-modal" aria-hidden="true">
+    <div class="mvls-modal-content">
+      <button id="modal-close" class="mvls-modal-close" type="button" aria-label="Close large preview">×</button>
+      <img id="modal-image" src="" alt="Large slide preview">
+    </div>
+  </div>
+
+  <footer class="mvls-footer">
+    <div class="mvls-footer-inner">
+      <div>MVLS Virtual Microscopy Catalogue</div>
+      <div>Placeholder footer · Help · Contact · Documentation</div>
+    </div>
+  </footer>
+
+  <script src="/js/slide.js?v=feedback-db-1"></script>
+</body>
+</html>

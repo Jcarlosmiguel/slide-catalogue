@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>MVLS Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/mvls.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="mvls-top-strip">
+    University of Glasgow · MVLS
+  </div>
+  <header class="mvls-header">
+    <div class="mvls-header-inner">
+      <div class="mvls-brand-block">
+        <img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo">
+        <div class="mvls-brand-text">
+          <div class="mvls-university">
+            University of Glasgow
+          </div>
+          <h1 class="mvls-title">
+            MVLS Virtual Microscopy Catalogue
+          </h1>
+          <p class="mvls-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+	</div>
+      </div>
+      <nav class="mvls-nav" aria-label="Main navigation">
+        <a href="/" class="is-active">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/">Help</a>
+        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mvls-page">
+
+    
+<section class="mvls-card">
+
+  <h1>Request Access</h1>
+
+  <p>
+    Access requests are reviewed by catalogue administrators.
+  </p>
+
+  <p>
+    Once approved, you will receive an activation email
+    allowing you to create a catalogue password.
+  </p>
+
+  <hr class="mvls-divider">
+
+  <form id="access-request-form">
+
+    <div class="mvls-field">
+      <label for="full_name">Full Name</label>
+      <input
+        id="full_name"
+        name="full_name"
+        type="text"
+        required>
+    </div>
+
+    <div class="mvls-field">
+      <label for="email">Email Address</label>
+      <input
+        id="email"
+        name="email"
+        type="email"
+        required>
+    </div>
+
+    <div class="mvls-field">
+      <label for="institution">Institution</label>
+      <input
+        id="institution"
+        name="institution"
+        type="text"
+        required>
+    </div>
+
+    <div class="mvls-field">
+      <label for="guid">
+        University GUID (optional)
+      </label>
+      <input
+        id="guid"
+        name="guid"
+        type="text">
+    </div>
+
+    <div class="mvls-field">
+      <label for="request_reason">
+        Reason for Access
+      </label>
+
+      <textarea
+        id="request_reason"
+        name="request_reason"
+        rows="6"
+        required></textarea>
+    </div>
+
+    <div class="mvls-actions">
+      <button
+        class="mvls-button"
+        type="submit">
+        Submit Request
+      </button>
+
+      <span
+        id="submission-status"
+        class="mvls-muted"></span>
+    </div>
+
+  </form>
+
+</section>
+
+<script>
+
+document.getElementById(
+  "access-request-form"
+).addEventListener(
+  "submit",
+  async function(event) {
+
+    event.preventDefault();
+
+    const payload = {
+      full_name:
+        document.getElementById("full_name").value,
+
+      email:
+        document.getElementById("email").value,
+
+      institution:
+        document.getElementById("institution").value,
+
+      guid:
+        document.getElementById("guid").value,
+
+      authentication_method: "LOCAL",
+
+      request_reason:
+        document.getElementById("request_reason").value
+    };
+
+    const response = await fetch(
+      "/api/access-request",
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify(payload)
+      }
+    );
+
+    const status =
+      document.getElementById(
+        "submission-status"
+      );
+
+    if (response.ok) {
+
+      status.textContent =
+        "Request submitted successfully.";
+
+      event.target.reset();
+    }
+    else {
+
+      status.textContent =
+        "Unable to submit request.";
+    }
+  }
+);
+
+</script>
+
+
+  </main>
+
+ <footer class="mvls-footer">
+    <div class="mvls-footer-inner">
+      <div>MVLS Virtual Microscopy Catalogue</div>
+      <div>
+	<a href="/documents/">Help</a></a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
+

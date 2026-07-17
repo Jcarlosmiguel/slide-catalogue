@@ -1,0 +1,89 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Request Access - MVLS Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  vls.css">
+  /js/auth.js
+</head>
+
+<body>
+
+<div class="mvls-top-strip">
+  University of Glasgow · MVLS
+</div>
+
+<header class="mvls-header">
+  <div class="mvls-header-inner">
+    <div class="mvls-brand-block">
+      <div class="mvls-university">University of Glasgow</div>
+      <h1 class="mvls-title">MVLS Virtual Microscopy Catalogue</h1>
+      <p class="mvls-subtitle">Request access to the catalogue</p>
+    </div>
+  </div>
+</header>
+
+<main class="mvls-page">
+  <section class="mvls-card" style="max-width: 800px; margin: 2rem auto;">
+
+    <h2>Request Access</h2>
+
+    <p>
+      Access to the catalogue requires administrator approval.
+    </p>
+
+    <form>
+
+      <div class="mvls-field">
+        <label>Full Name</label>
+        <input type="text">
+      </div>
+
+      <div class="mvls-field">
+        <label>Email Address</label>
+        <input type="email">
+      </div>
+
+      <div class="mvls-field">
+        <label>Institution</label>
+        <input type="text">
+      </div>
+
+      <div class="mvls-field">
+        <label>University GUID (optional)</label>
+        <input type="text">
+      </div>
+
+      <div class="mvls-field">
+        <label>Reason for Access</label>
+        <textarea rows="6"></textarea>
+      </div>
+
+      <div class="mvls-field">
+        <label>Authentication Method</label>
+
+        <div>
+          <input type="radio" checked>
+          Catalogue Password
+        </div>
+
+        <div>
+          <input type="radio" disabled>
+          University GUID / LDAP (Future Implementation)
+        </div>
+      </div>
+
+      <div class="mvls-actions">
+        <button class="mvls-button" type="button">
+          Submit Access Request
+        </button>
+      </div>
+
+    </form>
+
+  </section>
+</main>
+
+</body>
+</html>

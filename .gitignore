@@ -1,0 +1,29 @@
+# Secrets
+.env
+dotenv
+
+# Python
+__pycache__/
+*.pyc
+
+# Database dumps
+*.sql
+
+# Archives
+*.tar.gz
+
+# Logs
+*.log
+
+# Backups
+backups/
+
+# Generated thumbnails
+thumbnail_backups/
+
+# Temporary development files
+*.working
+*.bak
+
+# Misc
+.DS_Store
