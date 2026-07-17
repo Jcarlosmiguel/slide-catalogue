@@ -27,3 +27,19 @@ thumbnail_backups/
 
 # Misc
 .DS_Store
+
+# Generated thumbnails
+
+# Generated thumbnails.
+# These are recreated from slide data and should not be version controlled.
+thumbnails/
+
+# Administrator-curated thumbnail staging area.
+# Stored outside Git because contents can be regenerated or replaced.
+manual_thumbnails/
+
+# Historical thumbnail backups.
+thumbnail_backups/
+
+# Generated documentation
+mvls-catalogue_tree.txt
