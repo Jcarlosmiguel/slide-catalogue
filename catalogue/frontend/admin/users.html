@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Users · MVLS Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/mvls.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="mvls-top-strip">
+    University of Glasgow · MVLS
+  </div>
+
+  <header class="mvls-header">
+    <div class="mvls-header-inner">
+      <div class="mvls-brand-block">
+        <a href="https://www.gla.ac.uk"><img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo"></a>
+        <div class="mvls-brand-text">
+          <h1 class="mvls-title"><a href="https://www.gla.ac.uk/colleges/mvls/">MVLS Virtual Microscopy Catalogue</a></h1>
+          <p class="mvls-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="mvls-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mvls-page">
+    <section class="mvls-card">
+      <h1>Users</h1>
+      <p>All registered catalogue users. Visible to system administrators only.</p>
+      <p class="mvls-muted">
+        <a href="/admin/feedback-management.html">Feedback</a>
+        ·
+        <a href="/admin/access-requests.html">Access Requests</a>
+        ·
+        <a href="/admin/admin-settings.html">System Settings</a>
+        ·
+        <a href="/admin/users.html" class="mvls-system-admin-nav">Users</a>
+        ·
+        <a href="/admin/blocked-access-requests.html" class="mvls-system-admin-nav">Blocked Requests</a>
+        ·
+        <a href="/admin/password-reset-log.html" class="mvls-system-admin-nav">Password Reset Log</a>
+      </p>
+
+      <hr class="mvls-divider">
+
+      <div id="users-container">Loading users...</div>
+    </section>
+  </main>
+
+  <footer class="mvls-footer">
+    <div class="mvls-footer-inner">
+      <div>MVLS Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const CELL_STYLE = "padding: 0.5rem; border-bottom: 1px solid var(--mvls-border);";
+    const HEAD_STYLE = "text-align: left; padding: 0.5rem; border-bottom: 2px solid var(--mvls-border);";
+    const NARROW_HEAD_STYLE = HEAD_STYLE + "width: 6rem;";
+    const SMALL_BUTTON_STYLE = "padding: 0.3rem 0.6rem; font-size: 0.82rem;";
+
+    function makeActionButton(label, onClick) {
+      const button = document.createElement("button");
+      button.className = "mvls-button mvls-button-secondary";
+      button.style.cssText = SMALL_BUTTON_STYLE;
+      button.textContent = label;
+      button.onclick = onClick;
+      return button;
+    }
+
+    async function postUserAction(userId, action, button) {
+      button.disabled = true;
+
+      const response = await fetch(`/api/admin/users/${userId}/${action}`, {
+        method: "POST",
+        credentials: "include"
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        alert(body.detail || `Unable to ${action} user.`);
+        button.disabled = false;
+        return;
+      }
+
+      loadUsers();
+    }
+
+    async function loadUsers() {
+      const container = document.getElementById("users-container");
+
+      const [usersResponse, currentUser] = await Promise.all([
+        fetch("/api/admin/users", { credentials: "include" }),
+        mvlsGetCurrentUser()
+      ]);
+
+      if (usersResponse.status === 403) {
+        container.textContent = "System administrator access required.";
+        return;
+      }
+
+      if (!usersResponse.ok) {
+        container.textContent = "Unable to load users.";
+        return;
+      }
+
+      const users = await usersResponse.json();
+
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+
+      const thead = document.createElement("thead");
+      thead.innerHTML = `
+        <tr>
+          <th style="${HEAD_STYLE}">Full name</th>
+          <th style="${HEAD_STYLE}">Username</th>
+          <th style="${HEAD_STYLE}">Email</th>
+          <th style="${HEAD_STYLE}">Institution</th>
+          <th style="${NARROW_HEAD_STYLE}">Role</th>
+          <th style="${NARROW_HEAD_STYLE}">Status</th>
+          <th style="${NARROW_HEAD_STYLE}">Contributions</th>
+          <th style="${NARROW_HEAD_STYLE}">Accepted</th>
+          <th style="${NARROW_HEAD_STYLE}">Created</th>
+          <th style="${HEAD_STYLE}">Actions</th>
+        </tr>
+      `;
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      for (const u of users) {
+        const row = document.createElement("tr");
+        row.innerHTML = `
+          <td style="${CELL_STYLE}">${u.full_name}</td>
+          <td style="${CELL_STYLE}">${u.username}</td>
+          <td style="${CELL_STYLE}">${u.email}</td>
+          <td style="${CELL_STYLE}">${u.institution || ""}</td>
+          <td style="${CELL_STYLE}">${u.role}</td>
+          <td style="${CELL_STYLE}">${u.account_status}</td>
+          <td style="${CELL_STYLE}">${u.contributions_count || 0}</td>
+          <td style="${CELL_STYLE}">${u.contributions_accepted_count || 0}</td>
+          <td style="${CELL_STYLE}">${u.created_at || ""}</td>
+        `;
+
+        const actionsCell = document.createElement("td");
+        actionsCell.style.cssText = CELL_STYLE;
+
+        const actionsRow = document.createElement("div");
+        actionsRow.style.cssText = "display: flex; gap: 0.4rem; flex-wrap: wrap;";
+        actionsCell.appendChild(actionsRow);
+
+        const isSelf = currentUser && currentUser.username === u.username;
+
+        if (isSelf) {
+          actionsCell.textContent = "(you)";
+        } else if (u.role === "user") {
+          if (u.account_status === "DISABLED") {
+            actionsRow.appendChild(
+              makeActionButton("Reactivate", function (event) {
+                postUserAction(u.user_id, "activate", event.target);
+              })
+            );
+          } else {
+            actionsRow.appendChild(
+              makeActionButton("Deactivate", function (event) {
+                if (confirm(`Deactivate ${u.full_name} (${u.username})? They will no longer be able to log in.`)) {
+                  postUserAction(u.user_id, "deactivate", event.target);
+                }
+              })
+            );
+          }
+
+          actionsRow.appendChild(
+            makeActionButton("Promote", function (event) {
+              if (confirm(`Promote ${u.full_name} (${u.username}) to admin?`)) {
+                postUserAction(u.user_id, "promote", event.target);
+              }
+            })
+          );
+        } else if (u.role === "admin") {
+          actionsRow.appendChild(
+            makeActionButton("Demote", function (event) {
+              if (confirm(`Demote ${u.full_name} (${u.username}) to a regular user?`)) {
+                postUserAction(u.user_id, "demote", event.target);
+              }
+            })
+          );
+        } else {
+          // system_admin is granted only via direct database access,
+          // never through the app - nothing to do here.
+          actionsCell.textContent = "—";
+        }
+
+        row.appendChild(actionsCell);
+        tbody.appendChild(row);
+      }
+
+      table.appendChild(tbody);
+
+      container.innerHTML = "";
+      container.appendChild(table);
+    }
+
+    loadUsers();
+  </script>
+</body>
+</html>

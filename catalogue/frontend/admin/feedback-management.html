@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Feedback Management · MVLS Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/mvls.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="mvls-top-strip">
+    University of Glasgow · MVLS
+  </div>
+
+  <header class="mvls-header">
+    <div class="mvls-header-inner">
+      <div class="mvls-brand-block">
+        <a href="https://www.gla.ac.uk"><img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo"></a>
+        <div class="mvls-brand-text">
+          <h1 class="mvls-title"><a href="https://www.gla.ac.uk/colleges/mvls/">MVLS Virtual Microscopy Catalogue</a></h1>
+          <p class="mvls-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="mvls-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="mvls-page">
+    <section class="mvls-card">
+      <h1>Feedback management</h1>
+      <p class="mvls-muted">
+        Admin-only report of metadata, slide annotation, and David note feedback submitted by catalogue users.
+      </p>
+      <p class="mvls-muted">
+        <a href="/admin/feedback-management.html">Feedback</a>
+        ·
+        <a href="/admin/access-requests.html">Access Requests</a>
+        ·
+        <a href="/admin/admin-settings.html">System Settings</a>
+        ·
+        <a href="/admin/users.html" class="mvls-system-admin-nav">Users</a>
+        ·
+        <a href="/admin/blocked-access-requests.html" class="mvls-system-admin-nav">Blocked Requests</a>
+        ·
+        <a href="/admin/password-reset-log.html" class="mvls-system-admin-nav">Password Reset Log</a>
+      </p>
+
+      <hr class="mvls-divider">
+
+      <div class="mvls-results-toolbar">
+        <div class="mvls-field">
+          <label for="feedback-source-filter">Source</label>
+          <select id="feedback-source-filter">
+            <option value="">All</option>
+            <option value="metadata">Metadata</option>
+            <option value="slide_annotation">Slide annotation</option>
+            <option value="david_note">David note</option>
+          </select>
+        </div>
+
+        <div class="mvls-field">
+          <label for="feedback-status-filter">Status</label>
+          <select id="feedback-status-filter">
+            <option value="">All</option>
+            <option value="new">New</option>
+            <option value="under_review">Under review</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        </div>
+
+        <div class="mvls-field">
+          <label for="feedback-type-filter">Type</label>
+          <input id="feedback-type-filter" type="text" placeholder="e.g. stain, organ">
+        </div>
+
+        <div class="mvls-field">
+          <label for="feedback-slide-filter">Slide ID</label>
+          <input id="feedback-slide-filter" type="number" min="1" placeholder="optional">
+        </div>
+
+        <button id="load-feedback-report" class="mvls-button" type="button">Refresh report</button>
+        <a id="download-feedback-csv" class="mvls-button mvls-button-secondary" href="/api/admin/feedback/export.csv">Download CSV</a>
+      </div>
+
+      <div id="feedback-summary" class="mvls-card" style="margin-bottom: 1rem;">
+        Loading summary...
+      </div>
+
+      <div id="feedback-report-list" class="mvls-results-list"></div>
+    </section>
+  </main>
+
+  <footer class="mvls-footer">
+    <div class="mvls-footer-inner">
+      <div>MVLS Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/feedback-report.js"></script>
+</body>
+</html>
