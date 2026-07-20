@@ -86,31 +86,6 @@ def verify_token(token):
 
 password_hasher = PasswordHasher()
 
-def configured_users():
-    return {
-        os.getenv("GENERAL_USER_USERNAME", "general_user"): {
-            "username": os.getenv("GENERAL_USER_USERNAME", "general_user"),
-            "password": os.getenv("GENERAL_USER_PASSWORD", "change-this-general-password"),
-            "email": os.getenv("GENERAL_USER_EMAIL", "general_user@example.local"),
-            "display_name": "General user",
-            "role": "general_user",
-        },
-        os.getenv("POWER_USER_USERNAME", "power_user"): {
-            "username": os.getenv("POWER_USER_USERNAME", "power_user"),
-            "password": os.getenv("POWER_USER_PASSWORD", "change-this-power-password"),
-            "email": os.getenv("POWER_USER_EMAIL", "power_user@example.local"),
-            "display_name": "Power user",
-            "role": "power_user",
-        },
-        os.getenv("ADMIN_USER_USERNAME", "admin"): {
-            "username": os.getenv("ADMIN_USER_USERNAME", "admin"),
-            "password": os.getenv("ADMIN_USER_PASSWORD", "change-this-admin-password"),
-            "email": os.getenv("ADMIN_USER_EMAIL", "admin@example.local"),
-            "display_name": "Administrator",
-            "role": "admin",
-        },
-    }
-
 
 def require_user(request: Request):
     token = request.cookies.get(SESSION_COOKIE_NAME)

@@ -1,0 +1,50 @@
+#########################################################################
+# extra.omero - OMERO SERVER configuration (sanitized template)
+#
+# Mounted read-only into the omeroserver container at
+# /opt/omero/server/config/extra.omero, applied on every container
+# start. Full reference:
+#   https://omero.readthedocs.io/en/latest/sysadmins/config.html
+#########################################################################
+
+#########################################################################
+# JVM memory - MUST be tuned to the actual host, not left at the demo
+# value below. omero.jvmcfg.system.memory is split across OMERO's
+# internal processes by the percent.* settings underneath it (they
+# should sum to 100 or less, leaving headroom for the OS and any other
+# services sharing this host - Postgres, MariaDB, nginx, etc. in this
+# deployment).
+#
+# 4096 (4GB) here is a "will actually start on a laptop for testing"
+# value, not a production recommendation - a real deployment typically
+# wants considerably more (8-32GB+) depending on concurrent users and
+# image sizes.
+#########################################################################
+config set omero.jvmcfg.system.memory 4096
+config set omero.jvmcfg.percent.blitz 30
+config set omero.jvmcfg.percent.pixeldata 30
+config set omero.jvmcfg.percent.indexer 15
+config set omero.jvmcfg.percent.repository 15
+
+#########################################################################
+# Glacier2 / SSL - encrypts client<->server connections (OMERO.insight
+# and friends). Cert/key come from certs/omero/ (see certificates.sh),
+# mounted read-only at /etc/ssl/omero.
+#########################################################################
+config set omero.glacier2.IceSSL.Ciphers "HIGH"
+config set omero.glacier2.IceSSL.DefaultDir /etc/ssl/omero
+config set omero.glacier2.IceSSL.CAs server.pem
+config set omero.glacier2.IceSSL.CertFile server.p12
+config set omero.client.icetransports ssl,wss
+
+# The .p12 password is supplied via the CONFIG_omero_glacier2_IceSSL_Password
+# environment variable in compose.yaml (sourced from .env's
+# OMEROGLACIER2ICESSLPASSWORD) - do NOT also set it here as a config
+# line, the two would conflict and it's unnecessary duplication of a
+# secret into a second location.
+#config set omero.glacier2.IceSSL.Password CHANGE_ME
+
+# Uncomment to pin TLS versions if your client tooling specifically
+# requires it - left open (any version IceSSL supports) by default:
+#config set omero.glacier2.IceSSL.Protocols TLS1_2
+#config set omero.glacier2.IceSSL.ProtocolVersionMax TLS1_2

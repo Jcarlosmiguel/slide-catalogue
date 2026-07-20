@@ -1,0 +1,232 @@
+################################################################
+# nginx.conf.template
+#
+# Works immediately after `docker compose up -d`, no edits needed:
+#   http://localhost/        -> OMERO (server_name below includes
+#                                "localhost" on purpose)
+#   http://localhost:8080/   -> Catalogue (catalogue_nginx's own port,
+#                                bypasses this file entirely)
+#
+# To move to real domains: replace omero.yourdomain.com and
+# catalogue.yourdomain.com below with your real domains.
+# To add HTTPS: uncomment one of the two HTTPS server blocks near the
+# bottom (and the other, if you're running both apps) plus their
+# ssl_certificate lines. Defaults to HTTP only.
+#
+# Full walkthrough for both steps: SETUP.md.
+################################################################
+
+user nginx;
+worker_processes auto;
+
+error_log /var/log/nginx/error.log notice;
+pid /var/run/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+
+    include /etc/nginx/mime.types;
+    default_type application/octet-stream;
+
+    # WebSocket support (needed by OMERO.iviewer)
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        ''      close;
+    }
+
+    log_format main '$remote_addr - $remote_user [$time_local] "$request" '
+                    '$status $body_bytes_sent "$http_referer" '
+                    '"$http_user_agent" "$http_x_forwarded_for"';
+    access_log /var/log/nginx/access.log main;
+
+    sendfile on;
+    tcp_nopush on;
+    tcp_nodelay on;
+    keepalive_timeout 65;
+    types_hash_max_size 2048;
+    client_max_body_size 0;   # unlimited - OMERO uploads can be large
+
+    upstream omeroweb_backend {
+        server omeroweb:4080;
+    }
+
+    ##############################################################
+    # OMERO - HTTP (active by default, works on localhost as-is)
+    ##############################################################
+    server {
+        listen 80;
+        listen [::]:80;
+
+        server_name omero.yourdomain.com localhost;
+
+        location /images/ {
+            alias /usr/share/nginx/html/images/;
+        }
+
+        location / {
+            add_header Access-Control-Allow-Origin "*" always;
+            add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+            add_header Access-Control-Allow-Headers "*" always;
+            if ($request_method = OPTIONS) {
+                return 204;
+            }
+
+            proxy_pass http://omeroweb_backend;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_read_timeout 600s;
+            proxy_send_timeout 600s;
+        }
+
+        location /omero-ws/ {
+            proxy_pass http://omeroweb:4065/;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400;
+        }
+
+        location ~ ^/omero-wss(/.*)?$ {
+            proxy_pass http://omeroweb_backend;
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection $connection_upgrade;
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400;
+        }
+    }
+
+    ##############################################################
+    # Catalogue - HTTP (active by default)
+    #
+    # Not needed for local testing - catalogue_nginx already publishes
+    # its own port 8080 directly, independent of this file. This block
+    # only starts mattering once catalogue.yourdomain.com actually
+    # resolves to this server.
+    ##############################################################
+    server {
+        listen 80;
+        listen [::]:80;
+
+        server_name catalogue.yourdomain.com;
+
+        location / {
+            proxy_pass http://catalogue_nginx:80;
+            proxy_set_header Host $host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+    }
+
+    ##############################################################
+    # HTTPS - disabled by default. Uncomment what you need once you
+    # have real domains + a certificate. See SETUP.md Part 2.
+    ##############################################################
+
+    # server {
+    #     listen 443 ssl;
+    #     listen [::]:443 ssl;
+    #     http2 on;
+    #
+    #     server_name omero.yourdomain.com;
+    #
+    #     # Shown here: self-signed (SETUP.md has the openssl command to
+    #     # generate one). A real CA-issued cert works identically -
+    #     # just point these two lines at those files instead.
+    #     ssl_certificate     /etc/nginx/ssl/omero-selfsigned.crt;
+    #     ssl_certificate_key /etc/nginx/ssl/omero-selfsigned.key;
+    #
+    #     ssl_protocols TLSv1.2 TLSv1.3;
+    #     ssl_ciphers HIGH:!aNULL:!MD5;
+    #     ssl_prefer_server_ciphers on;
+    #
+    #     location /images/ {
+    #         alias /usr/share/nginx/html/images/;
+    #     }
+    #
+    #     location / {
+    #         add_header Access-Control-Allow-Origin "*" always;
+    #         add_header Access-Control-Allow-Methods "GET, POST, OPTIONS" always;
+    #         add_header Access-Control-Allow-Headers "*" always;
+    #         if ($request_method = OPTIONS) {
+    #             return 204;
+    #         }
+    #
+    #         proxy_pass http://omeroweb_backend;
+    #         proxy_set_header Host $host;
+    #         proxy_set_header X-Real-IP $remote_addr;
+    #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #         proxy_set_header X-Forwarded-Proto $scheme;
+    #         proxy_read_timeout 600s;
+    #         proxy_send_timeout 600s;
+    #     }
+    #
+    #     location /omero-ws/ {
+    #         proxy_pass http://omeroweb:4065/;
+    #         proxy_http_version 1.1;
+    #         proxy_set_header Upgrade $http_upgrade;
+    #         proxy_set_header Connection $connection_upgrade;
+    #         proxy_set_header Host $host;
+    #         proxy_read_timeout 86400;
+    #     }
+    #
+    #     location ~ ^/omero-wss(/.*)?$ {
+    #         proxy_pass http://omeroweb_backend;
+    #         proxy_http_version 1.1;
+    #         proxy_set_header Upgrade $http_upgrade;
+    #         proxy_set_header Connection $connection_upgrade;
+    #         proxy_set_header Host $host;
+    #         proxy_read_timeout 86400;
+    #     }
+    # }
+    #
+    # Optional, once the block above is enabled: replace the active
+    # OMERO HTTP server above with a redirect instead of serving both:
+    # server {
+    #     listen 80;
+    #     listen [::]:80;
+    #     server_name omero.yourdomain.com;
+    #     return 301 https://$host$request_uri;
+    # }
+
+    # server {
+    #     listen 443 ssl;
+    #     listen [::]:443 ssl;
+    #     http2 on;
+    #
+    #     server_name catalogue.yourdomain.com;
+    #
+    #     # If this is a single SAN cert covering both domains (as in
+    #     # the omero-mvls + catalogue merge this template is based on),
+    #     # reuse the same two files as the omero HTTPS block above
+    #     # instead of issuing a second cert.
+    #     ssl_certificate     /etc/nginx/ssl/catalogue-selfsigned.crt;
+    #     ssl_certificate_key /etc/nginx/ssl/catalogue-selfsigned.key;
+    #
+    #     ssl_protocols TLSv1.2 TLSv1.3;
+    #     ssl_ciphers HIGH:!aNULL:!MD5;
+    #     ssl_prefer_server_ciphers on;
+    #
+    #     location / {
+    #         proxy_pass http://catalogue_nginx:80;
+    #         proxy_set_header Host $host;
+    #         proxy_set_header X-Real-IP $remote_addr;
+    #         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    #         proxy_set_header X-Forwarded-Proto $scheme;
+    #     }
+    # }
+    #
+    # server {
+    #     listen 80;
+    #     listen [::]:80;
+    #     server_name catalogue.yourdomain.com;
+    #     return 301 https://$host$request_uri;
+    # }
+}

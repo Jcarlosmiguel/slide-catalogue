@@ -1,0 +1,97 @@
+#########################################################################
+# extraweb.omero - OMERO WEB configuration (sanitized template)
+#
+# Mounted read-only into the omeroweb container at
+# /opt/omero/web/config/extraweb.omero, applied on every container
+# start. Full reference:
+#   https://omero.readthedocs.io/en/stable/sysadmins/config.html#web
+#########################################################################
+
+#########################################################################
+# Optional Redis session/cache backend - uncomment all three together
+# if you're running a redis container and want faster/shared sessions
+# instead of the DB-backed default. Not needed for a basic deployment.
+#########################################################################
+#config set omero.web.caches.default.BACKEND "django_redis.cache.RedisCache"
+#config set omero.web.caches.default.LOCATION "redis://redis:6379/1"
+#config set omero.web.session_engine "django.contrib.sessions.backends.cache"
+
+#########################################################################
+# Logo on the OMERO.web login page - served by nginx from ./logo/ (see
+# the /images/ location in nginx.conf.template). Uncomment and point at
+# your own logo once you have one in place. Must be a URL reachable
+# from users' browsers, not just from inside the container.
+#########################################################################
+#config set omero.web.login_logo 'https://omero.yourdomain.com/images/your-logo.png'
+
+#########################################################################
+# OMERO.iviewer as the default viewer
+#########################################################################
+config append omero.web.open_with '["omero_iviewer", "omero_iviewer_index",{"supported_objects":["images","dataset","well"],"script_url":"omero_iviewer/openwith.js","label":"OMERO.iviewer"}]'
+config set omero.web.viewer.view omero_iviewer.views.index
+
+# Removes the clickjacking-protection middleware entirely, rather than
+# the more scoped x_frame_options/CORS approach further down - not
+# recommended unless you have a specific reason; prefer the scoped
+# opt-in embedding section below instead.
+#config remove omero.web.middleware '{"index": 6, "class": "django.middleware.clickjacking.XFrameOptionsMiddleware"}'
+
+#########################################################################
+# HTTPS / cookie security
+#
+# Leave commented out (False is OMERO.web's default) while testing over
+# plain HTTP - per SETUP.md Part 1/2, a secure-only cookie is silently
+# dropped by the browser over HTTP, which shows up as "login works but
+# I'm immediately logged out again". Only uncomment once the domain is
+# genuinely served over HTTPS (SETUP.md Part 2, step 2.4 onward).
+#########################################################################
+#config set omero.web.secure True
+
+#########################################################################
+# CSRF trusted origins - REQUIRED once you're on a real domain and
+# serving over HTTPS, or OMERO.web will reject legitimate login/API
+# POST requests with a CSRF error. Must exactly match the domain
+# (scheme + host) you actually serve OMERO.web from - update this
+# alongside FULLDOMAIN in .env if the domain ever changes.
+#########################################################################
+#config set omero.web.csrf_trusted_origins '["https://omero.yourdomain.com"]'
+
+#########################################################################
+# Embedding OMERO content in another site (e.g. an LMS course page via
+# iframe) - OFF by default. Only enable if you specifically need this;
+# each directive here loosens a real security boundary:
+#
+#   cors_origin_whitelist - allows the listed origin(s) to make
+#                            cross-site requests to OMERO.web's API.
+#   x_frame_options ""    - allows ANY site (not just the origin(s)
+#                            above) to embed OMERO.web pages in an
+#                            iframe - this disables clickjacking
+#                            protection globally, it isn't scoped to
+#                            cors_origin_whitelist.
+#
+# Do NOT also set cors_origin_allow_all True alongside a whitelist -
+# allow_all permits every origin, which makes the whitelist pointless
+# and is far more permissive than most deployments actually need.
+# List only the specific origin(s) you're embedding into instead.
+#########################################################################
+#config set omero.web.cors_origin_whitelist '["https://your-lms.example.edu"]'
+#config set omero.web.x_frame_options ""
+
+#########################################################################
+# Public (unauthenticated) viewing account - OFF by default.
+#
+# omero.web.public.enabled lets anonymous visitors view a restricted
+# subset of content (per url_filter below) as a shared "public" OMERO
+# account, no login required. If you enable this, you MUST set a real,
+# non-guessable password - never ship this with an obvious value like
+# 'omero' or 'public', since anyone who finds it gets whatever access
+# that account has, with zero authentication.
+#########################################################################
+#config set omero.web.public.enabled True
+#config set omero.web.public.user 'public'
+#config set omero.web.public.password 'CHANGE_ME'
+#config set omero.web.public.url_filter "^/(iviewer|webgateway|api)"
+# server_id identifies which OMERO server (in a multi-server web setup)
+# this public account applies to - 1 is correct for a single-server
+# deployment like this one.
+#config set omero.web.public.server_id 1
