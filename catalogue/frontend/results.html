@@ -2,49 +2,51 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Search Results · MVLS Virtual Microscopy Catalogue</title>
+  <title>Search Results · Virtual Microscopy Catalogue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/css/mvls.css">
+  <link rel="stylesheet" href="/css/catalogue.css">
   
   <script src="/js/auth.js"></script>
+  <script src="/js/glossary.js"></script>
 </head>
 
 <body>
-  <div class="mvls-top-strip">
-    University of Glasgow · MVLS
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
   </div>
 
-  <header class="mvls-header">
-    <div class="mvls-header-inner">
-      <div class="mvls-brand-block">
-        <a href="https://www.gla.ac.uk"><img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo"></a>
-        <div class="mvls-brand-text">
-          <h1 class="mvls-title"><a href="https://www.gla.ac.uk/colleges/mvls/">MVLS Virtual Microscopy Catalogue</a></h1>
-          <p class="mvls-subtitle">Clean search results list</p>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Clean search results list</p>
         </div>
       </div>
 
-      <nav class="mvls-nav" aria-label="Main navigation">
+      <nav class="vmc-nav" aria-label="Main navigation">
         <a href="/">Home</a>
         <a href="/documents/about.html">About</a>
         <a href="/documents/contact.html">Contact</a>
         <a href="/documents/help.html">Help</a>
-        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+        <a href="/reviewer-dashboard.html" class="vmc-reviewer-nav">Reviewer dashboard</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
       </nav>
     </div>
   </header>
 
-  <main class="mvls-page">
-    <div class="mvls-return-bar">
-      <a class="mvls-button mvls-button-secondary" href="/">← Return to Search</a>
+  <main class="vmc-page">
+    <div class="vmc-return-bar">
+      <a class="vmc-button vmc-button-secondary" href="/">← Return to Search</a>
     </div>
 
-    <section class="mvls-result-shell">
+    <section class="vmc-result-shell">
       <h2>Search results</h2>
-      <p id="results-summary" class="mvls-results-count">Loading results...</p>
+      <p id="results-summary" class="vmc-results-count">Loading results...</p>
 
-      <div class="mvls-results-toolbar">
-        <div class="mvls-field">
+      <div class="vmc-results-toolbar">
+        <div class="vmc-field">
           <label for="order-by">Order by</label>
           <select id="order-by">
             <option value="slide_id">Slide ID</option>
@@ -57,7 +59,7 @@
           </select>
         </div>
 
-        <div class="mvls-field">
+        <div class="vmc-field">
           <label for="order-dir">Direction</label>
           <select id="order-dir">
             <option value="asc">Ascending</option>
@@ -65,7 +67,7 @@
           </select>
         </div>
 
-        <div class="mvls-field">
+        <div class="vmc-field">
           <label for="view-mode">View mode</label>
           <select id="view-mode">
             <option value="paged">Paged results</option>
@@ -73,7 +75,7 @@
           </select>
         </div>
 
-        <div class="mvls-field">
+        <div class="vmc-field">
           <label for="page-size">Results per page</label>
           <select id="page-size">
             <option value="25">25</option>
@@ -82,27 +84,29 @@
           </select>
         </div>
 
-        <button id="apply-results-options" class="mvls-button" type="button">Apply</button>
+        <button id="apply-results-options" class="vmc-button" type="button">Apply</button>
       </div>
 
-      <div id="results-list" class="mvls-results-list">
+      <div id="results-list" class="vmc-results-list">
       </div>
 
-      <div class="mvls-pagination">
-        <button id="prev-page" class="mvls-button mvls-button-secondary" type="button">Previous</button>
-        <span id="pagination-status" class="mvls-pagination-status">[/span]
-        <button id="next-page" class="mvls-button mvls-button-secondary" type="button">Next</button>
+      <div class="vmc-pagination">
+        <button id="prev-page" class="vmc-button vmc-button-secondary" type="button">Previous</button>
+        <span id="pagination-status" class="vmc-pagination-status">[/span]
+        <button id="next-page" class="vmc-button vmc-button-secondary" type="button">Next</button>
       </div>
     </section>
   </main>
 
-  <footer class="mvls-footer">
-    <div class="mvls-footer-inner">
-      <div>MVLS Virtual Microscopy Catalogue</div>
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
       <div>
         <a href="/documents/about.html">About</a>
         ·
         <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
       </div>
     </div>
   </footer>

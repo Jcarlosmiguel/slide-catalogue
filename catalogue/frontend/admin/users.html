@@ -2,80 +2,108 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Users · MVLS Catalogue</title>
+  <title>Users · Virtual Microscopy Catalogue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/css/mvls.css">
+  <link rel="stylesheet" href="/css/catalogue.css">
   <script src="/js/auth.js"></script>
 </head>
 <body>
-  <div class="mvls-top-strip">
-    University of Glasgow · MVLS
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
   </div>
 
-  <header class="mvls-header">
-    <div class="mvls-header-inner">
-      <div class="mvls-brand-block">
-        <a href="https://www.gla.ac.uk"><img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo"></a>
-        <div class="mvls-brand-text">
-          <h1 class="mvls-title"><a href="https://www.gla.ac.uk/colleges/mvls/">MVLS Virtual Microscopy Catalogue</a></h1>
-          <p class="mvls-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
         </div>
       </div>
-      <nav class="mvls-nav" aria-label="Main navigation">
+      <nav class="vmc-nav" aria-label="Main navigation">
         <a href="/">Home</a>
         <a href="/results.html">Search slides</a>
         <a href="/documents/about.html">About</a>
         <a href="/documents/contact.html">Contact</a>
         <a href="/documents/help.html">Help</a>
-        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
       </nav>
     </div>
   </header>
 
-  <main class="mvls-page">
-    <section class="mvls-card">
+  <main class="vmc-page">
+    <section class="vmc-card">
       <h1>Users</h1>
       <p>All registered catalogue users. Visible to system administrators only.</p>
-      <p class="mvls-muted">
-        <a href="/admin/feedback-management.html">Feedback</a>
+      <p class="vmc-muted">
+        <a href="/admin/corrections-management.html">Corrections</a>
+        ·
+        <a href="/admin/site-feedback.html">Site Feedback</a>
         ·
         <a href="/admin/access-requests.html">Access Requests</a>
         ·
         <a href="/admin/admin-settings.html">System Settings</a>
         ·
-        <a href="/admin/users.html" class="mvls-system-admin-nav">Users</a>
+        <a href="/admin/users.html" class="vmc-system-admin-nav">Users</a>
         ·
-        <a href="/admin/blocked-access-requests.html" class="mvls-system-admin-nav">Blocked Requests</a>
+        <a href="/admin/blocked-access-requests.html" class="vmc-system-admin-nav">Blocked Requests</a>
         ·
-        <a href="/admin/password-reset-log.html" class="mvls-system-admin-nav">Password Reset Log</a>
+        <a href="/admin/password-reset-log.html" class="vmc-system-admin-nav">Password Reset Log</a>
       </p>
 
-      <hr class="mvls-divider">
+      <hr class="vmc-divider">
 
       <div id="users-container">Loading users...</div>
     </section>
   </main>
 
-  <footer class="mvls-footer">
-    <div class="mvls-footer-inner">
-      <div>MVLS Virtual Microscopy Catalogue</div>
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
       <div>
         <a href="/documents/about.html">About</a>
         ·
         <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
       </div>
     </div>
   </footer>
 
   <script>
-    const CELL_STYLE = "padding: 0.5rem; border-bottom: 1px solid var(--mvls-border);";
-    const HEAD_STYLE = "text-align: left; padding: 0.5rem; border-bottom: 2px solid var(--mvls-border);";
+    const CELL_STYLE = "padding: 0.5rem; border-bottom: 1px solid var(--vmc-border);";
+    const HEAD_STYLE = "text-align: left; padding: 0.5rem; border-bottom: 2px solid var(--vmc-border);";
     const NARROW_HEAD_STYLE = HEAD_STYLE + "width: 6rem;";
     const SMALL_BUTTON_STYLE = "padding: 0.3rem 0.6rem; font-size: 0.82rem;";
 
+    function formatDate(isoString) {
+      if (!isoString) {
+        return "";
+      }
+
+      const parsed = new Date(isoString);
+
+      if (isNaN(parsed.getTime())) {
+        return "";
+      }
+
+      const pad = function (n) {
+        return String(n).padStart(2, "0");
+      };
+
+      const day = pad(parsed.getDate());
+      const month = pad(parsed.getMonth() + 1);
+      const year = String(parsed.getFullYear()).slice(-2);
+      const hours = pad(parsed.getHours());
+      const minutes = pad(parsed.getMinutes());
+
+      return day + "/" + month + "/" + year + " " + hours + ":" + minutes;
+    }
+
     function makeActionButton(label, onClick) {
       const button = document.createElement("button");
-      button.className = "mvls-button mvls-button-secondary";
+      button.className = "vmc-button vmc-button-secondary";
       button.style.cssText = SMALL_BUTTON_STYLE;
       button.textContent = label;
       button.onclick = onClick;
@@ -100,12 +128,32 @@
       loadUsers();
     }
 
+    async function postUserRoleChange(userId, role, selectEl) {
+      selectEl.disabled = true;
+
+      const response = await fetch(`/api/admin/users/${userId}/set-role`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ role })
+      });
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        alert(body.detail || "Unable to change role.");
+        selectEl.disabled = false;
+        return;
+      }
+
+      loadUsers();
+    }
+
     async function loadUsers() {
       const container = document.getElementById("users-container");
 
       const [usersResponse, currentUser] = await Promise.all([
         fetch("/api/admin/users", { credentials: "include" }),
-        mvlsGetCurrentUser()
+        vmcGetCurrentUser()
       ]);
 
       if (usersResponse.status === 403) {
@@ -136,6 +184,7 @@
           <th style="${NARROW_HEAD_STYLE}">Contributions</th>
           <th style="${NARROW_HEAD_STYLE}">Accepted</th>
           <th style="${NARROW_HEAD_STYLE}">Created</th>
+          <th style="${NARROW_HEAD_STYLE}">Last login</th>
           <th style="${HEAD_STYLE}">Actions</th>
         </tr>
       `;
@@ -154,7 +203,8 @@
           <td style="${CELL_STYLE}">${u.account_status}</td>
           <td style="${CELL_STYLE}">${u.contributions_count || 0}</td>
           <td style="${CELL_STYLE}">${u.contributions_accepted_count || 0}</td>
-          <td style="${CELL_STYLE}">${u.created_at || ""}</td>
+          <td style="${CELL_STYLE}">${formatDate(u.created_at)}</td>
+          <td style="${CELL_STYLE}">${formatDate(u.last_login_at) || "Never"}</td>
         `;
 
         const actionsCell = document.createElement("td");
@@ -168,42 +218,53 @@
 
         if (isSelf) {
           actionsCell.textContent = "(you)";
-        } else if (u.role === "user") {
-          if (u.account_status === "DISABLED") {
-            actionsRow.appendChild(
-              makeActionButton("Reactivate", function (event) {
-                postUserAction(u.user_id, "activate", event.target);
-              })
-            );
-          } else {
-            actionsRow.appendChild(
-              makeActionButton("Deactivate", function (event) {
-                if (confirm(`Deactivate ${u.full_name} (${u.username})? They will no longer be able to log in.`)) {
-                  postUserAction(u.user_id, "deactivate", event.target);
-                }
-              })
-            );
-          }
-
-          actionsRow.appendChild(
-            makeActionButton("Promote", function (event) {
-              if (confirm(`Promote ${u.full_name} (${u.username}) to admin?`)) {
-                postUserAction(u.user_id, "promote", event.target);
-              }
-            })
-          );
-        } else if (u.role === "admin") {
-          actionsRow.appendChild(
-            makeActionButton("Demote", function (event) {
-              if (confirm(`Demote ${u.full_name} (${u.username}) to a regular user?`)) {
-                postUserAction(u.user_id, "demote", event.target);
-              }
-            })
-          );
-        } else {
+        } else if (u.role === "system_admin") {
           // system_admin is granted only via direct database access,
           // never through the app - nothing to do here.
           actionsCell.textContent = "—";
+        } else {
+          if (u.role === "user") {
+            if (u.account_status === "DISABLED") {
+              actionsRow.appendChild(
+                makeActionButton("Reactivate", function (event) {
+                  postUserAction(u.user_id, "activate", event.target);
+                })
+              );
+            } else {
+              actionsRow.appendChild(
+                makeActionButton("Deactivate", function (event) {
+                  if (confirm(`Deactivate ${u.full_name} (${u.username})? They will no longer be able to log in.`)) {
+                    postUserAction(u.user_id, "deactivate", event.target);
+                  }
+                })
+              );
+            }
+          }
+
+          const roleSelect = document.createElement("select");
+          ["user", "admin", "reviewer", "expert"].forEach(function (roleOption) {
+            const option = document.createElement("option");
+            option.value = roleOption;
+            option.textContent = roleOption;
+            if (roleOption === u.role) {
+              option.selected = true;
+            }
+            roleSelect.appendChild(option);
+          });
+
+          roleSelect.addEventListener("change", function () {
+            const newRole = roleSelect.value;
+            if (newRole === u.role) {
+              return;
+            }
+            if (confirm(`Change ${u.full_name} (${u.username}) role from ${u.role} to ${newRole}?`)) {
+              postUserRoleChange(u.user_id, newRole, roleSelect);
+            } else {
+              roleSelect.value = u.role;
+            }
+          });
+
+          actionsRow.appendChild(roleSelect);
         }
 
         row.appendChild(actionsCell);

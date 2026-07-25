@@ -1,0 +1,43 @@
+# Virtual Microscopy Catalogue
+
+A self-hosted catalogue app for browsing, searching, and annotating virtual
+microscopy slide archives - built for teaching use (search by organ/species/
+stain, review slide metadata, flag corrections, export QuPath annotation
+scripts, prepare slides for publication).
+
+## Getting started
+
+```bash
+cp .env.example .env    # then fill in the required values, see below
+docker compose up -d
+```
+
+The app will be available at `http://localhost:$HTTP_PORT` (see `.env`).
+
+Required environment variables (see `compose.yaml` for the full list):
+
+- `MARIADB_ROOT_PASSWORD`, `MARIADB_DATABASE`, `MARIADB_USER`, `MARIADB_PASSWORD`
+- `APP_ENV`, `APP_SESSION_SECRET`, `APP_BASE_URL`
+- `HTTP_PORT`, `ADMINER_PORT`
+- `SHARE_ROOT_WINDOWS` / `SHARE_ROOT_MACOS` / `SHARE_ROOT_LINUX` - the mount
+  paths of your slide archive share on each OS, shown to users as a
+  ready-to-copy path
+- `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` -
+  outgoing mail for account activation/password reset
+
+Run database migrations after first startup and after every pull:
+
+```bash
+./catalogue/backend/migrations/run_migrations.sh
+```
+
+## Where to look
+
+| Folder | What's there |
+|---|---|
+| `catalogue/` | The application itself - see `catalogue/README.md`. |
+| `compose.yaml` | Docker Compose stack (MariaDB, backend, nginx, optional mail relay and Adminer). |
+| `backup_mariadb.sh` | Database backup script. |
+
+For architecture, database schema, deployment, and maintenance docs, see
+`catalogue/docs/`.

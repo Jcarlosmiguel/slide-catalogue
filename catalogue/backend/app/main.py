@@ -2,6 +2,7 @@ import os
 import json
 import csv
 import io
+import re
 import hmac
 import time
 import base64
@@ -22,10 +23,13 @@ from fastapi import FastAPI, HTTPException, Query, Request, Response, Body, Depe
 from fastapi.responses import StreamingResponse
 
 from app.mailer import send_email
+from app.permissions import require_permission
+from app.qupath_script import generate_script as generate_qupath_script
+from app.qupath_script import parse_color as parse_qupath_color
 
 
 app = FastAPI(
-    title="MVLS Virtual Microscopy Catalogue API",
+    title="Virtual Microscopy Catalogue API",
     root_path=os.getenv("APP_ROOT_PATH", "")
 )
 
@@ -33,7 +37,7 @@ app = FastAPI(
 # Prototype local authentication
 # ---------------------------------------------------------------------
 
-SESSION_COOKIE_NAME = "mvls_session"
+SESSION_COOKIE_NAME = "vmc_session"
 SESSION_DURATION_SECONDS = 12 * 60 * 60
 
 
@@ -193,6 +197,13 @@ def login(response: Response, payload: dict = Body(...)):
                 detail="Invalid username or password"
             )
 
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE users SET last_login_at = NOW() WHERE user_id = %s",
+                (user["user_id"],),
+            )
+        conn.commit()
+
     finally:
 
         conn.close()
@@ -315,7 +326,7 @@ def notify_registration_event(cur, event: str, context: dict) -> None:
     if not to_address:
         return
 
-    subject_template = settings.get(subject_key) or "MVLS Catalogue notification"
+    subject_template = settings.get(subject_key) or "Catalogue notification"
     message_template = settings.get(message_key) or ""
 
     safe_context = _SafeFormatDict(context)
@@ -350,9 +361,9 @@ def send_activation_invite(cur, context: dict) -> None:
 
     settings = {row["setting_name"]: row["setting_value"] for row in cur.fetchall()}
 
-    subject_template = settings.get("activation_invite_subject") or "Activate your MVLS Catalogue account"
+    subject_template = settings.get("activation_invite_subject") or "Activate your Catalogue account"
     message_template = settings.get("activation_invite_message") or (
-        "Your MVLS Virtual Microscopy Catalogue account has been approved.\n\n"
+        "Your Virtual Microscopy Catalogue account has been approved.\n\n"
         "Activate your account here:\n{activation_link}\n\n"
         "This link expires on {expires_at}."
     )
@@ -388,9 +399,9 @@ def send_password_reset_email(cur, context: dict) -> None:
 
     settings = {row["setting_name"]: row["setting_value"] for row in cur.fetchall()}
 
-    subject_template = settings.get("password_reset_subject") or "Reset your MVLS Catalogue password"
+    subject_template = settings.get("password_reset_subject") or "Reset your Catalogue password"
     message_template = settings.get("password_reset_message") or (
-        "We received a request to reset the password for your MVLS Virtual "
+        "We received a request to reset the password for your Virtual "
         "Microscopy Catalogue account ({username}).\n\n"
         "Reset your password here:\n{reset_link}\n\n"
         "This link expires on {expires_at}.\n\n"
@@ -405,6 +416,46 @@ def send_password_reset_email(cur, context: dict) -> None:
         send_email(context["email"], subject, body)
     except Exception as exc:
         print("Failed to send password reset email:", exc)
+
+
+def send_activation_confirmation_email(cur, context: dict) -> None:
+    """Email the user themselves confirming their account is now active.
+
+    Separate from notify_registration_event(cur, "activation", ...),
+    which is the optional admin-facing FYI - this one goes to the user
+    who just activated, always. Best-effort: a broken mail server must
+    not break the activation itself.
+    """
+
+    cur.execute(
+        """
+        SELECT setting_name, setting_value
+        FROM system_settings
+        WHERE setting_name IN (
+            'activation_confirmation_subject',
+            'activation_confirmation_message'
+        )
+        """
+    )
+
+    settings = {row["setting_name"]: row["setting_value"] for row in cur.fetchall()}
+
+    subject_template = settings.get("activation_confirmation_subject") or "Your Catalogue account is now active"
+    message_template = settings.get("activation_confirmation_message") or (
+        "Hi {full_name},\n\n"
+        "Your Virtual Microscopy Catalogue account ({username}) has been "
+        "activated successfully. You can now log in here:\n{login_link}\n\n"
+        "If you did not perform this activation, please contact us immediately."
+    )
+
+    safe_context = _SafeFormatDict(context)
+    subject = subject_template.format_map(safe_context)
+    body = message_template.format_map(safe_context)
+
+    try:
+        send_email(context["email"], subject, body)
+    except Exception as exc:
+        print("Failed to send activation confirmation email:", exc)
 
 
 def _validate_password_policy(password: str) -> None:
@@ -492,7 +543,7 @@ def get_share_root(os_key: str):
         return {
             "os": "windows",
             "display_name": "Windows",
-            "path_prefix": os.getenv("SHARE_ROOT_WINDOWS", r"\\mvls-share\virtual-microscopy"),
+            "path_prefix": os.getenv("SHARE_ROOT_WINDOWS", r"\\share\virtual-microscopy"),
             "separator": "\\",
         }
 
@@ -516,7 +567,7 @@ def get_share_root(os_key: str):
 def health():
     return {
         "status": "ok",
-        "service": "mvls-catalogue-backend"
+        "service": "catalogue-backend"
     }
 
 
@@ -839,7 +890,7 @@ def _notify_system_admins_of_blocked_request(cur, email, full_name, reason_text)
         """
     )
 
-    subject = "MVLS Catalogue - Blocked duplicate access request"
+    subject = "Catalogue - Blocked duplicate access request"
     body = (
         "A blocked access request attempt was recorded.\n\n"
         f"Name: {full_name}\n"
@@ -1369,6 +1420,17 @@ def activate_account(
                 },
             )
 
+            send_activation_confirmation_email(
+                cur,
+                {
+                    "full_name": token_row["full_name"],
+                    "username": token_row["username"],
+                    "email": token_row["email"],
+                    "activated_at": datetime.utcnow().strftime("%Y-%m-%d %H:%M UTC"),
+                    "login_link": os.getenv("APP_BASE_URL", "http://localhost:8080") + "/login.html",
+                },
+            )
+
             return {
                 "status": "success",
                 "message": "Account activated"
@@ -1663,11 +1725,17 @@ def search_slides(
     user: dict = Depends(require_user),
     q: Optional[str] = None,
     slide_id: Optional[int] = None,
+    filename: Optional[str] = None,
     organ: Optional[str] = None,
     species: Optional[str] = None,
     stain: Optional[str] = None,
     tissue: Optional[str] = None,
+    has_slide_annotations: Optional[bool] = None,
     has_david_notes: Optional[bool] = None,
+    is_z_stack: Optional[bool] = None,
+    is_multiview: Optional[bool] = None,
+    is_comparison_slide: Optional[bool] = None,
+    legacy_thick_section: Optional[bool] = None,
     active_only: bool = True,
     order_by: str = Query("slide_id"),
     order_dir: str = Query("asc"),
@@ -1684,6 +1752,18 @@ def search_slides(
     if slide_id is not None:
         where.append("s.slide_id = %s")
         params.append(slide_id)
+
+
+    if filename:
+        # Digit-boundary match, not a plain substring - searching "780"
+        # should find "Slide780" or "DR 402,780" but not match as part
+        # of a longer digit run like "1780". A plain \b word boundary
+        # is too strict here (it would also reject "Slide780", since
+        # a letter directly touching a digit has no \b between them) -
+        # only reject when the match is directly flanked by *another
+        # digit*, not by a letter or punctuation.
+        where.append("s.filename REGEXP %s")
+        params.append(r"(?<![0-9])" + re.escape(filename.strip()) + r"(?![0-9])")
 
 
     if q:
@@ -1746,10 +1826,35 @@ def search_slides(
         like = f"%{tissue}%"
         params.extend([like, like, like, like])
 
+    if has_slide_annotations is True:
+        where.append("EXISTS (SELECT 1 FROM slide_annotations sa2 WHERE sa2.slide_id = s.slide_id AND sa2.flagged_incorrect = 0)")
+    elif has_slide_annotations is False:
+        where.append("NOT EXISTS (SELECT 1 FROM slide_annotations sa2 WHERE sa2.slide_id = s.slide_id AND sa2.flagged_incorrect = 0)")
+
     if has_david_notes is True:
         where.append("EXISTS (SELECT 1 FROM slide_david_annotations sda WHERE sda.slide_id = s.slide_id)")
     elif has_david_notes is False:
         where.append("NOT EXISTS (SELECT 1 FROM slide_david_annotations sda WHERE sda.slide_id = s.slide_id)")
+
+    if is_z_stack is True:
+        where.append("(sm.is_z_stack = 1 OR sm.z_plane_count > 1)")
+    elif is_z_stack is False:
+        where.append("(sm.is_z_stack IS NULL OR sm.is_z_stack = 0) AND (sm.z_plane_count IS NULL OR sm.z_plane_count <= 1)")
+
+    if is_multiview is True:
+        where.append("sm.meaningful_view_count > 1")
+    elif is_multiview is False:
+        where.append("(sm.meaningful_view_count IS NULL OR sm.meaningful_view_count <= 1)")
+
+    if is_comparison_slide is True:
+        where.append("sm.is_comparison_slide = 1")
+    elif is_comparison_slide is False:
+        where.append("(sm.is_comparison_slide IS NULL OR sm.is_comparison_slide = 0)")
+
+    if legacy_thick_section is True:
+        where.append("sm.legacy_thick_section = 1")
+    elif legacy_thick_section is False:
+        where.append("(sm.legacy_thick_section IS NULL OR sm.legacy_thick_section = 0)")
 
     where_sql = ""
     if where:
@@ -1820,7 +1925,7 @@ def search_slides(
             EXISTS (
                 SELECT 1
                 FROM slide_annotations sa
-                WHERE sa.slide_id = s.slide_id
+                WHERE sa.slide_id = s.slide_id AND sa.flagged_incorrect = 0
             ) AS has_slide_annotations,
 
             EXISTS (
@@ -1889,8 +1994,87 @@ def search_slides(
 
 
 
-@app.post("/api/slides/{slide_id}/metadata-feedback")
-def create_metadata_feedback(
+@app.get("/api/dictionaries/{dictionary_name}")
+def dictionary_values(
+    dictionary_name: str,
+    user: dict = Depends(require_user),
+):
+    """Dictionary values for the metadata-correction form's dropdowns.
+
+    Unlike /api/admin/dictionaries, this is available to any logged-in
+    user (not just admins), and also covers tissue.
+    """
+
+    dictionary_name = dictionary_name.lower()
+
+    if dictionary_name not in {"organ", "tissue", "species", "stain"}:
+        raise HTTPException(status_code=400, detail="Unsupported dictionary")
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            if dictionary_name == "organ":
+                cur.execute(
+                    """
+                    SELECT DISTINCT
+                        organ_name AS value,
+                        COALESCE(canonical_organ, organ_name) AS label
+                    FROM organ_dictionary
+                    WHERE active = 1
+                    ORDER BY label, value
+                    """
+                )
+
+            elif dictionary_name == "tissue":
+                cur.execute(
+                    """
+                    SELECT DISTINCT
+                        tissue_name AS value,
+                        COALESCE(canonical_tissue, tissue_name) AS label
+                    FROM tissue_dictionary
+                    WHERE active = 1
+                    ORDER BY label, value
+                    """
+                )
+
+            elif dictionary_name == "species":
+                cur.execute(
+                    """
+                    SELECT DISTINCT
+                        species_name AS value,
+                        COALESCE(canonical_species, species_name) AS label
+                    FROM species_dictionary
+                    WHERE active = 1
+                    ORDER BY label, value
+                    """
+                )
+
+            else:
+                cur.execute(
+                    """
+                    SELECT DISTINCT
+                        original_stain AS value,
+                        COALESCE(canonical_stain, original_stain) AS label
+                    FROM stain_dictionary
+                    WHERE original_stain IS NOT NULL
+                    ORDER BY label, value
+                    """
+                )
+
+            rows = clean_rows(cur.fetchall())
+
+    finally:
+        conn.close()
+
+    return {
+        "dictionary": dictionary_name,
+        "values": rows,
+    }
+
+
+@app.post("/api/slides/{slide_id}/metadata-correction")
+def create_metadata_correction(
     slide_id: int,
     request: Request,
     payload: dict = Body(...),
@@ -1901,13 +2085,10 @@ def create_metadata_feedback(
     suggested_value = payload.get("suggested_value")
     feedback_text = str(payload.get("feedback_text", "")).strip()
 
-    allowed_types = {"organ", "tissue", "species", "stain", "general_comment"}
+    allowed_types = {"organ", "tissue", "species", "stain", "description", "notes", "general_comment"}
 
     if feedback_type not in allowed_types:
         raise HTTPException(status_code=400, detail="Invalid feedback type")
-
-    if not feedback_text:
-        raise HTTPException(status_code=400, detail="Feedback text is required")
 
     conn = get_db_connection()
 
@@ -1934,7 +2115,7 @@ def create_metadata_feedback(
 
             cur.execute(
                 """
-                INSERT INTO slide_feedback (
+                INSERT INTO slide_corrections (
                     slide_id,
                     slide_filename,
                     feedback_source,
@@ -1990,6 +2171,116 @@ def create_metadata_feedback(
             "feedback_id": feedback_id,
             "feedback_source": "metadata",
             "message": "Metadata feedback submitted for review",
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    finally:
+        conn.close()
+
+
+@app.post("/api/slides/{slide_id}/annotation-feedback")
+def create_annotation_feedback(
+    slide_id: int,
+    request: Request,
+    payload: dict = Body(...),
+    user: dict = Depends(require_user),
+):
+    annotation_id = payload.get("annotation_id")
+    verdict = str(payload.get("verdict", "")).strip().lower()
+    feedback_text = str(payload.get("feedback_text", "")).strip()
+
+    if verdict not in ("correct", "incorrect"):
+        raise HTTPException(status_code=400, detail="verdict must be 'correct' or 'incorrect'")
+
+    if not annotation_id:
+        raise HTTPException(status_code=400, detail="annotation_id is required")
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT filename FROM slides WHERE slide_id = %s", (slide_id,))
+            slide = cur.fetchone()
+
+            if slide is None:
+                raise HTTPException(status_code=404, detail="Slide not found")
+
+            cur.execute(
+                "SELECT annotation_id FROM slide_annotations WHERE annotation_id = %s AND slide_id = %s",
+                (annotation_id, slide_id),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Annotation not found on this slide")
+
+            remote_addr = None
+            if request.client:
+                remote_addr = request.client.host
+
+            user_agent = request.headers.get("user-agent", "")
+
+            cur.execute(
+                """
+                INSERT INTO slide_corrections (
+                    slide_id,
+                    slide_filename,
+                    feedback_source,
+                    feedback_type,
+                    source_annotation_id,
+                    suggested_value,
+                    feedback_text,
+                    submitter_username,
+                    submitter_email,
+                    submitter_display_name,
+                    submitter_role,
+                    remote_addr,
+                    user_agent
+                )
+                VALUES (
+                    %s, %s, 'slide_annotation', 'annotation_review',
+                    %s, %s, %s,
+                    %s, %s, %s, %s,
+                    %s, %s
+                )
+                """,
+                (
+                    slide_id,
+                    slide["filename"],
+                    annotation_id,
+                    verdict,
+                    feedback_text,
+                    user.get("username"),
+                    user.get("email"),
+                    user.get("display_name"),
+                    user.get("role"),
+                    remote_addr,
+                    user_agent[:500] if user_agent else None,
+                ),
+            )
+
+            feedback_id = cur.lastrowid
+
+            cur.execute(
+                """
+                UPDATE users
+                SET contributions_count = contributions_count + 1
+                WHERE username = %s
+                """,
+                (user.get("username"),),
+            )
+
+        conn.commit()
+
+        return {
+            "status": "ok",
+            "feedback_id": feedback_id,
+            "feedback_source": "slide_annotation",
+            "message": "Annotation feedback submitted for review",
         }
 
     except HTTPException:
@@ -2136,7 +2427,7 @@ def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dic
                     created_date,
                     updated_date
                 FROM slide_annotations
-                WHERE slide_id = %s
+                WHERE slide_id = %s AND flagged_incorrect = 0
                 ORDER BY annotation_id
                 """,
                 (slide_id,),
@@ -2160,6 +2451,25 @@ def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dic
             )
             david_notes = cur.fetchall()
 
+            cur.execute(
+                """
+                SELECT
+                    note_id,
+                    slide_id,
+                    author_username,
+                    author_display_name,
+                    note_title,
+                    note_text,
+                    created_at,
+                    updated_at
+                FROM slide_expert_notes
+                WHERE slide_id = %s
+                ORDER BY created_at DESC
+                """,
+                (slide_id,),
+            )
+            expert_notes = cur.fetchall()
+
     finally:
         conn.close()
 
@@ -2167,6 +2477,7 @@ def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dic
     tissues = clean_rows(tissues)
     annotations = clean_rows(annotations)
     david_notes = clean_rows(david_notes)
+    expert_notes = clean_rows(expert_notes)
 
     share_root = get_share_root(os_key)
     resolved_path = build_share_path(
@@ -2243,9 +2554,288 @@ def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dic
         "tissue_annotations": tissues,
         "slide_annotations": annotations,
         "david_notes": david_notes,
+        "expert_notes": expert_notes,
     }
 
 
+@app.get("/api/expert-notes")
+def list_expert_notes(
+    slide_id: Optional[int] = None,
+    user: dict = Depends(require_user),
+):
+    where_sql = ""
+    params = []
+    if slide_id:
+        where_sql = "WHERE en.slide_id = %s"
+        params.append(slide_id)
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                f"""
+                SELECT
+                    en.note_id,
+                    en.slide_id,
+                    s.filename AS slide_filename,
+                    en.author_username,
+                    en.author_display_name,
+                    en.note_title,
+                    en.note_text,
+                    en.created_at,
+                    en.updated_at
+                FROM slide_expert_notes en
+                JOIN slides s ON s.slide_id = en.slide_id
+                {where_sql}
+                ORDER BY en.created_at DESC
+                """,
+                params,
+            )
+            notes = clean_rows(cur.fetchall())
+    finally:
+        conn.close()
+
+    return {"status": "ok", "notes": notes}
+
+
+@app.post("/api/slides/{slide_id}/expert-notes")
+def create_expert_note(
+    slide_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(require_permission("expert_notes.write")),
+):
+    note_title = payload.get("note_title")
+    note_text = str(payload.get("note_text", "")).strip()
+
+    if not note_text:
+        raise HTTPException(status_code=400, detail="note_text is required")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT slide_id FROM slides WHERE slide_id = %s", (slide_id,))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Slide not found")
+
+            cur.execute(
+                """
+                INSERT INTO slide_expert_notes (
+                    slide_id, author_username, author_display_name, note_title, note_text
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (
+                    slide_id,
+                    user.get("username"),
+                    user.get("display_name"),
+                    note_title,
+                    note_text,
+                ),
+            )
+            note_id = cur.lastrowid
+
+        conn.commit()
+        return {"status": "ok", "note_id": note_id}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.patch("/api/expert-notes/{note_id}")
+def update_expert_note(
+    note_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(require_permission("expert_notes.write")),
+):
+    note_title = payload.get("note_title")
+    note_text = str(payload.get("note_text", "")).strip()
+
+    if not note_text:
+        raise HTTPException(status_code=400, detail="note_text is required")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT note_id FROM slide_expert_notes WHERE note_id = %s", (note_id,))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Expert note not found")
+
+            cur.execute(
+                """
+                UPDATE slide_expert_notes
+                SET note_title = %s, note_text = %s
+                WHERE note_id = %s
+                """,
+                (note_title, note_text, note_id),
+            )
+
+        conn.commit()
+        return {"status": "ok", "note_id": note_id}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.delete("/api/expert-notes/{note_id}")
+def delete_expert_note(
+    note_id: int,
+    user: dict = Depends(require_permission("expert_notes.write")),
+):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT note_id FROM slide_expert_notes WHERE note_id = %s", (note_id,))
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Expert note not found")
+
+            cur.execute("DELETE FROM slide_expert_notes WHERE note_id = %s", (note_id,))
+
+        conn.commit()
+        return {"status": "ok"}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.patch("/api/david-notes/{curation_id}")
+def update_david_note(
+    curation_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(require_permission("expert_notes.write")),
+):
+    """Lets an expert edit the historical legacy contributor note content
+    directly (trusted, no approval step) - the prior title/text is always
+    captured in david_note_edit_history first, so nothing is silently lost
+    if an edit turns out to be wrong.
+    """
+    note_text = str(payload.get("note_text", "")).strip()
+    annotation_title = payload.get("annotation_title")
+
+    if not note_text:
+        raise HTTPException(status_code=400, detail="note_text is required")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT annotation_title, note_text FROM david_jenkinson_curation WHERE curation_id = %s",
+                (curation_id,),
+            )
+            current = cur.fetchone()
+
+            if current is None:
+                raise HTTPException(status_code=404, detail="Legacy contributor record not found")
+
+            cur.execute(
+                """
+                INSERT INTO david_note_edit_history (
+                    curation_id, previous_annotation_title, previous_note_text, edited_by_username
+                )
+                VALUES (%s, %s, %s, %s)
+                """,
+                (curation_id, current["annotation_title"], current["note_text"], user.get("username")),
+            )
+
+            cur.execute(
+                """
+                UPDATE david_jenkinson_curation
+                SET annotation_title = %s, note_text = %s
+                WHERE curation_id = %s
+                """,
+                (annotation_title, note_text, curation_id),
+            )
+
+        conn.commit()
+        return {"status": "ok", "curation_id": curation_id}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.get("/api/slides/{slide_id}/qupath-script")
+def get_slide_qupath_script(
+    slide_id: int,
+    apply_zoom: bool = Query(True, description="Multiply rect/point coordinates by each annotation's own 'zoom' field - still being verified, see HANDOFF.md in dih-slide-reconciler"),
+    color: str = Query("FFFF00", description="Annotation colour as a hex triplet (with or without a leading '#') - defaults to yellow, applied to every annotation in the script"),
+    user: dict = Depends(require_user),
+):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT slide_id, filename FROM slides WHERE slide_id = %s",
+                (slide_id,),
+            )
+            slide = cur.fetchone()
+
+            if slide is None:
+                raise HTTPException(status_code=404, detail="Slide not found")
+
+            cur.execute(
+                """
+                SELECT
+                    annotation_id,
+                    annotation_type,
+                    rect_x,
+                    rect_y,
+                    rect_w,
+                    rect_h,
+                    arrow_start_x,
+                    arrow_start_y,
+                    arrow_end_x,
+                    arrow_end_y,
+                    zoom,
+                    title,
+                    description,
+                    drawing,
+                    invisible
+                FROM slide_annotations
+                WHERE slide_id = %s AND flagged_incorrect = 0
+                ORDER BY annotation_id
+                """,
+                (slide_id,),
+            )
+            annotations = cur.fetchall()
+    finally:
+        conn.close()
+
+    slide = clean_row(slide)
+    annotations = clean_rows(annotations)
+
+    if not annotations:
+        raise HTTPException(status_code=404, detail="This slide has no stored annotations")
+
+    script = generate_qupath_script(
+        slide, annotations, apply_zoom=apply_zoom, color=parse_qupath_color(color),
+    )
+
+    filename = f"slide_{slide_id}_annotations.groovy"
+
+    return Response(
+        content=script,
+        media_type="text/plain",
+        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
 
 
 @app.get("/api/admin/dictionaries/{dictionary_name}")
@@ -2255,7 +2845,7 @@ def admin_dictionary_values(
 ):
     dictionary_name = dictionary_name.lower()
 
-    if dictionary_name not in {"organ", "species", "stain"}:
+    if dictionary_name not in {"organ", "tissue", "species", "stain"}:
         raise HTTPException(status_code=400, detail="Unsupported dictionary")
 
     conn = get_db_connection()
@@ -2271,6 +2861,20 @@ def admin_dictionary_values(
                         organ_system,
                         organ_group
                     FROM organ_dictionary
+                    WHERE active = 1
+                    ORDER BY label, value
+                    """
+                )
+
+            elif dictionary_name == "tissue":
+                cur.execute(
+                    """
+                    SELECT DISTINCT
+                        tissue_name AS value,
+                        COALESCE(canonical_tissue, tissue_name) AS label,
+                        tissue_category,
+                        tissue_group
+                    FROM tissue_dictionary
                     WHERE active = 1
                     ORDER BY label, value
                     """
@@ -2315,6 +2919,75 @@ def admin_dictionary_values(
     }
 
 
+@app.post("/api/admin/dictionaries/{dictionary_name}")
+def admin_add_dictionary_value(
+    dictionary_name: str,
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_admin),
+):
+    """Adds a brand-new term to a dictionary - used when a user's 'Other
+    (not listed)' suggestion is a genuinely new organ/tissue/species/
+    stain that isn't in the controlled vocabulary yet. Once added, it
+    becomes selectable from apply-metadata-correction like any other
+    dictionary value.
+    """
+
+    dictionary_name = dictionary_name.lower()
+    value = str(payload.get("value", "")).strip()
+
+    if dictionary_name not in {"organ", "tissue", "species", "stain"}:
+        raise HTTPException(status_code=400, detail="Unsupported dictionary")
+
+    if not value:
+        raise HTTPException(status_code=400, detail="Value is required")
+
+    table_and_column = {
+        "organ": ("organ_dictionary", "organ_name"),
+        "tissue": ("tissue_dictionary", "tissue_name"),
+        "species": ("species_dictionary", "species_name"),
+    }
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            if dictionary_name == "stain":
+                # stain_dictionary has no active flag - original_stain is
+                # the primary key itself.
+                cur.execute(
+                    """
+                    INSERT IGNORE INTO stain_dictionary (original_stain)
+                    VALUES (%s)
+                    """,
+                    (value,),
+                )
+            else:
+                table, column = table_and_column[dictionary_name]
+                cur.execute(
+                    f"""
+                    INSERT INTO {table} ({column}, active)
+                    VALUES (%s, 1)
+                    ON DUPLICATE KEY UPDATE active = 1
+                    """,
+                    (value,),
+                )
+
+        conn.commit()
+
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    finally:
+        conn.close()
+
+    return {
+        "status": "ok",
+        "dictionary": dictionary_name,
+        "value": value,
+    }
+
+
 def _increment_accepted_contribution(cur, submitter_username):
     """DB half of rewarding a contribution - run inside the same
     transaction as the status change, before commit."""
@@ -2347,7 +3020,7 @@ def _send_contribution_thanks(submitter_email, slide_id, body_intro):
     body = (
         f"{body_intro}\n\n"
         f"View the slide here:\n{slide_link}\n\n"
-        "We appreciate you helping improve the MVLS Virtual Microscopy Catalogue."
+        "We appreciate you helping improve the Virtual Microscopy Catalogue."
     )
 
     try:
@@ -2356,19 +3029,14 @@ def _send_contribution_thanks(submitter_email, slide_id, body_intro):
         print("Failed to send contribution thank-you email:", exc)
 
 
-@app.patch("/api/admin/feedback/{feedback_id}/review")
-def admin_update_feedback_review(
-    feedback_id: int,
-    payload: dict = Body(...),
-    admin_user: dict = Depends(require_admin),
-):
+def _update_correction_status(correction_id: int, payload: dict, acting_user: dict):
     status = str(payload.get("status", "")).strip()
     admin_notes = payload.get("admin_notes")
 
     allowed_status = {"new", "under_review", "accepted", "rejected", "resolved"}
 
     if status not in allowed_status:
-        raise HTTPException(status_code=400, detail="Invalid feedback status")
+        raise HTTPException(status_code=400, detail="Invalid correction status")
 
     conn = get_db_connection()
 
@@ -2376,22 +3044,29 @@ def admin_update_feedback_review(
         with conn.cursor() as cur:
             cur.execute(
                 """
-                SELECT feedback_id, slide_id, status, submitter_username, submitter_email
-                FROM slide_feedback
+                SELECT feedback_id, slide_id, status, submitter_username, submitter_email,
+                       feedback_source, source_annotation_id, suggested_value
+                FROM slide_corrections
                 WHERE feedback_id = %s
                 """,
-                (feedback_id,),
+                (correction_id,),
             )
-            feedback = cur.fetchone()
+            correction = cur.fetchone()
 
-            if feedback is None:
-                raise HTTPException(status_code=404, detail="Feedback not found")
+            if correction is None:
+                raise HTTPException(status_code=404, detail="Correction not found")
 
-            old_status = feedback["status"]
+            if correction["submitter_username"] == acting_user.get("username"):
+                raise HTTPException(
+                    status_code=403,
+                    detail="You can't review a correction you submitted yourself",
+                )
+
+            old_status = correction["status"]
 
             cur.execute(
                 """
-                UPDATE slide_feedback
+                UPDATE slide_corrections
                 SET
                     status = %s,
                     admin_notes = %s,
@@ -2402,14 +3077,14 @@ def admin_update_feedback_review(
                 (
                     status,
                     admin_notes,
-                    admin_user.get("username"),
-                    feedback_id,
+                    acting_user.get("username"),
+                    correction_id,
                 ),
             )
 
             cur.execute(
                 """
-                INSERT INTO slide_feedback_actions (
+                INSERT INTO slide_correction_actions (
                     feedback_id,
                     slide_id,
                     action_type,
@@ -2422,35 +3097,46 @@ def admin_update_feedback_review(
                 VALUES (%s, %s, 'status_update', 'status', %s, %s, %s, %s)
                 """,
                 (
-                    feedback_id,
-                    feedback["slide_id"],
+                    correction_id,
+                    correction["slide_id"],
                     old_status,
                     status,
                     admin_notes,
-                    admin_user.get("username"),
+                    acting_user.get("username"),
                 ),
             )
+
+            if correction["feedback_source"] == "slide_annotation" and correction["source_annotation_id"]:
+                # Ties the review decision directly to what's actually shown -
+                # confirmed-incorrect annotations stop appearing on the slide
+                # page, and re-opening/rejecting a decision brings them back
+                # rather than requiring a separate one-way "apply" action.
+                should_flag = status == "accepted" and correction["suggested_value"] == "incorrect"
+                cur.execute(
+                    "UPDATE slide_annotations SET flagged_incorrect = %s WHERE annotation_id = %s",
+                    (1 if should_flag else 0, correction["source_annotation_id"]),
+                )
 
             reward = status == "resolved" and old_status != "resolved"
 
             if reward:
-                _increment_accepted_contribution(cur, feedback["submitter_username"])
+                _increment_accepted_contribution(cur, correction["submitter_username"])
 
         conn.commit()
 
         if reward:
-            body_intro = f"Thank you for your suggestion on slide {feedback['slide_id']}."
+            body_intro = f"Thank you for your suggestion on slide {correction['slide_id']}."
             body_intro += (
                 f"\n\n{admin_notes}"
                 if admin_notes
-                else "\n\nWe've reviewed your feedback and taken action based on it."
+                else "\n\nWe've reviewed your correction and taken action based on it."
             )
 
-            _send_contribution_thanks(feedback["submitter_email"], feedback["slide_id"], body_intro)
+            _send_contribution_thanks(correction["submitter_email"], correction["slide_id"], body_intro)
 
         return {
             "status": "ok",
-            "feedback_id": feedback_id,
+            "feedback_id": correction_id,
             "new_status": status,
         }
 
@@ -2465,9 +3151,27 @@ def admin_update_feedback_review(
         conn.close()
 
 
-@app.post("/api/admin/feedback/{feedback_id}/apply-metadata-correction")
+@app.patch("/api/admin/corrections/{correction_id}/review")
+def admin_update_correction_review(
+    correction_id: int,
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_admin),
+):
+    return _update_correction_status(correction_id, payload, admin_user)
+
+
+@app.patch("/api/reviewer/corrections/{correction_id}/review")
+def reviewer_update_correction_review(
+    correction_id: int,
+    payload: dict = Body(...),
+    user: dict = Depends(require_permission("corrections.review")),
+):
+    return _update_correction_status(correction_id, payload, user)
+
+
+@app.post("/api/admin/corrections/{correction_id}/apply")
 def admin_apply_metadata_correction(
-    feedback_id: int,
+    correction_id: int,
     payload: dict = Body(...),
     admin_user: dict = Depends(require_admin),
 ):
@@ -2475,14 +3179,15 @@ def admin_apply_metadata_correction(
     new_value = str(payload.get("new_value", "")).strip()
     admin_notes = payload.get("admin_notes")
 
-    allowed_fields = {
-        "organ": "organ",
-        "species": "species",
-        "stain": "stain",
-    }
+    dictionary_backed_fields = {"organ", "tissue", "species", "stain"}
+    free_text_fields = {"description", "notes"}
+    allowed_fields = dictionary_backed_fields | free_text_fields
 
     if field_name not in allowed_fields:
-        raise HTTPException(status_code=400, detail="Only organ, species and stain can be corrected here")
+        raise HTTPException(
+            status_code=400,
+            detail="Only organ, tissue, species, stain, description, and notes can be corrected here",
+        )
 
     if not new_value:
         raise HTTPException(status_code=400, detail="New value is required")
@@ -2502,102 +3207,186 @@ def admin_apply_metadata_correction(
                     submitter_username,
                     submitter_email,
                     submitter_display_name
-                FROM slide_feedback
+                FROM slide_corrections
                 WHERE feedback_id = %s
                 """,
-                (feedback_id,),
+                (correction_id,),
             )
-            feedback = cur.fetchone()
+            correction = cur.fetchone()
 
-            if feedback is None:
-                raise HTTPException(status_code=404, detail="Feedback not found")
+            if correction is None:
+                raise HTTPException(status_code=404, detail="Correction not found")
 
-            if feedback["feedback_source"] != "metadata":
-                raise HTTPException(status_code=400, detail="Only metadata feedback can be applied here")
+            if correction["feedback_source"] != "metadata":
+                raise HTTPException(status_code=400, detail="Only metadata corrections can be applied here")
 
-            if feedback["feedback_type"] != field_name:
+            if correction["feedback_type"] != field_name:
                 raise HTTPException(
                     status_code=400,
-                    detail="Feedback type does not match requested metadata field",
+                    detail="Correction type does not match requested metadata field",
                 )
 
-            slide_id = feedback["slide_id"]
+            slide_id = correction["slide_id"]
 
-            if field_name == "organ":
+            if field_name == "tissue":
+                # Tissue isn't a slide_metadata column - it's a row in
+                # slide_tissue_annotations keyed on (slide_id, tissue_id).
+                # Every slide currently has at most one such row, so a
+                # correction replaces it outright (delete then insert)
+                # rather than updating a column in place.
                 cur.execute(
                     """
-                    SELECT COUNT(*) AS n
-                    FROM organ_dictionary
+                    SELECT tissue_id
+                    FROM tissue_dictionary
                     WHERE active = 1
                       AND (
-                        organ_name = %s
-                        OR canonical_organ = %s
+                        tissue_name = %s
+                        OR canonical_tissue = %s
                       )
                     """,
                     (new_value, new_value),
                 )
+                tissue_row = cur.fetchone()
 
-            elif field_name == "species":
+                if tissue_row is None:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="New value is not present in the tissue dictionary",
+                    )
+
+                new_tissue_id = tissue_row["tissue_id"]
+
                 cur.execute(
                     """
-                    SELECT COUNT(*) AS n
-                    FROM species_dictionary
-                    WHERE active = 1
-                      AND (
-                        species_name = %s
-                        OR canonical_species = %s
-                      )
+                    SELECT td.tissue_name AS old_value
+                    FROM slide_tissue_annotations sta
+                    JOIN tissue_dictionary td ON td.tissue_id = sta.tissue_id
+                    WHERE sta.slide_id = %s
                     """,
-                    (new_value, new_value),
+                    (slide_id,),
+                )
+                old_tissue_row = cur.fetchone()
+                old_value = old_tissue_row["old_value"] if old_tissue_row else None
+
+                cur.execute(
+                    "DELETE FROM slide_tissue_annotations WHERE slide_id = %s",
+                    (slide_id,),
+                )
+                cur.execute(
+                    """
+                    INSERT INTO slide_tissue_annotations (
+                        slide_id, tissue_id, evidence_source, review_status, confidence, notes
+                    )
+                    VALUES (%s, %s, 'admin_correction', 'APPROVED', 'HIGH', %s)
+                    """,
+                    (slide_id, new_tissue_id, admin_notes),
+                )
+
+            elif field_name in dictionary_backed_fields:
+                if field_name == "organ":
+                    cur.execute(
+                        """
+                        SELECT COUNT(*) AS n
+                        FROM organ_dictionary
+                        WHERE active = 1
+                          AND (
+                            organ_name = %s
+                            OR canonical_organ = %s
+                          )
+                        """,
+                        (new_value, new_value),
+                    )
+
+                elif field_name == "species":
+                    cur.execute(
+                        """
+                        SELECT COUNT(*) AS n
+                        FROM species_dictionary
+                        WHERE active = 1
+                          AND (
+                            species_name = %s
+                            OR canonical_species = %s
+                          )
+                        """,
+                        (new_value, new_value),
+                    )
+
+                else:
+                    cur.execute(
+                        """
+                        SELECT COUNT(*) AS n
+                        FROM stain_dictionary
+                        WHERE original_stain = %s
+                        """,
+                        (new_value,),
+                    )
+
+                valid = cur.fetchone()["n"]
+
+                if valid < 1:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="New value is not present in the relevant dictionary",
+                    )
+
+                column_name = field_name
+
+                cur.execute(
+                    f"""
+                    SELECT {column_name} AS old_value
+                    FROM slide_metadata
+                    WHERE slide_id = %s
+                    """,
+                    (slide_id,),
+                )
+                row = cur.fetchone()
+
+                if row is None:
+                    raise HTTPException(status_code=404, detail="Slide metadata not found")
+
+                old_value = row["old_value"]
+
+                cur.execute(
+                    f"""
+                    UPDATE slide_metadata
+                    SET {column_name} = %s
+                    WHERE slide_id = %s
+                    """,
+                    (new_value, slide_id),
                 )
 
             else:
+                # description / notes - free text, nothing to validate
+                # against a dictionary for.
+                column_name = field_name
+
                 cur.execute(
-                    """
-                    SELECT COUNT(*) AS n
-                    FROM stain_dictionary
-                    WHERE original_stain = %s
+                    f"""
+                    SELECT {column_name} AS old_value
+                    FROM slide_metadata
+                    WHERE slide_id = %s
                     """,
-                    (new_value,),
+                    (slide_id,),
                 )
+                row = cur.fetchone()
 
-            valid = cur.fetchone()["n"]
+                if row is None:
+                    raise HTTPException(status_code=404, detail="Slide metadata not found")
 
-            if valid < 1:
-                raise HTTPException(
-                    status_code=400,
-                    detail="New value is not present in the relevant dictionary",
+                old_value = row["old_value"]
+
+                cur.execute(
+                    f"""
+                    UPDATE slide_metadata
+                    SET {column_name} = %s
+                    WHERE slide_id = %s
+                    """,
+                    (new_value, slide_id),
                 )
-
-            column_name = allowed_fields[field_name]
-
-            cur.execute(
-                f"""
-                SELECT {column_name} AS old_value
-                FROM slide_metadata
-                WHERE slide_id = %s
-                """,
-                (slide_id,),
-            )
-            row = cur.fetchone()
-
-            if row is None:
-                raise HTTPException(status_code=404, detail="Slide metadata not found")
-
-            old_value = row["old_value"]
-
-            cur.execute(
-                f"""
-                UPDATE slide_metadata
-                SET {column_name} = %s
-                WHERE slide_id = %s
-                """,
-                (new_value, slide_id),
-            )
 
             cur.execute(
                 """
-                UPDATE slide_feedback
+                UPDATE slide_corrections
                 SET
                     status = 'resolved',
                     admin_notes = %s,
@@ -2607,19 +3396,19 @@ def admin_apply_metadata_correction(
                 """,
                 (
                     admin_notes,
-                    admin_user.get("username"),
-                    feedback_id,
+                    acting_user.get("username"),
+                    correction_id,
                 ),
             )
 
-            reward = feedback["status"] != "resolved"
+            reward = correction["status"] != "resolved"
 
             if reward:
-                _increment_accepted_contribution(cur, feedback["submitter_username"])
+                _increment_accepted_contribution(cur, correction["submitter_username"])
 
             cur.execute(
                 """
-                INSERT INTO slide_feedback_actions (
+                INSERT INTO slide_correction_actions (
                     feedback_id,
                     slide_id,
                     action_type,
@@ -2632,7 +3421,7 @@ def admin_apply_metadata_correction(
                 VALUES (%s, %s, 'metadata_update', %s, %s, %s, %s, %s)
                 """,
                 (
-                    feedback_id,
+                    correction_id,
                     slide_id,
                     field_name,
                     old_value,
@@ -2649,11 +3438,11 @@ def admin_apply_metadata_correction(
                 f"Thank you for your suggestion on slide {slide_id}.\n\n"
                 f"We've applied your correction:\n{field_name}: {old_value} -> {new_value}"
             )
-            _send_contribution_thanks(feedback["submitter_email"], slide_id, body_intro)
+            _send_contribution_thanks(correction["submitter_email"], slide_id, body_intro)
 
         return {
             "status": "ok",
-            "feedback_id": feedback_id,
+            "feedback_id": correction_id,
             "slide_id": slide_id,
             "field_name": field_name,
             "old_value": old_value,
@@ -2697,7 +3486,8 @@ def admin_list_users(
                     contributions_accepted_count,
                     approved_by,
                     approved_at,
-                    created_at
+                    created_at,
+                    last_login_at
                 FROM users
                 ORDER BY full_name
                 """
@@ -2912,6 +3702,47 @@ def admin_demote_user(
     )
 
 
+@app.post("/api/admin/users/{user_id}/set-role")
+def admin_set_user_role(
+    user_id: int,
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Generalises promote/demote to the full set of API-assignable roles.
+    system_admin is deliberately excluded - that tier stays DB-only, same
+    convention _set_user_role already enforces above.
+    """
+    new_role = str(payload.get("role", "")).strip()
+
+    if new_role not in {"user", "admin", "reviewer", "expert"}:
+        raise HTTPException(status_code=400, detail="Invalid role")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT role FROM users WHERE user_id = %s", (user_id,))
+            target = cur.fetchone()
+
+            if not target:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            if target["role"] == "system_admin":
+                raise HTTPException(status_code=400, detail="system_admin accounts can't be changed here")
+
+            cur.execute("UPDATE users SET role = %s WHERE user_id = %s", (new_role, user_id))
+
+        conn.commit()
+        return {"status": "success", "user_id": user_id, "role": new_role}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
 @app.get("/api/admin/settings")
 def admin_get_settings(
     admin_user: dict = Depends(require_admin),
@@ -3007,15 +3838,13 @@ def admin_update_settings(
         "status": "ok"
     }
 
-@app.get("/api/admin/feedback/report")
-def feedback_report(
-    status: Optional[str] = None,
-    feedback_source: Optional[str] = None,
-    feedback_type: Optional[str] = None,
-    slide_id: Optional[int] = None,
-    submitter_username: Optional[str] = None,
-    limit: int = Query(100, ge=1, le=500),
-    admin_user: dict = Depends(require_admin),
+def _build_corrections_report(
+    status: Optional[str],
+    feedback_source: Optional[str],
+    feedback_type: Optional[str],
+    slide_id: Optional[int],
+    submitter_username: Optional[str],
+    limit: int,
 ):
     where = []
     params = []
@@ -3057,7 +3886,7 @@ def feedback_report(
                     SUM(status = 'accepted') AS accepted_feedback,
                     SUM(status = 'rejected') AS rejected_feedback,
                     SUM(status = 'resolved') AS resolved_feedback
-                FROM slide_feedback
+                FROM slide_corrections
                 {where_sql}
                 """,
                 params,
@@ -3069,7 +3898,7 @@ def feedback_report(
                 SELECT
                     feedback_source,
                     COUNT(*) AS n
-                FROM slide_feedback
+                FROM slide_corrections
                 {where_sql}
                 GROUP BY feedback_source
                 ORDER BY n DESC, feedback_source
@@ -3083,7 +3912,7 @@ def feedback_report(
                 SELECT
                     feedback_type,
                     COUNT(*) AS n
-                FROM slide_feedback
+                FROM slide_corrections
                 {where_sql}
                 GROUP BY feedback_type
                 ORDER BY n DESC, feedback_type
@@ -3097,7 +3926,7 @@ def feedback_report(
                 SELECT
                     status,
                     COUNT(*) AS n
-                FROM slide_feedback
+                FROM slide_corrections
                 {where_sql}
                 GROUP BY status
                 ORDER BY n DESC, status
@@ -3129,7 +3958,7 @@ def feedback_report(
                     reviewed_at,
                     created_at,
                     updated_at
-                FROM slide_feedback
+                FROM slide_corrections
                 {where_sql}
                 ORDER BY created_at DESC, feedback_id DESC
                 LIMIT %s
@@ -3159,8 +3988,38 @@ def feedback_report(
     }
 
 
-@app.get("/api/admin/feedback/export.csv")
-def feedback_export_csv(
+@app.get("/api/admin/corrections/report")
+def corrections_report(
+    status: Optional[str] = None,
+    feedback_source: Optional[str] = None,
+    feedback_type: Optional[str] = None,
+    slide_id: Optional[int] = None,
+    submitter_username: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=500),
+    admin_user: dict = Depends(require_admin),
+):
+    return _build_corrections_report(
+        status, feedback_source, feedback_type, slide_id, submitter_username, limit,
+    )
+
+
+@app.get("/api/reviewer/corrections")
+def reviewer_corrections_report(
+    status: Optional[str] = None,
+    feedback_source: Optional[str] = None,
+    feedback_type: Optional[str] = None,
+    slide_id: Optional[int] = None,
+    submitter_username: Optional[str] = None,
+    limit: int = Query(100, ge=1, le=500),
+    user: dict = Depends(require_permission("corrections.view")),
+):
+    return _build_corrections_report(
+        status, feedback_source, feedback_type, slide_id, submitter_username, limit,
+    )
+
+
+@app.get("/api/admin/corrections/export.csv")
+def corrections_export_csv(
     status: Optional[str] = None,
     feedback_source: Optional[str] = None,
     feedback_type: Optional[str] = None,
@@ -3225,7 +4084,7 @@ def feedback_export_csv(
                     legacy_metadata_feedback_id,
                     created_at,
                     updated_at
-                FROM slide_feedback
+                FROM slide_corrections
                 {where_sql}
                 ORDER BY created_at DESC, feedback_id DESC
                 """,
@@ -3272,7 +4131,7 @@ def feedback_export_csv(
 
     output.seek(0)
 
-    filename = "mvls_slide_feedback_report.csv"
+    filename = "slide_corrections_report.csv"
 
     return StreamingResponse(
         iter([output.getvalue()]),
@@ -3366,3 +4225,190 @@ def filter_tissues(user: dict = Depends(require_user)):
         conn.close()
 
     return {"tissues": [row["tissue"] for row in rows]}
+
+
+@app.post("/api/site-feedback")
+def create_site_feedback(
+    request: Request,
+    payload: dict = Body(...),
+    user: dict = Depends(require_user),
+):
+    """General feedback about the site itself - not tied to any slide.
+
+    Separate from slide_corrections (metadata corrections), which always
+    needs a slide_id - this is for things like "the search filters are
+    confusing" or "please add X feature" from anywhere on the site.
+    """
+
+    feedback_text = str(payload.get("feedback_text", "")).strip()
+    page_url = str(payload.get("page_url", "")).strip() or None
+
+    if not feedback_text:
+        raise HTTPException(status_code=400, detail="Feedback text is required")
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            remote_addr = None
+            if request.client:
+                remote_addr = request.client.host
+
+            user_agent = request.headers.get("user-agent", "")
+
+            cur.execute(
+                """
+                INSERT INTO site_feedback (
+                    feedback_text,
+                    page_url,
+                    submitter_username,
+                    submitter_email,
+                    submitter_display_name,
+                    submitter_role,
+                    remote_addr,
+                    user_agent
+                )
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+                """,
+                (
+                    feedback_text,
+                    page_url,
+                    user.get("username"),
+                    user.get("email"),
+                    user.get("display_name"),
+                    user.get("role"),
+                    remote_addr,
+                    user_agent[:500] if user_agent else None,
+                ),
+            )
+
+            feedback_id = cur.lastrowid
+
+        conn.commit()
+
+        return {
+            "status": "ok",
+            "feedback_id": feedback_id,
+            "message": "Feedback submitted, thank you.",
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/site-feedback/report")
+def admin_site_feedback_report(
+    status: Optional[str] = None,
+    admin_user: dict = Depends(require_admin),
+):
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            where = []
+            params = []
+
+            if status:
+                where.append("status = %s")
+                params.append(status)
+
+            where_clause = ("WHERE " + " AND ".join(where)) if where else ""
+
+            cur.execute(
+                f"""
+                SELECT
+                    feedback_id,
+                    feedback_text,
+                    page_url,
+                    submitter_username,
+                    submitter_email,
+                    submitter_display_name,
+                    submitter_role,
+                    status,
+                    admin_notes,
+                    reviewed_by_username,
+                    reviewed_at,
+                    created_at
+                FROM site_feedback
+                {where_clause}
+                ORDER BY created_at DESC
+                """,
+                params,
+            )
+
+            rows = clean_rows(cur.fetchall())
+
+    finally:
+        conn.close()
+
+    return {"rows": rows}
+
+
+@app.patch("/api/admin/site-feedback/{feedback_id}/review")
+def admin_update_site_feedback_review(
+    feedback_id: int,
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_admin),
+):
+    status = str(payload.get("status", "")).strip()
+    admin_notes = payload.get("admin_notes")
+
+    allowed_status = {"new", "under_review", "accepted", "rejected", "resolved"}
+
+    if status not in allowed_status:
+        raise HTTPException(status_code=400, detail="Invalid feedback status")
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT feedback_id FROM site_feedback WHERE feedback_id = %s",
+                (feedback_id,),
+            )
+
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Feedback not found")
+
+            cur.execute(
+                """
+                UPDATE site_feedback
+                SET
+                    status = %s,
+                    admin_notes = %s,
+                    reviewed_by_username = %s,
+                    reviewed_at = NOW()
+                WHERE feedback_id = %s
+                """,
+                (
+                    status,
+                    admin_notes,
+                    admin_user.get("username"),
+                    feedback_id,
+                ),
+            )
+
+        conn.commit()
+
+        return {
+            "status": "ok",
+            "feedback_id": feedback_id,
+            "new_status": status,
+        }
+
+    except HTTPException:
+        raise
+
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    finally:
+        conn.close()

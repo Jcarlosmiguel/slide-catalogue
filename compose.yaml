@@ -1,7 +1,7 @@
 services:
   catalogue_mariadb:
     image: mariadb:11
-    container_name: mvls_catalogue_mariadb
+    container_name: catalogue_mariadb
     restart: unless-stopped
     environment:
       MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
@@ -21,7 +21,7 @@ services:
   catalogue_backend:
     build:
       context: ./catalogue/backend
-    container_name: mvls_catalogue_backend
+    container_name: catalogue_backend
     restart: unless-stopped
     environment:
       APP_ENV: ${APP_ENV}
@@ -60,7 +60,7 @@ services:
 
   catalogue_nginx:
     image: nginx:1.28
-    container_name: mvls_catalogue_nginx
+    container_name: catalogue_nginx
     restart: unless-stopped
     ports:
       - "${HTTP_PORT}:80"
@@ -90,14 +90,14 @@ services:
   #
   # wader/postfix-relay is a Postfix "smart host" image built for exactly
   # this: accept local mail, relay it out through an authenticated
-  # upstream (still O365 here - gla.ac.uk's SPF record almost certainly
+  # upstream (still O365 here - your institution's SPF record almost certainly
   # only authorises Microsoft's servers, so this isn't a way to stop
   # using O365, just a way to stop every app container holding its
   # password). Double-check the image's current env var names against
   # its docs before enabling; not verified against a running instance.
   catalogue_mail:
     image: wader/postfix-relay:latest
-    container_name: mvls_catalogue_mail
+    container_name: catalogue_mail
     restart: unless-stopped
     environment:
       SMTP_SERVER: ${SMTP_HOST}
@@ -112,7 +112,7 @@ services:
 
   adminer:
     image: adminer:latest
-    container_name: mvls_catalogue_adminer
+    container_name: catalogue_adminer
     restart: unless-stopped
     ports:
       - "${ADMINER_PORT}:8080"

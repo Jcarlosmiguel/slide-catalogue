@@ -1,4 +1,4 @@
-async function mvlsGetCurrentUser() {
+async function vmcGetCurrentUser() {
   const response = await fetch("/api/me", {
     credentials: "include"
   });
@@ -11,13 +11,13 @@ async function mvlsGetCurrentUser() {
   return data.user;
 }
 
-function mvlsLoginUrl() {
+function vmcLoginUrl() {
   const next = encodeURIComponent(window.location.pathname + window.location.search);
   return "/login.html?next=" + next;
 }
 
-function mvlsUpdateAdminVisibility(user) {
-  const adminLinks = document.querySelectorAll(".mvls-admin-nav");
+function vmcUpdateAdminVisibility(user) {
+  const adminLinks = document.querySelectorAll(".vmc-admin-nav");
 
   for (const link of adminLinks) {
     if (
@@ -30,7 +30,7 @@ function mvlsUpdateAdminVisibility(user) {
     }
   }
 
-  const systemAdminLinks = document.querySelectorAll(".mvls-system-admin-nav");
+  const systemAdminLinks = document.querySelectorAll(".vmc-system-admin-nav");
 
   for (const link of systemAdminLinks) {
     if (user && user.role === "system_admin") {
@@ -39,47 +39,60 @@ function mvlsUpdateAdminVisibility(user) {
       link.style.display = "none";
     }
   }
+
+  const reviewerLinks = document.querySelectorAll(".vmc-reviewer-nav");
+
+  for (const link of reviewerLinks) {
+    if (
+      user &&
+      ["admin", "system_admin", "reviewer", "expert"].includes(user.role)
+    ) {
+      link.style.display = "inline-block";
+    } else {
+      link.style.display = "none";
+    }
+  }
 }
 
-function mvlsRenderAuthArea(user) {
-  const nav = document.querySelector(".mvls-nav");
+function vmcRenderAuthArea(user) {
+  const nav = document.querySelector(".vmc-nav");
 
   if (!nav) {
     return;
   }
 
-  const existing = document.getElementById("mvls-auth-area");
+  const existing = document.getElementById("vmc-auth-area");
   if (existing) {
     existing.remove();
   }
 
   const area = document.createElement("span");
-  area.id = "mvls-auth-area";
-  area.className = "mvls-auth-area";
+  area.id = "vmc-auth-area";
+  area.className = "vmc-auth-area";
 
   if (user) {
     const label = document.createElement("span");
-    label.className = "mvls-auth-user";
+    label.className = "vmc-auth-user";
     label.textContent = "Signed in: " + user.display_name + " (" + user.role + ")";
 
     const accountLink = document.createElement("a");
-    accountLink.className = "mvls-auth-button";
+    accountLink.className = "vmc-auth-button";
     accountLink.href = "/my-account.html";
     accountLink.textContent = "My account";
 
     const button = document.createElement("button");
-    button.className = "mvls-auth-button";
+    button.className = "vmc-auth-button";
     button.type = "button";
     button.textContent = "Log out";
-    button.addEventListener("click", mvlsLogout);
+    button.addEventListener("click", vmcLogout);
 
     area.appendChild(label);
     area.appendChild(accountLink);
     area.appendChild(button);
   } else {
     const link = document.createElement("a");
-    link.className = "mvls-auth-button";
-    link.href = mvlsLoginUrl();
+    link.className = "vmc-auth-button";
+    link.href = vmcLoginUrl();
     link.textContent = "Log in";
 
     area.appendChild(link);
@@ -87,7 +100,7 @@ function mvlsRenderAuthArea(user) {
         document.createElement("a");
 
     requestLink.className =
-        "mvls-auth-button";
+        "vmc-auth-button";
 
     requestLink.href =
         "/request-access.html";
@@ -106,29 +119,29 @@ function mvlsRenderAuthArea(user) {
   nav.appendChild(area);
 }
 
-async function mvlsRequireLogin() {
+async function vmcRequireLogin() {
   const path = window.location.pathname;
 
   if (path.endsWith("/login.html")) {
     return null;
   }
 
-  const user = await mvlsGetCurrentUser();
+  const user = await vmcGetCurrentUser();
 
   if (!user) {
-    window.location.href = mvlsLoginUrl();
+    window.location.href = vmcLoginUrl();
     return null;
   }
 
-  window.MVLS_USER = user;
+  window.VMC_USER = user;
 
-  mvlsUpdateAdminVisibility(user);
-  mvlsRenderAuthArea(user);
+  vmcUpdateAdminVisibility(user);
+  vmcRenderAuthArea(user);
 
   return user;
 }
 
-async function mvlsLogout() {
+async function vmcLogout() {
   await fetch("/api/logout", {
     method: "POST",
     credentials: "include"
@@ -137,13 +150,13 @@ async function mvlsLogout() {
   window.location.href = "/";
 }
 
-window.mvlsGetCurrentUser = mvlsGetCurrentUser;
-window.mvlsRequireLogin = mvlsRequireLogin;
-window.mvlsLogout = mvlsLogout;
+window.vmcGetCurrentUser = vmcGetCurrentUser;
+window.vmcRequireLogin = vmcRequireLogin;
+window.vmcLogout = vmcLogout;
 
 document.addEventListener("DOMContentLoaded", async function () {
-  const user = await mvlsGetCurrentUser();
+  const user = await vmcGetCurrentUser();
 
-  mvlsUpdateAdminVisibility(user);
-  mvlsRenderAuthArea(user);
+  vmcUpdateAdminVisibility(user);
+  vmcRenderAuthArea(user);
 });

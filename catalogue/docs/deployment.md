@@ -1,4 +1,4 @@
-# MVLS Catalogue Deployment
+# Catalogue Deployment
 
 ## Overview
 
@@ -19,7 +19,7 @@ MariaDB database service.
 Container:
 
 ```text
-mvls_catalogue_mariadb
+catalogue_mariadb
 ```
 
 ---
@@ -31,7 +31,7 @@ FastAPI application.
 Container:
 
 ```text
-mvls_catalogue_backend
+catalogue_backend
 ```
 
 ---
@@ -43,7 +43,7 @@ NGINX web server.
 Container:
 
 ```text
-mvls_catalogue_nginx
+catalogue_nginx
 ```
 
 ---
@@ -55,7 +55,7 @@ Optional database administration interface.
 Container:
 
 ```text
-mvls_catalogue_adminer
+catalogue_adminer
 ```
 
 Enabled using:
@@ -130,7 +130,7 @@ set -a
 source .env
 set +a
 
-docker exec mvls_catalogue_mariadb mariadb-dump \
+docker exec catalogue_mariadb mariadb-dump \
 -u root \
 -p"$MARIADB_ROOT_PASSWORD" \
 "$MARIADB_DATABASE" \

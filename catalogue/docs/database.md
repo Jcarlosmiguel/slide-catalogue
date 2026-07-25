@@ -1,4 +1,4 @@
-# MVLS Catalogue Database
+# Catalogue Database
 
 ## Overview
 
@@ -8,7 +8,7 @@ configuration.
 Database:
 
 ```text
-mvls_catalogue
+catalogue
 ```
 
 ---

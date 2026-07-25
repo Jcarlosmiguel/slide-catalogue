@@ -40,10 +40,6 @@ async function saveProfile(event) {
     return;
   }
 
-  if (email && !email.toLowerCase().endsWith("glasgow.ac.uk") && !email.toLowerCase().endsWith("glasgow.ac.uk")) {
-    status.textContent = "University email is preferred. Non-University email addresses are allowed but should be used only when appropriate.";
-  }
-
   const payload = {
     username,
     full_name: document.getElementById("full_name").value.trim(),
@@ -91,7 +87,7 @@ async function saveProfile(event) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  const user = await window.mvlsRequireLogin?.();
+  const user = await window.vmcRequireLogin?.();
   if (!user) {
     return;
   }

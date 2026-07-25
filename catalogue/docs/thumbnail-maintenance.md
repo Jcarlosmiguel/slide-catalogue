@@ -1,8 +1,8 @@
-# MVLS Catalogue Thumbnail Maintenance
+# Catalogue Thumbnail Maintenance
 
 ## Purpose
 
-The MVLS Catalogue uses a two-stage thumbnail workflow:
+The Catalogue uses a two-stage thumbnail workflow:
 
 1. Generate cropped PNG thumbnails directly from slide files.
 2. Synchronise those PNG thumbnails into the catalogue thumbnail hierarchy.
@@ -210,7 +210,7 @@ manual_thumbnails/
 Run:
 
 ```bash
-docker exec -it mvls_catalogue_backend python3 /app/app/sync_manual_thumbnails.py
+docker exec -it catalogue_backend python3 /app/app/sync_manual_thumbnails.py
 ```
 
 ---
@@ -353,7 +353,7 @@ manual_thumbnails/
 Synchronise to catalogue format:
 
 ```bash
-docker exec -it mvls_catalogue_backend python3 /app/app/sync_manual_thumbnails.py
+docker exec -it catalogue_backend python3 /app/app/sync_manual_thumbnails.py
 ```
 
 Verify results:
@@ -364,4 +364,4 @@ thumbnails/1024/
 thumbnails/512/
 ```
 
-The thumbnails are now ready for use by the MVLS Virtual Microscopy Catalogue.
+The thumbnails are now ready for use by the Virtual Microscopy Catalogue.

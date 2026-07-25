@@ -2,41 +2,41 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>MVLS Virtual Microscopy Catalogue</title>
+  <title>Virtual Microscopy Catalogue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/css/mvls.css">
+  <link rel="stylesheet" href="/css/catalogue.css">
   <script src="/js/auth.js"></script>
 </head>
 <body>
-  <div class="mvls-top-strip">
-    University of Glasgow · MVLS
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
   </div>
-  <header class="mvls-header">
-    <div class="mvls-header-inner">
-      <div class="mvls-brand-block">
-        <a href="https://www.gla.ac.uk"><img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo"></a>
-        <div class="mvls-brand-text">
-          <h1 class="mvls-title"><a href="https://www.gla.ac.uk/colleges/mvls/">MVLS Virtual Microscopy Catalogue</a></h1>
-          <p class="mvls-subtitle">
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
             Search, review and prepare teaching slides from the virtual microscopy archive.
           </p>
 	</div>
       </div>
-      <nav class="mvls-nav" aria-label="Main navigation">
+      <nav class="vmc-nav" aria-label="Main navigation">
         <a href="/">Home</a>
         <a href="/results.html">Search slides</a>
         <a href="/documents/about.html">About</a>
         <a href="/documents/contact.html">Contact</a>
         <a href="/documents/help.html">Help</a>
-        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
       </nav>
     </div>
   </header>
 
-  <main class="mvls-page">
+  <main class="vmc-page">
 
     
-<section class="mvls-card">
+<section class="vmc-card">
 
   <h1>Request Access</h1>
 
@@ -49,11 +49,11 @@
     allowing you to create a catalogue password.
   </p>
 
-  <hr class="mvls-divider">
+  <hr class="vmc-divider">
 
   <form id="access-request-form">
 
-    <div class="mvls-field">
+    <div class="vmc-field">
       <label for="full_name">Full Name</label>
       <input
         id="full_name"
@@ -62,7 +62,7 @@
         required>
     </div>
 
-    <div class="mvls-field">
+    <div class="vmc-field">
       <label for="email">Email Address</label>
       <input
         id="email"
@@ -71,7 +71,7 @@
         required>
     </div>
 
-    <div class="mvls-field">
+    <div class="vmc-field">
       <label for="institution">Institution</label>
       <input
         id="institution"
@@ -80,7 +80,7 @@
         required>
     </div>
 
-    <div class="mvls-field">
+    <div class="vmc-field">
       <label for="guid">
         University GUID (optional)
       </label>
@@ -90,7 +90,7 @@
         type="text">
     </div>
 
-    <div class="mvls-field">
+    <div class="vmc-field">
       <label for="request_reason">
         Reason for Access
       </label>
@@ -102,16 +102,16 @@
         required></textarea>
     </div>
 
-    <div class="mvls-actions">
+    <div class="vmc-actions">
       <button
-        class="mvls-button"
+        class="vmc-button"
         type="submit">
         Submit Request
       </button>
 
       <span
         id="submission-status"
-        class="mvls-muted"></span>
+        class="vmc-muted"></span>
     </div>
 
   </form>
@@ -191,13 +191,15 @@ document.getElementById(
 
   </main>
 
- <footer class="mvls-footer">
-    <div class="mvls-footer-inner">
-      <div>MVLS Virtual Microscopy Catalogue</div>
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
       <div>
 	<a href="/documents/about.html">About</a>
         ·
         <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
       </div>
     </div>
   </footer>

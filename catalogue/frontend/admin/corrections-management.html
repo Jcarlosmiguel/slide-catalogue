@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Corrections Management · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Corrections management</h1>
+      <p class="vmc-muted">
+        Admin-only report of metadata, slide annotation, and expert contributor note corrections submitted by catalogue users.
+      </p>
+      <p class="vmc-muted">
+        <a href="/admin/corrections-management.html">Corrections</a>
+        ·
+        <a href="/admin/site-feedback.html">Site Feedback</a>
+        ·
+        <a href="/admin/access-requests.html">Access Requests</a>
+        ·
+        <a href="/admin/admin-settings.html">System Settings</a>
+        ·
+        <a href="/admin/users.html" class="vmc-system-admin-nav">Users</a>
+        ·
+        <a href="/admin/blocked-access-requests.html" class="vmc-system-admin-nav">Blocked Requests</a>
+        ·
+        <a href="/admin/password-reset-log.html" class="vmc-system-admin-nav">Password Reset Log</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <div class="vmc-results-toolbar">
+        <div class="vmc-field">
+          <label for="correction-source-filter">Source</label>
+          <select id="correction-source-filter">
+            <option value="">All</option>
+            <option value="metadata">Metadata</option>
+            <option value="slide_annotation">Slide annotation</option>
+            <option value="david_note">Expert note</option>
+          </select>
+        </div>
+
+        <div class="vmc-field">
+          <label for="correction-status-filter">Status</label>
+          <select id="correction-status-filter">
+            <option value="">All</option>
+            <option value="new">New</option>
+            <option value="under_review">Under review</option>
+            <option value="accepted">Accepted</option>
+            <option value="rejected">Rejected</option>
+            <option value="resolved">Resolved</option>
+          </select>
+        </div>
+
+        <div class="vmc-field">
+          <label for="correction-type-filter">Type</label>
+          <input id="correction-type-filter" type="text" placeholder="e.g. stain, organ">
+        </div>
+
+        <div class="vmc-field">
+          <label for="correction-slide-filter">Slide ID</label>
+          <input id="correction-slide-filter" type="number" min="1" placeholder="optional">
+        </div>
+
+        <button id="load-corrections-report" class="vmc-button" type="button">Refresh report</button>
+        <a id="download-corrections-csv" class="vmc-button vmc-button-secondary" href="/api/admin/corrections/export.csv">Download CSV</a>
+      </div>
+
+      <div id="corrections-summary" class="vmc-card" style="margin-bottom: 1rem;">
+        Loading summary...
+      </div>
+
+      <div id="corrections-report-list" class="vmc-results-list"></div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/corrections-report.js"></script>
+</body>
+</html>

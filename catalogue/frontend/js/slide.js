@@ -1,5 +1,10 @@
 let currentSlideData = null;
 
+function autoSizeTextarea(el) {
+  el.style.height = "auto";
+  el.style.height = el.scrollHeight + "px";
+}
+
 function getSlideId() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
@@ -29,10 +34,10 @@ function guessOS() {
 }
 
 function getPreferredOS() {
-  let os = getCookie("mvls_preferred_os");
+  let os = getCookie("vmc_preferred_os");
   if (!os) {
     os = guessOS();
-    setCookie("mvls_preferred_os", os);
+    setCookie("vmc_preferred_os", os);
   }
   return os;
 }
@@ -82,7 +87,7 @@ function createEl(tagName, className, text) {
 
 function createBadge(text, title, extraClass) {
   const badge = document.createElement("span");
-  badge.className = "mvls-badge";
+  badge.className = "vmc-badge";
   if (extraClass) badge.classList.add(extraClass);
   badge.textContent = text;
   badge.title = title;
@@ -91,7 +96,7 @@ function createBadge(text, title, extraClass) {
 }
 
 function createNotepadBadge() {
-  return createBadge("", "David Jenkinson notes available", "mvls-badge-notepad");
+  return createBadge("EXP", "Expert contributor notes available", "vmc-badge-gold");
 }
 
 function addBadges(container, slide) {
@@ -105,7 +110,7 @@ function addBadges(container, slide) {
 
   const mag = normaliseMagnification(technical.objective_magnifications || metadata.magnification);
   if (mag) {
-    container.appendChild(createBadge(mag, "Objective magnification: " + mag, "mvls-badge-gold"));
+    container.appendChild(createBadge(mag, "Objective magnification: " + mag));
   }
 
   if ((slide.slide_annotations || []).length > 0) {
@@ -117,44 +122,44 @@ function addBadges(container, slide) {
   }
 
   if (boolValue(metadata.is_z_stack) || metadata.z_plane_count > 1) {
-    container.appendChild(createBadge("ZST", "Z-stack slide"));
+    container.appendChild(createBadge("ZST", "Z-stack slide", "vmc-badge-green"));
   }
 
   if (metadata.meaningful_view_count && metadata.meaningful_view_count > 1) {
-    container.appendChild(createBadge("MVI", "Multiview slide"));
+    container.appendChild(createBadge("MVI", "Multiview slide", "vmc-badge-purple"));
   }
 
   if (boolValue(metadata.is_comparison_slide)) {
-    container.appendChild(createBadge("CMP", "Comparison slide"));
+    container.appendChild(createBadge("CMP", "Comparison slide", "vmc-badge-maroon"));
   }
 
   if (boolValue(metadata.legacy_thick_section)) {
-    container.appendChild(createBadge("TSL", "Thick section"));
+    container.appendChild(createBadge("TSL", "Thick section", "vmc-badge-slate"));
   }
 }
 
 
 function appendSubjectDivider(root) {
   const divider = document.createElement("hr");
-  divider.className = "mvls-subject-divider";
+  divider.className = "vmc-subject-divider";
   root.appendChild(divider);
 }
 
 function appendAnnotationSeparator(root) {
   const divider = document.createElement("hr");
-  divider.className = "mvls-annotation-separator";
+  divider.className = "vmc-annotation-separator";
   root.appendChild(divider);
 }
 
 function createDetailItem(label, value) {
-  const item = createEl("div", "mvls-detail-item");
-  item.appendChild(createEl("span", "mvls-detail-label", label));
+  const item = createEl("div", "vmc-detail-item");
+  item.appendChild(createEl("span", "vmc-detail-label", label));
   item.appendChild(createEl("div", "", textOrDash(value)));
   return item;
 }
 
 function renderDetailGrid(container, items) {
-  const grid = createEl("div", "mvls-detail-grid");
+  const grid = createEl("div", "vmc-detail-grid");
   for (const [label, value] of items) {
     grid.appendChild(createDetailItem(label, value));
   }
@@ -172,20 +177,23 @@ function getTissueSummary(slide) {
 }
 
 
-function createSectionNavigator(root) {
-  const nav = createEl("nav", "mvls-section-nav");
+function createSectionNavigator(root, slide) {
+  const nav = createEl("nav", "vmc-section-nav");
   nav.setAttribute("aria-label", "Slide detail sections");
 
+  const hasAnnotations = (slide.slide_annotations || []).length > 0;
+  const hasExpertNotes = (slide.david_notes || []).length > 0;
+
   const sections = [
-    ["slide-top", "IM", "Image and share path", ""],
-    ["slide-metadata", "MD", "Metadata", ""],
-    ["slide-annotations", "AN", "Slide annotations", ""],
-    ["slide-david", "NT", "David Jenkinson notes", "mvls-section-nav-gold"],
-    ["slide-technical", "TM", "Technical metadata", ""],
+    ["slide-top", "IMG", "Image and share path", ""],
+    ["slide-metadata", "MET", "Metadata", ""],
+    ["slide-annotations", "ANN", "Slide annotations", hasAnnotations ? "vmc-section-nav-gold" : "vmc-section-nav-muted"],
+    ["slide-david", "EXP", "Expert contributor notes", hasExpertNotes ? "vmc-section-nav-gold" : "vmc-section-nav-muted"],
+    ["slide-technical", "TEC", "Technical metadata", ""],
   ];
 
   for (const [targetId, label, title, extraClass] of sections) {
-    const button = createEl("button", "mvls-section-nav-button", label);
+    const button = createEl("button", "vmc-section-nav-button", label);
     button.type = "button";
     button.title = title;
     button.setAttribute("aria-label", title);
@@ -213,16 +221,16 @@ function renderTopSection(root, slide) {
   const fileLocation = slide.file_location || {};
   const technical = slide.technical || {};
 
-  const top = createEl("div", "mvls-slide-top mvls-section-anchor");
+  const top = createEl("div", "vmc-slide-top vmc-section-anchor");
   top.id = "slide-top";
 
   const imageBlock = createEl("div");
-  const imageButton = createEl("button", "mvls-slide-preview-button");
+  const imageButton = createEl("button", "vmc-slide-preview-button");
   imageButton.type = "button";
   imageButton.title = "Open larger preview";
 
   const image = document.createElement("img");
-  image.className = "mvls-slide-preview";
+  image.className = "vmc-slide-preview";
   image.src = slide.thumbnails.detail;
   image.alt = "Preview image for slide " + slide.slide_id;
 
@@ -230,15 +238,15 @@ function renderTopSection(root, slide) {
   imageButton.addEventListener("click", () => openModal(slide.thumbnails.large));
 
   imageBlock.appendChild(imageButton);
-  imageBlock.appendChild(createEl("p", "mvls-muted", "Click image to open larger preview."));
+  imageBlock.appendChild(createEl("p", "vmc-muted", "Click image to open larger preview."));
 
   const archivePartsForImage = splitArchivePath(fileLocation.archive_relative_path);
-  const filenamePanel = createEl("div", "mvls-filename-panel");
+  const filenamePanel = createEl("div", "vmc-filename-panel");
   filenamePanel.appendChild(createEl("strong", "", "Filename"));
-  filenamePanel.appendChild(createEl("div", "mvls-filename-text", archivePartsForImage.filename || identity.filename || "—"));
+  filenamePanel.appendChild(createEl("div", "vmc-filename-text", archivePartsForImage.filename || identity.filename || "—"));
   imageBlock.appendChild(filenamePanel);
 
-  const summary = createEl("div", "mvls-slide-summary");
+  const summary = createEl("div", "vmc-slide-summary");
 
   const organ = textOrDash(metadata.organ);
   const tissue = getTissueSummary(slide);
@@ -246,20 +254,20 @@ function renderTopSection(root, slide) {
   const stain = textOrDash(metadata.canonical_stain || metadata.raw_stain);
 
   summary.appendChild(createEl("h2", "", "Slide " + slide.slide_id));
-  summary.appendChild(createEl("p", "mvls-summary-highlight", organ + (tissue !== "—" ? " / " + tissue : "")));
-  summary.appendChild(createEl("p", "mvls-summary-line", species + " · " + stain));
-  summary.appendChild(createEl("p", "mvls-slide-id", "Slide ID: " + slide.slide_id));
+  summary.appendChild(createEl("p", "vmc-summary-highlight", organ + (tissue !== "—" ? " / " + tissue : "")));
+  summary.appendChild(createEl("p", "vmc-summary-line", species + " · " + stain));
+  summary.appendChild(createEl("p", "vmc-slide-id", "Slide ID: " + slide.slide_id));
 
-  const badgeRow = createEl("div", "mvls-badge-row");
+  const badgeRow = createEl("div", "vmc-badge-row");
   addBadges(badgeRow, slide);
   summary.appendChild(badgeRow);
 
-  const sharePanel = createEl("div", "mvls-share-panel");
+  const sharePanel = createEl("div", "vmc-share-panel");
   sharePanel.appendChild(createEl("h3", "", "Share path"));
 
-  const controls = createEl("div", "mvls-share-controls");
+  const controls = createEl("div", "vmc-share-controls");
 
-  const osField = createEl("div", "mvls-field");
+  const osField = createEl("div", "vmc-field");
   const osLabel = createEl("label", "", "Path format");
   osLabel.setAttribute("for", "os-select");
 
@@ -274,7 +282,7 @@ function renderTopSection(root, slide) {
   }
 
   osSelect.addEventListener("change", function () {
-    setCookie("mvls_preferred_os", osSelect.value);
+    setCookie("vmc_preferred_os", osSelect.value);
     loadSlide(osSelect.value);
   });
 
@@ -287,23 +295,23 @@ function renderTopSection(root, slide) {
   const archiveParts = splitArchivePath(fileLocation.archive_relative_path);
   const shareParts = splitArchivePath(fileLocation.resolved_share_path);
 
-  sharePanel.appendChild(createEl("p", "mvls-path-label", "Archive folder"));
-  const archiveFolder = createEl("div", "mvls-path-box mvls-path-box-wrap", textOrDash(archiveParts.folder));
+  sharePanel.appendChild(createEl("p", "vmc-path-label", "Archive folder"));
+  const archiveFolder = createEl("div", "vmc-path-box vmc-path-box-wrap", textOrDash(archiveParts.folder));
   sharePanel.appendChild(archiveFolder);
 
-  sharePanel.appendChild(createEl("p", "mvls-path-label", "Filename"));
-  const archiveFilename = createEl("div", "mvls-path-box mvls-path-box-wrap", textOrDash(archiveParts.filename || identity.filename));
+  sharePanel.appendChild(createEl("p", "vmc-path-label", "Filename"));
+  const archiveFilename = createEl("div", "vmc-path-box vmc-path-box-wrap", textOrDash(archiveParts.filename || identity.filename));
   sharePanel.appendChild(archiveFilename);
 
-  sharePanel.appendChild(createEl("p", "mvls-path-label", fileLocation.display_name + " share path"));
-  const sharePath = createEl("div", "mvls-path-box mvls-path-box-wrap", textOrDash(fileLocation.resolved_share_path));
+  sharePanel.appendChild(createEl("p", "vmc-path-label", fileLocation.display_name + " share path"));
+  const sharePath = createEl("div", "vmc-path-box vmc-path-box-wrap", textOrDash(fileLocation.resolved_share_path));
   sharePath.id = "resolved-share-path";
   sharePanel.appendChild(sharePath);
 
-  const copyRow = createEl("div", "mvls-actions");
-  const copyButton = createEl("button", "mvls-button", "Copy path");
+  const copyRow = createEl("div", "vmc-actions");
+  const copyButton = createEl("button", "vmc-button", "Copy path");
   copyButton.type = "button";
-  const copyStatus = createEl("span", "mvls-copy-status", "");
+  const copyStatus = createEl("span", "vmc-copy-status", "");
 
   copyButton.addEventListener("click", async function () {
     try {
@@ -330,12 +338,12 @@ function renderTopSection(root, slide) {
 
 
 function getFeedbackUser() {
-  if (window.MVLS_USER) {
+  if (window.VMC_USER) {
     return {
-      username: window.MVLS_USER.username || "unknown_user",
-      email: window.MVLS_USER.email || "",
-      displayName: window.MVLS_USER.display_name || window.MVLS_USER.username || "Authenticated user",
-      role: window.MVLS_USER.role || ""
+      username: window.VMC_USER.username || "unknown_user",
+      email: window.VMC_USER.email || "",
+      displayName: window.VMC_USER.display_name || window.VMC_USER.username || "Authenticated user",
+      role: window.VMC_USER.role || ""
     };
   }
 
@@ -349,7 +357,7 @@ function getFeedbackUser() {
 
 function feedbackGuidanceText(category) {
   if (category === "organ") {
-    return "Please describe why the organ may be incorrect and provide the suggested organ if known. Useful evidence may include the slide image, filename, archive folder, teaching context, or annotation notes.";
+    return "Please describe why the organ may be incorrect and provide the suggested organ if known. Useful reasoning may reference the slide's appearance, filename, archive folder, teaching context, or annotation notes.";
   }
 
   if (category === "tissue") {
@@ -357,44 +365,140 @@ function feedbackGuidanceText(category) {
   }
 
   if (category === "species") {
-    return "Please provide the suspected species and the evidence used, such as filename, teaching collection, morphology, or associated notes.";
+    return "Please provide the suspected species and the reasoning behind it, such as the filename, teaching collection, morphology, or associated notes.";
   }
 
   if (category === "stain") {
-    return "Please provide the suspected stain and any visual clues or contextual evidence. If the raw stain and canonical stain differ, mention which value appears wrong.";
+    return "Please provide the suspected stain and describe any visual clues or context that support it. If the raw stain and canonical stain differ, mention which value appears wrong.";
   }
 
-  return "Please describe the metadata issue, correction, or useful teaching context. Include as much evidence as possible so the catalogue can be reviewed safely.";
+  if (category === "description") {
+    return "Please suggest a correction or addition to the slide's description, and explain why the current description is wrong, incomplete, or misleading.";
+  }
+
+  if (category === "notes") {
+    return "Please suggest a correction or addition to the slide's notes, and explain what should change and why.";
+  }
+
+  return "Please describe the metadata issue, correction, or useful teaching context. Include as much reasoning as possible so the catalogue can be reviewed safely.";
+}
+
+const dictionaryValueCache = {};
+
+async function fetchDictionaryValues(category) {
+  if (dictionaryValueCache[category]) {
+    return dictionaryValueCache[category];
+  }
+
+  const response = await fetch("/api/dictionaries/" + category, {
+    credentials: "include"
+  });
+
+  if (!response.ok) {
+    return [];
+  }
+
+  const result = await response.json();
+  dictionaryValueCache[category] = result.values || [];
+  return dictionaryValueCache[category];
+}
+
+async function updateSuggestedValueControl(category) {
+  const container = document.getElementById("feedback-suggested-value-container");
+  const otherField = document.getElementById("feedback-suggested-other-field");
+  const otherInput = document.getElementById("feedback-suggested-other");
+
+  otherField.style.display = "none";
+  otherInput.value = "";
+
+  const dictionaryBackedCategories = ["organ", "tissue", "species", "stain"];
+
+  if (dictionaryBackedCategories.indexOf(category) === -1) {
+    container.innerHTML = "";
+    const input = document.createElement("input");
+    input.id = "feedback-suggested-value";
+    input.name = "feedback-suggested-value";
+    input.type = "text";
+    input.placeholder = "Optional comment or context";
+    container.appendChild(input);
+    return;
+  }
+
+  container.innerHTML = "<em>Loading options...</em>";
+
+  const values = await fetchDictionaryValues(category);
+
+  const select = document.createElement("select");
+  select.id = "feedback-suggested-value";
+  select.name = "feedback-suggested-value";
+
+  const blank = document.createElement("option");
+  blank.value = "";
+  blank.textContent = "Select a value...";
+  select.appendChild(blank);
+
+  for (const item of values) {
+    const option = document.createElement("option");
+    option.value = item.value;
+    option.textContent = item.label;
+    select.appendChild(option);
+  }
+
+  const otherOption = document.createElement("option");
+  otherOption.value = "__other__";
+  otherOption.textContent = "Other (not listed)";
+  select.appendChild(otherOption);
+
+  select.addEventListener("change", function () {
+    otherField.style.display = select.value === "__other__" ? "block" : "none";
+    if (select.value !== "__other__") {
+      otherInput.value = "";
+    }
+  });
+
+  container.innerHTML = "";
+  container.appendChild(select);
+}
+
+function getSuggestedValue() {
+  const control = document.getElementById("feedback-suggested-value");
+
+  if (control && control.value === "__other__") {
+    const other = document.getElementById("feedback-suggested-other");
+    return other ? other.value.trim() : "";
+  }
+
+  return control ? control.value.trim() : "";
 }
 
 function ensureMetadataFeedbackModal() {
-  let modal = document.getElementById("metadata-feedback-modal");
+  let modal = document.getElementById("metadata-correction-modal");
 
   if (modal) {
     return modal;
   }
 
-  modal = createEl("div", "mvls-feedback-modal");
-  modal.id = "metadata-feedback-modal";
+  modal = createEl("div", "vmc-feedback-modal");
+  modal.id = "metadata-correction-modal";
   modal.setAttribute("aria-hidden", "true");
 
-  const dialog = createEl("div", "mvls-feedback-dialog");
+  const dialog = createEl("div", "vmc-feedback-dialog");
   dialog.setAttribute("role", "dialog");
   dialog.setAttribute("aria-modal", "true");
-  dialog.setAttribute("aria-labelledby", "metadata-feedback-title");
+  dialog.setAttribute("aria-labelledby", "metadata-correction-title");
 
-  const title = createEl("h2", "", "Metadata feedback");
-  title.id = "metadata-feedback-title";
+  const title = createEl("h2", "", "Metadata corrections");
+  title.id = "metadata-correction-title";
   dialog.appendChild(title);
 
-  const guidance = createEl("div", "mvls-feedback-guidance");
+  const guidance = createEl("div", "vmc-feedback-guidance");
   guidance.id = "feedback-guidance";
   dialog.appendChild(guidance);
 
   const form = document.createElement("form");
-  form.id = "metadata-feedback-form";
+  form.id = "metadata-correction-form";
 
-  const grid = createEl("div", "mvls-feedback-grid");
+  const grid = createEl("div", "vmc-feedback-grid");
 
   const readonlyFields = [
     ["feedback-slide-id", "Slide ID", "text"],
@@ -404,7 +508,7 @@ function ensureMetadataFeedbackModal() {
   ];
 
   for (const [id, labelText, type] of readonlyFields) {
-    const field = createEl("div", "mvls-field");
+    const field = createEl("div", "vmc-field");
 
     const label = createEl("label", "", labelText);
     label.setAttribute("for", id);
@@ -420,7 +524,7 @@ function ensureMetadataFeedbackModal() {
     grid.appendChild(field);
   }
 
-  const categoryField = createEl("div", "mvls-field");
+  const categoryField = createEl("div", "vmc-field");
   const categoryLabel = createEl("label", "", "Metadata area");
   categoryLabel.setAttribute("for", "feedback-category");
 
@@ -433,6 +537,8 @@ function ensureMetadataFeedbackModal() {
     ["tissue", "Tissue"],
     ["species", "Species"],
     ["stain", "Stain"],
+    ["description", "Description"],
+    ["notes", "Notes"],
     ["general_comment", "General metadata comment"]
   ];
 
@@ -447,63 +553,92 @@ function ensureMetadataFeedbackModal() {
   categoryField.appendChild(categorySelect);
   grid.appendChild(categoryField);
 
-  const suggestedField = createEl("div", "mvls-field");
+  const suggestedField = createEl("div", "vmc-field");
   const suggestedLabel = createEl("label", "", "Suggested correction");
   suggestedLabel.setAttribute("for", "feedback-suggested-value");
+
+  const suggestedControl = createEl("div", "");
+  suggestedControl.id = "feedback-suggested-value-container";
 
   const suggestedInput = document.createElement("input");
   suggestedInput.id = "feedback-suggested-value";
   suggestedInput.name = "feedback-suggested-value";
   suggestedInput.type = "text";
-  suggestedInput.placeholder = "Optional, e.g. PAS, Mouse, Kidney, Epithelium";
+  suggestedInput.placeholder = "Optional comment or context";
+  suggestedControl.appendChild(suggestedInput);
+
+  const otherField = createEl("div", "vmc-field");
+  otherField.id = "feedback-suggested-other-field";
+  otherField.style.display = "none";
+  otherField.style.marginTop = "0.5rem";
+
+  const otherGuidance = createEl(
+    "div",
+    "vmc-feedback-guidance",
+    "Not listed? Describe the new term below so an administrator can review it and add it to the dictionary."
+  );
+
+  const otherInput = document.createElement("input");
+  otherInput.id = "feedback-suggested-other";
+  otherInput.name = "feedback-suggested-other";
+  otherInput.type = "text";
+  otherInput.placeholder = "e.g. the new organ, tissue, species, or stain name you're suggesting";
+
+  otherField.appendChild(otherGuidance);
+  otherField.appendChild(otherInput);
 
   suggestedField.appendChild(suggestedLabel);
-  suggestedField.appendChild(suggestedInput);
+  suggestedField.appendChild(suggestedControl);
+  suggestedField.appendChild(otherField);
   grid.appendChild(suggestedField);
 
   form.appendChild(grid);
 
-  const currentField = createEl("div", "mvls-field");
+  const currentField = createEl("div", "vmc-field");
   currentField.style.marginTop = "0.85rem";
 
   const currentLabel = createEl("label", "", "Current value / context");
   currentLabel.setAttribute("for", "feedback-current-value");
 
-  const currentBox = createEl("div", "mvls-feedback-current-context");
+  const currentBox = createEl("div", "vmc-feedback-current-context");
   currentBox.id = "feedback-current-value";
 
   currentField.appendChild(currentLabel);
   currentField.appendChild(currentBox);
   form.appendChild(currentField);
 
-  const commentsField = createEl("div", "mvls-field");
+  const commentsField = createEl("div", "vmc-field");
   commentsField.style.marginTop = "0.85rem";
 
-  const commentsLabel = createEl("label", "", "Comments, correction or evidence ");
-  const required = createEl("span", "mvls-feedback-required", "*");
+  const commentsLabel = createEl("label", "", "Comments and reasoning ");
+  const required = createEl("span", "vmc-feedback-required", "*");
   commentsLabel.appendChild(required);
   commentsLabel.setAttribute("for", "feedback-comments");
 
   const comments = document.createElement("textarea");
   comments.id = "feedback-comments";
   comments.name = "feedback-comments";
-  comments.placeholder = "Please explain what should be reviewed and why. Include the evidence used, such as filename, slide appearance, annotation, David note, or teaching context.";
-  comments.required = true;
+  comments.placeholder = "Please explain what should be reviewed and why. Describe your reasoning - for example, referencing the filename, slide appearance, an annotation, an expert contributor note, or teaching context. You can enter multiple corrections from the same slide on different metadata areas.";
 
   commentsField.appendChild(commentsLabel);
   commentsField.appendChild(comments);
   form.appendChild(commentsField);
 
-  const actions = createEl("div", "mvls-feedback-modal-actions");
+  const requiredNote = createEl("p", "vmc-muted", "* Please describe your reasoning to help reviewers");
+  requiredNote.style.fontSize = "0.85rem";
+  requiredNote.style.marginTop = "0.35rem";
+  form.appendChild(requiredNote);
 
-  const submit = createEl("button", "mvls-button", "Submit feedback");
+  const actions = createEl("div", "vmc-feedback-modal-actions");
+
+  const submit = createEl("button", "vmc-button", "Submit correction");
   submit.type = "submit";
 
-  const cancel = createEl("button", "mvls-button mvls-button-secondary", "Cancel");
+  const cancel = createEl("button", "vmc-button vmc-button-secondary", "Cancel");
   cancel.type = "button";
   cancel.addEventListener("click", closeMetadataFeedbackModal);
 
-  const status = createEl("span", "mvls-feedback-status", "");
+  const status = createEl("span", "vmc-feedback-status", "");
   status.id = "feedback-status";
 
   actions.appendChild(submit);
@@ -526,20 +661,15 @@ function ensureMetadataFeedbackModal() {
       submitter_role: user.role,
       feedback_type: document.getElementById("feedback-category").value,
       current_value: document.getElementById("feedback-current-value").textContent,
-      suggested_value: document.getElementById("feedback-suggested-value").value.trim(),
+      suggested_value: getSuggestedValue(),
       feedback_text: document.getElementById("feedback-comments").value.trim(),
       created_at_client: new Date().toISOString()
     };
 
-    if (!payload.feedback_text) {
-      status.textContent = "Please add a comment or evidence before submitting.";
-      return;
-    }
-
     try {
       status.textContent = "Submitting feedback...";
 
-      const response = await fetch("/api/slides/" + payload.slide_id + "/metadata-feedback", {
+      const response = await fetch("/api/slides/" + payload.slide_id + "/metadata-correction", {
         method: "POST",
         headers: {
           "Content-Type": "application/json"
@@ -577,7 +707,7 @@ function ensureMetadataFeedbackModal() {
   modal.appendChild(dialog);
 
   modal.addEventListener("click", function (event) {
-    if (event.target.id === "metadata-feedback-modal") {
+    if (event.target.id === "metadata-correction-modal") {
       closeMetadataFeedbackModal();
     }
   });
@@ -608,6 +738,14 @@ function metadataCurrentValue(slide, category) {
     return "Raw stain: " + raw + " | Canonical stain: " + canonical + " | Stain family: " + family;
   }
 
+  if (category === "description") {
+    return metadata.description || "No description currently recorded.";
+  }
+
+  if (category === "notes") {
+    return metadata.notes || "No notes currently recorded.";
+  }
+
   return [
     "Organ: " + textOrDash(metadata.organ),
     "Tissue: " + textOrDash(getTissueSummary(slide)),
@@ -635,14 +773,15 @@ function openMetadataFeedbackModal(slide) {
   document.getElementById("feedback-email").value = user.email;
 
   document.getElementById("feedback-category").value = "general_comment";
-  document.getElementById("feedback-suggested-value").value = "";
   document.getElementById("feedback-comments").value = "";
   document.getElementById("feedback-status").textContent = "";
 
   updateFeedbackModalContext(slide);
+  updateSuggestedValueControl("general_comment");
 
   document.getElementById("feedback-category").onchange = function () {
     updateFeedbackModalContext(slide);
+    updateSuggestedValueControl(document.getElementById("feedback-category").value);
   };
 
   modal.classList.add("is-open");
@@ -651,7 +790,7 @@ function openMetadataFeedbackModal(slide) {
 }
 
 function closeMetadataFeedbackModal() {
-  const modal = document.getElementById("metadata-feedback-modal");
+  const modal = document.getElementById("metadata-correction-modal");
   if (modal) {
     modal.classList.remove("is-open");
     modal.setAttribute("aria-hidden", "true");
@@ -659,8 +798,8 @@ function closeMetadataFeedbackModal() {
 }
 
 function addMetadataFeedbackButton(section, slide) {
-  const row = createEl("div", "mvls-feedback-button-row");
-  const button = createEl("button", "mvls-button", "Metadata feedback");
+  const row = createEl("div", "vmc-feedback-button-row");
+  const button = createEl("button", "vmc-button", "Metadata corrections");
   button.type = "button";
   button.addEventListener("click", function () {
     openMetadataFeedbackModal(slide);
@@ -676,7 +815,7 @@ function renderMetadataSection(root, slide) {
   const metadata = slide.metadata || {};
   const technical = slide.technical || {};
 
-  const section = createEl("section", "mvls-section mvls-section-anchor");
+  const section = createEl("section", "vmc-section vmc-section-anchor");
   section.id = "slide-metadata";
   section.appendChild(createEl("h2", "", "Metadata"));
 
@@ -698,27 +837,116 @@ function renderMetadataSection(root, slide) {
   root.appendChild(section);
 }
 
+function buildQupathScriptToolbar(slideId) {
+  const toolbar = createEl("div", "vmc-qupath-toolbar");
+
+  const link = createEl("a", "vmc-button vmc-button-secondary", "Download QuPath script");
+  link.id = "qupath-script-link";
+
+  const optionsWrap = createEl("div", "vmc-qupath-options");
+
+  const optionsToggle = createEl("button", "vmc-button vmc-button-secondary vmc-qupath-options-toggle", "Options ▾");
+  optionsToggle.type = "button";
+  optionsToggle.setAttribute("aria-haspopup", "true");
+  optionsToggle.setAttribute("aria-expanded", "false");
+
+  const popup = createEl("div", "vmc-qupath-popup");
+  popup.hidden = true;
+
+  const zoomCheckbox = document.createElement("input");
+  zoomCheckbox.type = "checkbox";
+  zoomCheckbox.id = "qupath-apply-zoom";
+  zoomCheckbox.checked = true;
+
+  const colorPicker = document.createElement("input");
+  colorPicker.type = "color";
+  colorPicker.id = "qupath-annotation-color";
+  colorPicker.value = "#ffff00";
+  colorPicker.title = "Annotation colour in the generated script";
+
+  function updateLink() {
+    const applyZoom = zoomCheckbox.checked ? "true" : "false";
+    const color = colorPicker.value.replace("#", "");
+    link.href = "/api/slides/" + slideId + "/qupath-script?apply_zoom=" + applyZoom + "&color=" + color;
+  }
+
+  zoomCheckbox.addEventListener("change", updateLink);
+  colorPicker.addEventListener("change", updateLink);
+  updateLink();
+
+  const zoomLabel = createEl("label", "vmc-qupath-popup-row");
+  zoomLabel.appendChild(zoomCheckbox);
+  zoomLabel.appendChild(document.createTextNode(
+    " Apply zoom scaling (experimental - untick and try again if annotations look misplaced in QuPath)"
+  ));
+
+  const colorLabel = createEl("label", "vmc-qupath-popup-row");
+  colorLabel.appendChild(colorPicker);
+  colorLabel.appendChild(document.createTextNode(" Annotation colour"));
+
+  const helpLink = createEl("a", "vmc-qupath-popup-row vmc-qupath-help-link", "How to apply this in QuPath");
+  helpLink.href = "/documents/script_annotation.html";
+  helpLink.target = "_blank";
+  helpLink.rel = "noopener";
+
+  const reportLink = createEl("a", "vmc-qupath-popup-row vmc-qupath-help-link", "Report annotation error");
+  reportLink.href = "/annotation-review.html?id=" + slideId;
+
+  popup.appendChild(zoomLabel);
+  popup.appendChild(colorLabel);
+  popup.appendChild(createEl("hr", "vmc-qupath-popup-divider"));
+  popup.appendChild(helpLink);
+  popup.appendChild(reportLink);
+
+  function closePopup() {
+    popup.hidden = true;
+    optionsToggle.setAttribute("aria-expanded", "false");
+  }
+
+  optionsToggle.addEventListener("click", function (event) {
+    event.stopPropagation();
+    const willOpen = popup.hidden;
+    popup.hidden = !willOpen;
+    optionsToggle.setAttribute("aria-expanded", String(willOpen));
+  });
+
+  document.addEventListener("click", function (event) {
+    if (!optionsWrap.contains(event.target)) {
+      closePopup();
+    }
+  });
+
+  optionsWrap.appendChild(optionsToggle);
+  optionsWrap.appendChild(popup);
+
+  toolbar.appendChild(link);
+  toolbar.appendChild(optionsWrap);
+  return toolbar;
+}
+
 function renderAnnotations(root, slide) {
   const annotations = slide.slide_annotations || [];
 
-  const section = createEl("section", "mvls-section mvls-section-anchor");
+  const section = createEl("section", "vmc-section vmc-section-anchor");
   section.id = "slide-annotations";
   section.appendChild(createEl("h2", "", "Slide annotations"));
 
   if (!annotations.length) {
-    section.appendChild(createEl("div", "mvls-placeholder", "No slide annotations are currently linked to this slide."));
+    section.appendChild(createEl("div", "vmc-placeholder", "No slide annotations are currently linked to this slide."));
     root.appendChild(section);
     return;
   }
+
+  section.appendChild(buildQupathScriptToolbar(slide.slide_id));
 
   annotations.forEach(function (ann, index) {
     if (index > 0) {
       appendAnnotationSeparator(section);
     }
 
-    const card = createEl("article", "mvls-annotation-card");
+    const card = createEl("article", "vmc-annotation-card");
     card.appendChild(createEl("h3", "", ann.title || "Annotation " + ann.annotation_id));
-    card.appendChild(createEl("p", "mvls-annotation-meta", "Type: " + textOrDash(ann.annotation_type) + " · Annotation ID: " + ann.annotation_id));
+    card.appendChild(createEl("p", "vmc-annotation-meta", "Type: " + textOrDash(ann.annotation_type) + " · Annotation ID: " + ann.annotation_id));
 
     if (ann.description) {
       card.appendChild(createEl("p", "", ann.description));
@@ -741,39 +969,275 @@ function renderAnnotations(root, slide) {
   root.appendChild(section);
 }
 
+function canWriteExpertNotes() {
+  const role = window.VMC_USER && window.VMC_USER.role;
+  return role === "expert" || role === "admin" || role === "system_admin";
+}
+
+function buildAddExpertNoteForm(slideId, onSaved) {
+  const card = createEl("article", "vmc-annotation-card");
+  card.appendChild(createEl("h3", "", "Add an expert note"));
+
+  const titleField = createEl("div", "vmc-field");
+  titleField.appendChild(createEl("label", "", "Title (optional)"));
+  const titleInput = document.createElement("input");
+  titleInput.type = "text";
+  titleField.appendChild(titleInput);
+
+  const textField = createEl("div", "vmc-field");
+  textField.appendChild(createEl("label", "", "Note"));
+  const textInput = document.createElement("textarea");
+  textInput.style.minHeight = "80px";
+  textInput.style.resize = "none";
+  textInput.style.overflow = "hidden";
+  textInput.addEventListener("input", function () {
+    autoSizeTextarea(textInput);
+  });
+  textField.appendChild(textInput);
+
+  const actions = createEl("div", "vmc-actions");
+  const submitButton = createEl("button", "vmc-button", "Add note");
+  submitButton.type = "button";
+  const status = createEl("span", "vmc-muted");
+
+  submitButton.addEventListener("click", async function () {
+    const noteText = textInput.value.trim();
+    if (!noteText) {
+      status.textContent = "Note text is required.";
+      return;
+    }
+
+    status.textContent = "Saving...";
+
+    const response = await fetch("/api/slides/" + slideId + "/expert-notes", {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ note_title: titleInput.value.trim() || null, note_text: noteText }),
+    });
+
+    if (!response.ok) {
+      const error = await response.json().catch(function () {
+        return {};
+      });
+      status.textContent = error.detail || "Could not save note.";
+      return;
+    }
+
+    status.textContent = "Saved.";
+    titleInput.value = "";
+    textInput.value = "";
+    onSaved();
+  });
+
+  actions.appendChild(submitButton);
+  actions.appendChild(status);
+
+  card.appendChild(titleField);
+  card.appendChild(textField);
+  card.appendChild(actions);
+
+  return card;
+}
+
+function buildExpertNoteCard(slideId, note, onChanged) {
+  const card = createEl("article", "vmc-annotation-card");
+  card.appendChild(createEl("h3", "", note.note_title || "Expert note " + note.note_id));
+  card.appendChild(createEl(
+    "p",
+    "vmc-annotation-meta",
+    (note.author_display_name || note.author_username) + " · " + note.created_at
+  ));
+
+  const textArea = document.createElement("textarea");
+  textArea.className = "vmc-note-text";
+  textArea.value = note.note_text;
+  textArea.style.overflow = "hidden";
+  textArea.disabled = true;
+  textArea.addEventListener("input", function () {
+    autoSizeTextarea(textArea);
+  });
+  card.appendChild(textArea);
+  requestAnimationFrame(function () {
+    autoSizeTextarea(textArea);
+  });
+
+  if (canWriteExpertNotes()) {
+    const actions = createEl("div", "vmc-actions");
+
+    const editButton = createEl("button", "vmc-button vmc-button-secondary", "Edit");
+    editButton.type = "button";
+    const saveButton = createEl("button", "vmc-button", "Save");
+    saveButton.type = "button";
+    saveButton.hidden = true;
+
+    editButton.addEventListener("click", function () {
+      textArea.disabled = false;
+      autoSizeTextarea(textArea);
+      editButton.hidden = true;
+      saveButton.hidden = false;
+    });
+
+    saveButton.addEventListener("click", async function () {
+      const response = await fetch("/api/expert-notes/" + note.note_id, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ note_title: note.note_title, note_text: textArea.value }),
+      });
+
+      if (!response.ok) {
+        alert("Could not save this note.");
+        return;
+      }
+
+      onChanged();
+    });
+
+    const deleteButton = createEl("button", "vmc-button vmc-button-secondary", "Delete");
+    deleteButton.type = "button";
+    deleteButton.addEventListener("click", async function () {
+      if (!confirm("Delete this expert note?")) {
+        return;
+      }
+
+      const response = await fetch("/api/expert-notes/" + note.note_id, {
+        method: "DELETE",
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        alert("Could not delete this note.");
+        return;
+      }
+
+      onChanged();
+    });
+
+    actions.appendChild(editButton);
+    actions.appendChild(saveButton);
+    actions.appendChild(deleteButton);
+    card.appendChild(actions);
+  }
+
+  return card;
+}
+
+function buildDavidNoteCard(note, onChanged) {
+  const card = createEl("article", "vmc-david-card");
+
+  const canEdit = canWriteExpertNotes();
+  let titleInput = null;
+
+  if (canEdit) {
+    titleInput = document.createElement("input");
+    titleInput.type = "text";
+    titleInput.className = "vmc-note-title";
+    titleInput.value = note.annotation_title || "";
+    titleInput.disabled = true;
+    titleInput.style.marginBottom = "0.5rem";
+    card.appendChild(titleInput);
+  } else {
+    card.appendChild(createEl("h3", "", note.annotation_title || "Expert note " + note.david_record_id));
+  }
+
+  const textArea = document.createElement("textarea");
+  textArea.className = "vmc-note-text";
+  textArea.value = note.note_text || "";
+  textArea.style.overflow = "hidden";
+  textArea.disabled = true;
+  textArea.addEventListener("input", function () {
+    autoSizeTextarea(textArea);
+  });
+  card.appendChild(textArea);
+  requestAnimationFrame(function () {
+    autoSizeTextarea(textArea);
+  });
+
+  renderDetailGrid(card, [
+    ["David record ID", note.david_record_id],
+    ["Confidence score", note.confidence_score],
+    ["Reconciliation method", note.reconciliation_method],
+    ["Reconciliation notes", note.reconciliation_notes],
+  ]);
+
+  if (canEdit) {
+    const actions = createEl("div", "vmc-actions");
+
+    const editButton = createEl("button", "vmc-button vmc-button-secondary", "Edit");
+    editButton.type = "button";
+    const saveButton = createEl("button", "vmc-button", "Save");
+    saveButton.type = "button";
+    saveButton.hidden = true;
+
+    editButton.addEventListener("click", function () {
+      titleInput.disabled = false;
+      textArea.disabled = false;
+      autoSizeTextarea(textArea);
+      editButton.hidden = true;
+      saveButton.hidden = false;
+    });
+
+    saveButton.addEventListener("click", async function () {
+      const response = await fetch("/api/david-notes/" + note.david_record_id, {
+        method: "PATCH",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ annotation_title: titleInput.value, note_text: textArea.value }),
+      });
+
+      if (!response.ok) {
+        alert("Could not save this note.");
+        return;
+      }
+
+      onChanged();
+    });
+
+    actions.appendChild(editButton);
+    actions.appendChild(saveButton);
+    card.appendChild(actions);
+  }
+
+  return card;
+}
+
 function renderDavidNotes(root, slide) {
   const notes = slide.david_notes || [];
+  const expertNotes = slide.expert_notes || [];
 
-  const section = createEl("section", "mvls-section mvls-section-anchor");
+  const section = createEl("section", "vmc-section vmc-section-anchor");
   section.id = "slide-david";
-  section.appendChild(createEl("h2", "", "David Jenkinson notes"));
+  section.appendChild(createEl("h2", "", "Expert contributor notes"));
 
-  if (!notes.length) {
-    section.appendChild(createEl("div", "mvls-placeholder", "No David Jenkinson notes are currently linked to this slide."));
+  if (canWriteExpertNotes()) {
+    section.appendChild(buildAddExpertNoteForm(slide.slide_id, function () {
+      loadSlide();
+    }));
+  }
+
+  if (expertNotes.length) {
+    expertNotes.forEach(function (note) {
+      section.appendChild(buildExpertNoteCard(slide.slide_id, note, function () {
+        loadSlide();
+      }));
+    });
+  }
+
+  if (!notes.length && !expertNotes.length) {
+    section.appendChild(createEl("div", "vmc-placeholder", "No expert contributor notes are currently linked to this slide."));
     root.appendChild(section);
     return;
   }
 
   notes.forEach(function (note, index) {
-    if (index > 0) {
+    if (index > 0 || expertNotes.length) {
       appendAnnotationSeparator(section);
     }
 
-    const card = createEl("article", "mvls-david-card");
-    card.appendChild(createEl("h3", "", note.annotation_title || "David note " + note.david_record_id));
-
-    if (note.note_text) {
-      card.appendChild(createEl("p", "", note.note_text));
-    }
-
-    renderDetailGrid(card, [
-      ["David record ID", note.david_record_id],
-      ["Confidence score", note.confidence_score],
-      ["Reconciliation method", note.reconciliation_method],
-      ["Reconciliation notes", note.reconciliation_notes],
-    ]);
-
-    section.appendChild(card);
+    section.appendChild(buildDavidNoteCard(note, function () {
+      loadSlide();
+    }));
   });
 
   root.appendChild(section);
@@ -782,7 +1246,7 @@ function renderDavidNotes(root, slide) {
 function renderTechnical(root, slide) {
   const technical = slide.technical || {};
 
-  const section = createEl("section", "mvls-section mvls-section-anchor");
+  const section = createEl("section", "vmc-section vmc-section-anchor");
   section.id = "slide-technical";
   section.appendChild(createEl("h2", "", "Technical metadata"));
 
@@ -808,7 +1272,7 @@ function renderSlide(slide) {
   const root = document.getElementById("slide-detail");
   root.innerHTML = "";
 
-  createSectionNavigator(root);
+  createSectionNavigator(root, slide);
   renderTopSection(root, slide);
 
   appendSubjectDivider(root);
@@ -878,8 +1342,8 @@ document.addEventListener("keydown", function (event) {
   }
 });
 
-if (window.mvlsRequireLogin) {
-  window.mvlsRequireLogin().then(function (user) {
+if (window.vmcRequireLogin) {
+  window.vmcRequireLogin().then(function (user) {
     if (user) {
       loadSlide();
     }

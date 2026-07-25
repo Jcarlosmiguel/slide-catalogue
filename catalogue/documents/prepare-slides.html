@@ -2,37 +2,37 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>MVLS Virtual Microscopy Catalogue</title>
+  <title>Virtual Microscopy Catalogue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/css/mvls.css">
+  <link rel="stylesheet" href="/css/catalogue.css">
   <script src="/js/auth.js"></script>
 </head>
 <body>
-  <div class="mvls-top-strip">
-    University of Glasgow · MVLS
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
   </div>
-  <header class="mvls-header">
-    <div class="mvls-header-inner">
-      <div class="mvls-brand-block">
-        <a href="https://www.gla.ac.uk"><img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo"></a>
-        <div class="mvls-brand-text">
-          <h1 class="mvls-title"><a href="https://www.gla.ac.uk/colleges/mvls/">MVLS Virtual Microscopy Catalogue</a></h1>
-          <p class="mvls-subtitle">
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
             Search, review and prepare teaching slides from the virtual microscopy archive.
           </p>
 	</div>
       </div>
-      <nav class="mvls-nav" aria-label="Main navigation">
+      <nav class="vmc-nav" aria-label="Main navigation">
         <a href="/">Home</a>
         <a href="/documents/about.html">About</a>
         <a href="/documents/contact.html">Contact</a>
         <a href="/documents/help.html">Help</a>
-        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
       </nav>
     </div>
   </header>
-  <main class="mvls-page">
-    <section class="mvls-card">
+  <main class="vmc-page">
+    <section class="vmc-card">
       <h1>Preparing QuPath Exports for OMERO Upload</h1>
       <p>
         Step-by-step guide for exporting a selected region from a virtual microscopy slide as an OME-TIFF file for import into OMERO.
@@ -43,20 +43,20 @@
         This guide will require you to install QuPath on your computer (<a href="https://qupath.github.io/">https://qupath.github.io/</a>). QuPath is a cross-platform, user-friendly open source software for digital pathology and whole slide image analysis, written using JavaFX. It can run on Windows, macOS and Linux. The software also requires Java to work. The current version at the time of writing is 0.7.0, and the QuPath website also provides installation instructions and prerequisite guidance, including Java requirements.
       </p>
       <p>
-        After installation, you will need access to the share that contains the original MVLS archive slides. That access is restricted and read-only to safeguard the original files. You will need to request that access. Access requests for the files are handled through the <a href=/documents/request-share-access.html>share request page</a>.
+        After installation, you will need access to the share that contains the original archive slides. That access is restricted and read-only to safeguard the original files. You will need to request that access. Access requests for the files are handled through the <a href=/documents/request-share-access.html>share request page</a>.
       </p>
       <p>
-        With access granted to the MVLS archive slides, you need to mount the share on your computer. This may require administrative rights if you are in a University of Glasgow SSD, but you can get help from the University’s HelpDesk for that. Instructions on how and where you should mount your share are provided in the relevant support guidance.
+        With access granted to the archive slides, you need to mount the share on your computer. This may require administrative rights if you are on a managed institutional device, but you can get help from your institution's IT support for that. Instructions on how and where you should mount your share are provided in the relevant support guidance.
       </p>
       <p>
-        Ensure the MVLS Virtual Microscopy Archive share is mounted and accessible from your workstation.
+        Ensure the Virtual Microscopy Archive share is mounted and accessible from your workstation.
       </p>
 
       <h2>Step 1 – Locate the Slide in the Catalog</h2>
       <p>
-        Open the MVLS Virtual Microscopy Catalog, locate the required slide, and note the archive folder, filename and share path. QuPath may require manual navigation through the folder structure.
+        Open the Virtual Microscopy Catalog, locate the required slide, and note the archive folder, filename and share path. QuPath may require manual navigation through the folder structure.
       </p>
-      <figure class="mvls-figure">
+      <figure class="vmc-figure">
         <img src="/assets/prepare-slides/1000000100000800000004DAA51F57BE.png" alt="OMERO import workflow after exporting the OME-TIFF file">
         <figcaption>Slide catalog location and import workflow overview.</figcaption>
       </figure>
@@ -65,16 +65,16 @@
       <p>
         Launch QuPath, select File &gt; Open, navigate to the archive location and select the slide file identified in the catalog.
       </p>
-      <figure class="mvls-figure">
+      <figure class="vmc-figure">
         <img src="/assets/prepare-slides/10000001000008000000051877F68619.png" alt="QuPath opening a slide file">
         <figcaption>Opening the slide file in QuPath.</figcaption>
       </figure>
 
       <h2>Step 3 – Select the Closed Polygon Annotation Tool</h2>
       <p>
-        Choose the Create Closed Polygon Annotation tool from the QuPath toolbar in the top-left portion. The icon looks like this: <img src="/assets/prepare-slides/qupath-polygon-icon.svg" alt="Closed polygon annotation tool icon" class="mvls-inline-icon">
+        Choose the Create Closed Polygon Annotation tool from the QuPath toolbar in the top-left portion. The icon looks like this: <img src="/assets/prepare-slides/qupath-polygon-icon.svg" alt="Closed polygon annotation tool icon" class="vmc-inline-icon">
       </p>
-      <figure class="mvls-figure">
+      <figure class="vmc-figure">
         <img src="/assets/prepare-slides/100000010000003A000000351BFC6DDF.png" alt="QuPath polygon annotation tool">
         <figcaption>The closed polygon annotation tool in QuPath.</figcaption>
       </figure>
@@ -83,7 +83,7 @@
       <p>
         Click around the specimen to create a polygon annotation. Include all required tissue while excluding unwanted artefacts, debris and excess background.
       </p>
-      <figure class="mvls-figure">
+      <figure class="vmc-figure">
         <img src="/assets/prepare-slides/10000001000006960000028379AD39DF.png" alt="Polygon annotation drawn around tissue in QuPath">
         <figcaption>Example polygon annotation around the region of interest.</figcaption>
       </figure>
@@ -92,7 +92,7 @@
       <p>
         With the annotation selected, choose File &gt; Export Images &gt; OME-TIFF. Use the default settings unless instructed otherwise. Save using the slide ID where possible and note the destination folder. Large exports may take several minutes to complete.
       </p>
-      <figure class="mvls-figure">
+      <figure class="vmc-figure">
         <img src="/assets/prepare-slides/100000010000075100000333284C48D3.png" alt="Exporting annotated region as OME-TIFF">
         <figcaption>Exporting the annotated region as an OME-TIFF file.</figcaption>
       </figure>
@@ -104,12 +104,13 @@
       
     </section>
   </main>
- <footer class="mvls-footer">
-    <div class="mvls-footer-inner">
-      <div>MVLS Virtual Microscopy Catalogue</div>
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
       <div>
 	<a href="/documents/about.html">About</a>
         <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/feedback.html">Feedback</a>
       </div>
     </div>
   </footer>
@@ -120,7 +121,7 @@ document.addEventListener(
   async function () {
 
     const user =
-      await mvlsGetCurrentUser();
+      await vmcGetCurrentUser();
 
     if (!user) {
 

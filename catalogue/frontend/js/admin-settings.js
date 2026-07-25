@@ -60,6 +60,16 @@ async function loadSettings() {
         settings.activation_invite_message || "";
 
     document.getElementById(
+        "activation-confirmation-subject"
+    ).value =
+        settings.activation_confirmation_subject || "";
+
+    document.getElementById(
+        "activation-confirmation-message"
+    ).value =
+        settings.activation_confirmation_message || "";
+
+    document.getElementById(
         "password-reset-subject"
     ).value =
         settings.password_reset_subject || "";
@@ -143,6 +153,16 @@ async function saveSettings() {
         activation_invite_message:
             document.getElementById(
                 "activation-invite-message"
+            ).value,
+
+        activation_confirmation_subject:
+            document.getElementById(
+                "activation-confirmation-subject"
+            ).value,
+
+        activation_confirmation_message:
+            document.getElementById(
+                "activation-confirmation-message"
             ).value,
 
         password_reset_subject:

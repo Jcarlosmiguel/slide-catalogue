@@ -20,7 +20,7 @@ function normaliseMagnification(value) {
 
 function createBadge(text, title, extraClass) {
   const badge = document.createElement("span");
-  badge.className = "mvls-badge";
+  badge.className = "vmc-badge";
   if (extraClass) {
     badge.classList.add(extraClass);
   }
@@ -37,7 +37,7 @@ function addBadges(container, slide) {
 
   const mag = normaliseMagnification(slide.objective_magnifications);
   if (mag) {
-    container.appendChild(createBadge(mag, "Objective magnification: " + mag, "mvls-badge-gold"));
+    container.appendChild(createBadge(mag, "Objective magnification: " + mag));
   }
 
   if (slide.has_slide_annotations) {
@@ -45,23 +45,23 @@ function addBadges(container, slide) {
   }
 
   if (slide.has_david_notes) {
-    container.appendChild(createBadge("", "David Jenkinson notes available", "mvls-badge-notepad"));
+    container.appendChild(createBadge("EXP", "Expert contributor notes available", "vmc-badge-gold"));
   }
 
   if (slide.is_z_stack || slide.z_plane_count > 1) {
-    container.appendChild(createBadge("ZST", "Z-stack slide"));
+    container.appendChild(createBadge("ZST", "Z-stack slide", "vmc-badge-green"));
   }
 
   if (slide.is_multiview) {
-    container.appendChild(createBadge("MVI", "Multiview slide"));
+    container.appendChild(createBadge("MVI", "Multiview slide", "vmc-badge-purple"));
   }
 
   if (slide.is_comparison_slide) {
-    container.appendChild(createBadge("CMP", "Comparison slide"));
+    container.appendChild(createBadge("CMP", "Comparison slide", "vmc-badge-maroon"));
   }
 
   if (slide.legacy_thick_section) {
-    container.appendChild(createBadge("TSL", "Thick section"));
+    container.appendChild(createBadge("TSL", "Thick section", "vmc-badge-slate"));
   }
 }
 
@@ -91,7 +91,7 @@ function createResultCard(slide) {
   const stain = valueOrUnknown(slide.canonical_stain || slide.raw_stain, "Unknown stain");
 
   const card = document.createElement("article");
-  card.className = "mvls-result-card";
+  card.className = "vmc-result-card";
   card.tabIndex = 0;
 
   card.addEventListener("click", function () {
@@ -108,28 +108,28 @@ function createResultCard(slide) {
   const imageWrap = document.createElement("div");
 
   const image = document.createElement("img");
-  image.className = "mvls-result-thumb";
+  image.className = "vmc-result-thumb";
   image.src = "/thumbnails/512/" + slideId + ".jpg";
   image.alt = "Thumbnail for slide " + slideId;
 
   imageWrap.appendChild(image);
 
   const main = document.createElement("div");
-  main.className = "mvls-result-main";
+  main.className = "vmc-result-main";
 
   const title = document.createElement("h3");
   title.textContent = organ + tissue;
 
   const summary = document.createElement("p");
-  summary.className = "mvls-result-summary";
+  summary.className = "vmc-result-summary";
   summary.textContent = species + " · " + stain;
 
   const slideIdLine = document.createElement("p");
-  slideIdLine.className = "mvls-slide-id";
+  slideIdLine.className = "vmc-slide-id";
   slideIdLine.textContent = "Slide ID: " + slideId;
 
   const badgeRow = document.createElement("div");
-  badgeRow.className = "mvls-badge-row";
+  badgeRow.className = "vmc-badge-row";
   addBadges(badgeRow, slide);
 
   main.appendChild(title);
@@ -149,7 +149,7 @@ function renderResults(results) {
 
   if (!results.length) {
     const empty = document.createElement("div");
-    empty.className = "mvls-empty-state";
+    empty.className = "vmc-empty-state";
     empty.textContent = "No matching slides found.";
     list.appendChild(empty);
     return;
@@ -162,7 +162,7 @@ function renderResults(results) {
 
 async function loadResults() {
   const summary = document.getElementById("results-summary");
-  const pagination = document.querySelector(".mvls-pagination");
+  const pagination = document.querySelector(".vmc-pagination");
 
   summary.textContent = "Loading results...";
 
@@ -224,8 +224,8 @@ async function loadAllResults() {
 
 document.getElementById("apply-results-options").addEventListener("click", function () {
   state.offset = 0;
-  if (window.mvlsRequireLogin) {
-  window.mvlsRequireLogin().then(function (user) {
+  if (window.vmcRequireLogin) {
+  window.vmcRequireLogin().then(function (user) {
     if (user) {
       loadResults();
     }
@@ -237,8 +237,8 @@ document.getElementById("apply-results-options").addEventListener("click", funct
 
 document.getElementById("prev-page").addEventListener("click", function () {
   state.offset = Math.max(0, state.offset - state.limit);
-  if (window.mvlsRequireLogin) {
-  window.mvlsRequireLogin().then(function (user) {
+  if (window.vmcRequireLogin) {
+  window.vmcRequireLogin().then(function (user) {
     if (user) {
       loadResults();
     }
@@ -250,8 +250,8 @@ document.getElementById("prev-page").addEventListener("click", function () {
 
 document.getElementById("next-page").addEventListener("click", function () {
   state.offset = state.offset + state.limit;
-  if (window.mvlsRequireLogin) {
-  window.mvlsRequireLogin().then(function (user) {
+  if (window.vmcRequireLogin) {
+  window.vmcRequireLogin().then(function (user) {
     if (user) {
       loadResults();
     }
@@ -261,8 +261,8 @@ document.getElementById("next-page").addEventListener("click", function () {
 }
 });
 
-if (window.mvlsRequireLogin) {
-  window.mvlsRequireLogin().then(function (user) {
+if (window.vmcRequireLogin) {
+  window.vmcRequireLogin().then(function (user) {
     if (user) {
       loadResults();
     }

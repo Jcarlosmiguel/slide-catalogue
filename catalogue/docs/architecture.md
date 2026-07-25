@@ -1,8 +1,8 @@
-# MVLS Catalogue Architecture
+# Catalogue Architecture
 
 ## Overview
 
-The MVLS Virtual Microscopy Catalogue provides a searchable catalogue of
+The Virtual Microscopy Catalogue provides a searchable catalogue of
 virtual microscopy slides and associated metadata.
 
 The application is designed to support:

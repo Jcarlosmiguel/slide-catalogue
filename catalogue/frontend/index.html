@@ -2,30 +2,30 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>MVLS Virtual Microscopy Catalogue</title>
+  <title>Virtual Microscopy Catalogue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="stylesheet" href="/css/mvls.css">
+  <link rel="stylesheet" href="/css/catalogue.css">
   
   <script src="/js/auth.js"></script>
 </head>
 
 <body>
-  <div class="mvls-top-strip">
-    University of Glasgow · MVLS
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
   </div>
 
-  <header class="mvls-header">
-    <div class="mvls-header-inner">
-      <div class="mvls-brand-block">
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
 
-        <a href="https://www.gla.ac.uk"><img class="mvls-uog-logo" src="/assets/placeholders/ug-keyline-large.svg" alt="University of Glasgow logo"></a>
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
 
-        <div class="mvls-brand-text">
+        <div class="vmc-brand-text">
 
 
-          <h1 class="mvls-title"><a href="https://www.gla.ac.uk/colleges/mvls/">MVLS Virtual Microscopy Catalogue</a></h1>
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
 
-          <p class="mvls-subtitle">
+          <p class="vmc-subtitle">
             Search, review and prepare teaching slides from the virtual microscopy archive.
           </p>
 
@@ -33,25 +33,26 @@
 
       </div>
 
-      <nav class="mvls-nav" aria-label="Main navigation">
+      <nav class="vmc-nav" aria-label="Main navigation">
         <a href="/documents/about.html">About</a>
         <a href="/documents/contact.html">Contact</a>
         <a href="/documents/help.html">Help</a>
-        <a href="/admin/feedback-management.html" class="mvls-admin-nav">Admin</a>
+        <a href="/reviewer-dashboard.html" class="vmc-reviewer-nav">Reviewer dashboard</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
       </nav>
     </div>
   </header>
 
-  <main class="mvls-page">
-    <section class="mvls-hero mvls-hero-image-only" aria-label="MVLS catalogue visual placeholder"></section>
-    <section class="mvls-layout">
+  <main class="vmc-page">
+    <section class="vmc-hero vmc-hero-image-only" aria-label="Catalogue visual placeholder"></section>
+    <section class="vmc-layout">
       <div>
-        <section class="mvls-card">
+        <section class="vmc-card">
           <h2>Search the Collection</h2>
 		<form id="home-search-form">
-		  <div class="mvls-search-grid">
+		  <div class="vmc-search-grid">
 
-		    <div class="mvls-field">
+		    <div class="vmc-field">
 		      <label for="organ">Organ</label>
 		      <input id="organ"
 		             name="organ"
@@ -59,7 +60,7 @@
 		             placeholder="e.g. Kidney, Heart, Cortex">
 		    </div>
 
-		    <div class="mvls-field">
+		    <div class="vmc-field">
 		      <label for="species">Species</label>
 		      <input id="species"
 		             name="species"
@@ -67,7 +68,7 @@
 		             placeholder="e.g. Human, Rat, Guinea pig">
 		    </div>
 
-		    <div class="mvls-field">
+		    <div class="vmc-field">
 		      <label for="stain">Stain</label>
 		      <input id="stain"
 		             name="stain"
@@ -75,38 +76,52 @@
 		             placeholder="e.g. H&E, Silver, Masson">
 		    </div>
 
-		    <div class="mvls-field">
+		    <div class="vmc-field">
 		      <label for="q">Keyword</label>
 		      <input id="q"
 		             name="q"
 		             type="search"
 		             placeholder="e.g. glomeruli, hair follicle, Pacinian">
+		      <small class="vmc-field-hint vmc-muted">Also matches metadata, expert contributor notes, and filenames.</small>
 		    </div>
 
-		    <div class="mvls-field">
+		    <div class="vmc-field">
 		      <label for="slide_id">Slide ID</label>
 		      <input id="slide_id"
 		             name="slide_id"
 		             type="number"
 		             min="1"
-		             placeholder="e.g. 2465">
+		             placeholder="e.g. 17, 644, 1387">
+		    </div>
+
+		    <div class="vmc-field">
+		      <label for="filename">Filename</label>
+		      <input id="filename"
+		             name="filename"
+		             type="text"
+		             placeholder="e.g. part of a slide's filename">
 		    </div>
 
 		  </div>
 
-		  <div class="mvls-actions">
-		    <button class="mvls-button" type="submit">Search slides</button>
-		    <span class="mvls-muted">
-		      Keyword search includes metadata and David Jenkinson notes.
-		    </span>
+		  <div class="vmc-actions">
+		    <button class="vmc-button" type="submit">Search slides</button>
+		    <div class="vmc-quick-filters" role="group" aria-label="Show only slides that have">
+		      <button type="button" class="vmc-badge vmc-quick-filter" data-filter="has_slide_annotations" title="Show only slides with annotations" aria-pressed="false">ANN</button>
+		      <button type="button" class="vmc-badge vmc-badge-gold vmc-quick-filter" data-filter="has_david_notes" title="Show only slides with expert contributor notes" aria-pressed="false">EXP</button>
+		      <button type="button" class="vmc-badge vmc-badge-green vmc-quick-filter" data-filter="is_z_stack" title="Show only z-stack slides" aria-pressed="false">ZST</button>
+		      <button type="button" class="vmc-badge vmc-badge-purple vmc-quick-filter" data-filter="is_multiview" title="Show only multiview slides" aria-pressed="false">MVI</button>
+		      <button type="button" class="vmc-badge vmc-badge-maroon vmc-quick-filter" data-filter="is_comparison_slide" title="Show only comparison slides" aria-pressed="false">CMP</button>
+		      <button type="button" class="vmc-badge vmc-badge-slate vmc-quick-filter" data-filter="legacy_thick_section" title="Show only thick-section slides" aria-pressed="false">TSL</button>
+		    </div>
 		  </div>
 		</form>
         </section>
 
-        <section class="mvls-card" style="margin-top: 1.25rem;">
+        <section class="vmc-card" style="margin-top: 1.25rem;">
           <h2>Featured teaching slides</h2>
 
-          <div id="featured-slides" class="mvls-featured-grid">
+          <div id="featured-slides" class="vmc-featured-grid">
           </div>
 
         </section>
@@ -114,7 +129,7 @@
 
       
             
-           <aside class="mvls-workflow-panel">
+           <aside class="vmc-workflow-panel">
              <h2>Workflow: Using a Slide</h2>
              <ol>
                <li><a href="/documents/search-catalogue.html">Search the Catalogue</a></li>
@@ -126,7 +141,7 @@
                <li><a href="/documents/publish-slides.html">Prepare Slides for Public View</a></li>
                <li><a href="/documents/publish-vlm.html">Add Slides to Virtual Learning Materials</a></l>
              </ol>
-             <p class="mvls-muted">
+             <p class="vmc-muted">
                 Follow the recommended workflow from catalogue discovery through slide preparation.
              </p>
 
@@ -137,28 +152,37 @@
     </section>
   </main>
 
-  <footer class="mvls-footer">
-    <div class="mvls-footer-inner">
-      <div>MVLS Virtual Microscopy Catalogue</div>
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
       <div>
         <a href="/documents/about.html">About</a>
         ·
         <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
       </div>
     </div>
   </footer>
 
-  <div id="contribution-ticker" class="mvls-ticker" hidden>
-    <div class="mvls-ticker-track">
+  <div id="contribution-ticker" class="vmc-ticker" hidden>
+    <div class="vmc-ticker-track">
     </div>
   </div>
 
   <script>
 
+    for (const filterButton of document.querySelectorAll(".vmc-quick-filter")) {
+      filterButton.addEventListener("click", function () {
+        const isPressed = filterButton.getAttribute("aria-pressed") === "true";
+        filterButton.setAttribute("aria-pressed", isPressed ? "false" : "true");
+      });
+    }
+
     document.getElementById("home-search-form").addEventListener("submit", async function (event) {
       event.preventDefault();
 
-      const user = await mvlsGetCurrentUser();
+      const user = await vmcGetCurrentUser();
       if (!user) {
         window.location.href = "/login-required.html";
         return;
@@ -170,6 +194,12 @@
       for (const [key, value] of params.entries()) {
         if (value.trim()) {
           cleaned.set(key, value.trim());
+        }
+      }
+
+      for (const filterButton of document.querySelectorAll(".vmc-quick-filter")) {
+        if (filterButton.getAttribute("aria-pressed") === "true") {
+          cleaned.set(filterButton.dataset.filter, "true");
         }
       }
 
@@ -193,14 +223,14 @@ async function loadFeaturedSlides() {
   for (const slide of slides) {
 
     const card = document.createElement("article");
-    card.className = "mvls-feature-card";
+    card.className = "vmc-feature-card";
 
     const link = document.createElement("a");
     link.href = "/slide.html?id=" + slide.slide_id;
     link.addEventListener("click", async function (event) {
       event.preventDefault();
 
-      const user = await mvlsGetCurrentUser();
+      const user = await vmcGetCurrentUser();
       window.location.href = user ? link.href : "/login-required.html";
     });
 
@@ -211,7 +241,7 @@ async function loadFeaturedSlides() {
     link.appendChild(img);
 
     const body = document.createElement("div");
-    body.className = "mvls-feature-card-body";
+    body.className = "vmc-feature-card-body";
 
     const title = document.createElement("strong");
     title.textContent = "Slide " + slide.slide_id;
@@ -241,7 +271,7 @@ async function loadContributionTicker() {
   }
 
   const ticker = document.getElementById("contribution-ticker");
-  const track = ticker.querySelector(".mvls-ticker-track");
+  const track = ticker.querySelector(".vmc-ticker-track");
 
   track.innerHTML = "";
 
@@ -256,7 +286,7 @@ async function loadContributionTicker() {
   }
 
   ticker.hidden = false;
-  document.body.classList.add("mvls-has-ticker");
+  document.body.classList.add("vmc-has-ticker");
 }
 
 loadContributionTicker();

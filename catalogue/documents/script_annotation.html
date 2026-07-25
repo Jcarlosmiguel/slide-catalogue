@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+	</div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Applying a slide's annotations in QuPath</h1>
+      <p>
+        Any slide with annotations on its detail page has a
+        <strong>Download QuPath script</strong> button in the
+        "Slide annotations" section. This generates a Groovy script that
+        recreates that slide's stored annotations - rectangles, ellipses,
+        arrows, measurements, pins, and freehand/polygon shapes - as real
+        QuPath annotation objects on the matching image.
+      </p>
+
+      <h2>Downloading the script</h2>
+      <p>
+        Next to the download button you can set two options before
+        generating the script:
+      </p>
+      <ul>
+        <li>
+          <strong>Apply zoom scaling</strong> (ticked by default) - some
+          older annotations were recorded at a zoomed-in view rather than
+          full image resolution, and need their coordinates multiplied by a
+          per-annotation zoom factor to land in the right place. If the
+          annotations come in badly offset, wrongly sized, or sitting in
+          blank slide background, untick this box, download again, and try
+          the other mode on a fresh copy of the image.
+        </li>
+        <li>
+          <strong>Annotation colour</strong> (yellow by default) - pick any
+          colour; it's applied to every annotation the script creates.
+        </li>
+      </ul>
+
+      <h2>Running it in QuPath</h2>
+      <ol>
+        <li>
+          Open the exact slide file the script was generated for in QuPath.
+          The script only adds annotations to whatever image is currently
+          open, so the wrong file open means the coordinates land on the
+          wrong tissue entirely.
+        </li>
+        <li>
+          Open the script editor: <strong>Automate</strong> &rarr;
+          <strong>Show script editor</strong>.
+        </li>
+        <li>
+          Load the script: <strong>File</strong> &rarr; <strong>Open...</strong>
+          inside the script editor and select the downloaded
+          <code>.groovy</code> file, or paste its contents into a new tab.
+        </li>
+        <li>
+          Run it (the &#9654; button, or <code>Ctrl+R</code> /
+          <code>Cmd+R</code>).
+        </li>
+        <li>
+          Check the result: annotations appear immediately in the viewer and
+          in the <strong>Annotations</strong> tab, named from their original
+          title (or "Annotation &lt;id&gt;" if untitled), with any recorded
+          description attached.
+        </li>
+      </ol>
+      <p>
+        The script editor's log panel prints a summary line once it
+        finishes, e.g. <code>Added 46 annotation(s) (12 marked invisible in
+        dih (still added), 0 unsupported skipped) from the
+        catalogue.</code> - a quick way to confirm nothing silently failed.
+        Annotations dih itself flagged as "invisible" are still added, just
+        labelled <code>(marked invisible in dih)</code> in their name, since
+        that flag turns out to be genuine per-annotation source data rather
+        than something safe to drop.
+      </p>
+    </section>
+  </main>
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+	<a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+<script>
+
+document.addEventListener(
+  "DOMContentLoaded",
+  async function () {
+
+    const user =
+      await vmcGetCurrentUser();
+
+    if (!user) {
+
+      window.location.href =
+        "/login-required.html";
+
+      return;
+    }
+  }
+);
+
+</script>
+</body>
+</html>
