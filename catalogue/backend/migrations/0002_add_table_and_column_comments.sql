@@ -3,7 +3,7 @@
 -- Generated from a live-schema survey so every MODIFY COLUMN preserves the
 -- column's existing type/nullability/default/auto_increment exactly - only
 -- the comment is added or changed. The two views (v_slide_catalogue_app,
--- v_slide_david_notes) are skipped: MariaDB views don't support per-column
+-- v_slide_legacy_notes) are skipped: MariaDB views don't support per-column
 -- comments.
 --
 -- Run against catalogue, e.g.:
@@ -17,11 +17,11 @@ ALTER TABLE `slide_corrections` COMMENT='User-submitted feedback/correction repo
 ALTER TABLE `slide_correction_actions` COMMENT='Append-only audit log of actions taken against a slide_corrections row - one row per status change or applied metadata update.';
 ALTER TABLE `users` COMMENT='Catalogue user accounts - local or LDAP-authenticated, with a role controlling what they can see and do (see role_permissions for reviewer/expert capabilities).';
 ALTER TABLE `role_permissions` COMMENT='Maps each role to the permission keys it grants - drives require_permission() authorization checks for reviewer/expert capabilities, without hardcoding role names in application code.';
-ALTER TABLE `slide_expert_notes` COMMENT='Notes written directly by expert-role users on a slide, shown in the \'Expert contributor notes\' section alongside (but separate from) the read-only historical David Jenkinson import.';
+ALTER TABLE `slide_expert_notes` COMMENT='Notes written directly by expert-role users on a slide, shown in the \'Expert contributor notes\' section alongside (but separate from) the read-only legacy contributor import.';
 ALTER TABLE `access_requests` COMMENT='Self-service requests for catalogue access, reviewed by an admin before a user account is created.';
 ALTER TABLE `access_request_blocked_attempts` COMMENT='Log of access requests rejected automatically before reaching the review queue (e.g. duplicate email already registered), kept for abuse monitoring.';
 ALTER TABLE `annotation_contributors` COMMENT='Reference list of individuals credited as annotation contributors/authors in imported source data, for display and attribution.';
-ALTER TABLE `david_record_slide_links` COMMENT='Reconciliation candidates/links between david_jenkinson_curation records and catalogue slides - a broader or earlier-stage table than the confirmed slide_david_annotations.';
+ALTER TABLE `legacy_curation_slide_links` COMMENT='Reconciliation candidates/links between legacy_curation records and catalogue slides - a broader or earlier-stage table than the confirmed slide_legacy_curation_links.';
 ALTER TABLE `password_reset_log` COMMENT='Audit log of password-reset attempts, successful or not, for abuse monitoring and support troubleshooting.';
 ALTER TABLE `password_reset_tokens` COMMENT='Single-use, time-limited tokens issued for the forgot-password flow.';
 ALTER TABLE `user_activation_tokens` COMMENT='Single-use, time-limited tokens issued to newly-approved accounts to set their initial password and activate.';
@@ -77,9 +77,9 @@ ALTER TABLE `organ_tissue_dictionary`
   MODIFY COLUMN `organ_id` int(11) NOT NULL COMMENT 'Organ side of the relationship (organ_dictionary.organ_id).',
   MODIFY COLUMN `tissue_id` int(11) NOT NULL COMMENT 'Tissue side of the relationship (tissue_dictionary.tissue_id).',
   MODIFY COLUMN `notes` text NULL DEFAULT NULL COMMENT 'Free-text curator notes.';
-ALTER TABLE `david_jenkinson_curation`
+ALTER TABLE `legacy_curation`
   MODIFY COLUMN `curation_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.';
-ALTER TABLE `slide_david_annotations`
+ALTER TABLE `slide_legacy_curation_links`
   MODIFY COLUMN `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this reconciliation link was created.';
 ALTER TABLE `slide_tissue_annotations`
   MODIFY COLUMN `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this slide-tissue assignment was created.';
@@ -127,10 +127,10 @@ ALTER TABLE `slide_corrections`
   MODIFY COLUMN `feedback_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
   MODIFY COLUMN `slide_id` bigint(20) NOT NULL COMMENT 'Slide this feedback concerns.',
   MODIFY COLUMN `slide_filename` text NULL DEFAULT NULL COMMENT 'Slide\'s filename at submission time, kept for convenient display/export without a join.',
-  MODIFY COLUMN `feedback_source` enum('metadata','slide_annotation','david_note') NOT NULL DEFAULT 'metadata' COMMENT 'Which part of the catalogue this feedback is about - \'metadata\' (organ/species/stain/etc.), \'slide_annotation\' (a reported annotation error), or \'david_note\' (an expert contributor note correction).',
+  MODIFY COLUMN `feedback_source` enum('metadata','slide_annotation','legacy_note') NOT NULL DEFAULT 'metadata' COMMENT 'Which part of the catalogue this feedback is about - \'metadata\' (organ/species/stain/etc.), \'slide_annotation\' (a reported annotation error), or \'legacy_note\' (an expert contributor note correction).',
   MODIFY COLUMN `feedback_type` varchar(100) NOT NULL DEFAULT 'general_comment' COMMENT 'For feedback_source=\'metadata\', which field is being corrected (organ, tissue, species, stain, description, notes, general_comment); for feedback_source=\'slide_annotation\', always \'annotation_review\'.',
   MODIFY COLUMN `source_annotation_id` bigint(20) NULL DEFAULT NULL COMMENT 'For feedback_source=\'slide_annotation\', the slide_annotations.annotation_id this report concerns.',
-  MODIFY COLUMN `source_david_record_id` bigint(20) NULL DEFAULT NULL COMMENT 'For feedback_source=\'david_note\', the related david_jenkinson_curation.curation_id this correction concerns.',
+  MODIFY COLUMN `source_legacy_curation_id` bigint(20) NULL DEFAULT NULL COMMENT 'For feedback_source=\'legacy_note\', the related legacy_curation.curation_id this correction concerns.',
   MODIFY COLUMN `current_value` text NULL DEFAULT NULL COMMENT 'The value/context being reported on at submission time.',
   MODIFY COLUMN `suggested_value` text NULL DEFAULT NULL COMMENT 'The submitter\'s suggested replacement value (or, for annotation reports, their verdict: \'correct\'/\'incorrect\').',
   MODIFY COLUMN `feedback_text` text NOT NULL COMMENT 'Free-text explanation/reasoning from the submitter.',
@@ -214,8 +214,8 @@ ALTER TABLE `annotation_contributors`
   MODIFY COLUMN `surname` varchar(255) NULL DEFAULT NULL COMMENT 'Contributor\'s surname.',
   MODIFY COLUMN `source_system` varchar(100) NULL DEFAULT NULL COMMENT 'Which legacy/source system this contributor record came from (e.g. dih).',
   MODIFY COLUMN `notes` text NULL DEFAULT NULL COMMENT 'Free-text notes.';
-ALTER TABLE `david_record_slide_links`
-  MODIFY COLUMN `david_record_id` bigint(20) NOT NULL COMMENT 'The david_jenkinson_curation.curation_id being linked.',
+ALTER TABLE `legacy_curation_slide_links`
+  MODIFY COLUMN `legacy_curation_id` bigint(20) NOT NULL COMMENT 'The legacy_curation.curation_id being linked.',
   MODIFY COLUMN `slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id being linked.',
   MODIFY COLUMN `confidence_score` decimal(5,2) NULL DEFAULT NULL COMMENT 'Confidence in this specific link.',
   MODIFY COLUMN `link_method` varchar(100) NULL DEFAULT NULL COMMENT 'How this link was derived (e.g. filename match, manual review).',
@@ -263,24 +263,24 @@ ALTER TABLE `system_settings`
   MODIFY COLUMN `setting_value` text NOT NULL COMMENT 'The setting\'s current value, stored as text.',
   MODIFY COLUMN `updated_by` varchar(100) NULL DEFAULT NULL COMMENT 'Username of the admin who last changed this setting.',
   MODIFY COLUMN `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'When this setting was last changed.';
-ALTER TABLE `david_slide_match_stage`
-  MODIFY COLUMN `curation_id` bigint(20) NOT NULL COMMENT 'The david_jenkinson_curation.curation_id being considered.',
+ALTER TABLE `legacy_curation_match_stage`
+  MODIFY COLUMN `curation_id` bigint(20) NOT NULL COMMENT 'The legacy_curation.curation_id being considered.',
   MODIFY COLUMN `candidate_slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id being considered as a match.',
-  MODIFY COLUMN `david_slide_reference` varchar(255) NULL DEFAULT NULL COMMENT 'Slide reference/label as recorded in the David Jenkinson source material.',
-  MODIFY COLUMN `david_organ` varchar(255) NULL DEFAULT NULL COMMENT 'Organ as recorded in the David Jenkinson source material.',
-  MODIFY COLUMN `david_species` varchar(255) NULL DEFAULT NULL COMMENT 'Species as recorded in the David Jenkinson source material.',
-  MODIFY COLUMN `david_stain` varchar(255) NULL DEFAULT NULL COMMENT 'Stain as recorded in the David Jenkinson source material.',
-  MODIFY COLUMN `david_tissue` varchar(255) NULL DEFAULT NULL COMMENT 'Tissue as recorded in the David Jenkinson source material.',
+  MODIFY COLUMN `legacy_slide_reference` varchar(255) NULL DEFAULT NULL COMMENT 'Slide reference/label as recorded in the legacy contributor source material.',
+  MODIFY COLUMN `legacy_organ` varchar(255) NULL DEFAULT NULL COMMENT 'Organ as recorded in the legacy contributor source material.',
+  MODIFY COLUMN `legacy_species` varchar(255) NULL DEFAULT NULL COMMENT 'Species as recorded in the legacy contributor source material.',
+  MODIFY COLUMN `legacy_stain` varchar(255) NULL DEFAULT NULL COMMENT 'Stain as recorded in the legacy contributor source material.',
+  MODIFY COLUMN `legacy_tissue` varchar(255) NULL DEFAULT NULL COMMENT 'Tissue as recorded in the legacy contributor source material.',
   MODIFY COLUMN `catalogue_organ` varchar(255) NULL DEFAULT NULL COMMENT 'Organ as currently recorded in the catalogue for the candidate slide.',
   MODIFY COLUMN `catalogue_species` varchar(255) NULL DEFAULT NULL COMMENT 'Species as currently recorded in the catalogue for the candidate slide.',
   MODIFY COLUMN `catalogue_stain` varchar(255) NULL DEFAULT NULL COMMENT 'Stain as currently recorded in the catalogue for the candidate slide.',
   MODIFY COLUMN `catalogue_tissue` varchar(255) NULL DEFAULT NULL COMMENT 'Tissue as currently recorded in the catalogue for the candidate slide.',
   MODIFY COLUMN `match_method` varchar(100) NOT NULL COMMENT 'How this candidate pairing was proposed (e.g. filename match, manual review).',
   MODIFY COLUMN `identity_confidence` decimal(5,2) NULL DEFAULT NULL COMMENT 'Overall confidence score for this candidate match.',
-  MODIFY COLUMN `tissue_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue tissue values agree (1) or not (0).',
-  MODIFY COLUMN `stain_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue stain values agree (1) or not (0).',
-  MODIFY COLUMN `organ_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue organ values agree (1) or not (0).',
-  MODIFY COLUMN `species_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue species values agree (1) or not (0).',
+  MODIFY COLUMN `tissue_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue tissue values agree (1) or not (0).',
+  MODIFY COLUMN `stain_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue stain values agree (1) or not (0).',
+  MODIFY COLUMN `organ_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue organ values agree (1) or not (0).',
+  MODIFY COLUMN `species_match` tinyint(1) NULL DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue species values agree (1) or not (0).',
   MODIFY COLUMN `review_status` varchar(50) NULL DEFAULT 'PENDING' COMMENT 'Curation status of this candidate match, e.g. PENDING, APPROVED, REJECTED.',
   MODIFY COLUMN `match_notes` text NULL DEFAULT NULL COMMENT 'Free-text reviewer notes on this candidate match.',
   MODIFY COLUMN `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this candidate match was staged.';

@@ -2,7 +2,7 @@
 -- authorization for their new capabilities (not hardcoded in Python), and a
 -- slide_expert_notes table for direct expert-authored notes (the existing
 -- "Expert contributor notes" section was previously read-only, sourced only
--- from the historical David Jenkinson import).
+-- from the legacy contributor import).
 --
 -- Run against catalogue, e.g.:
 --   docker exec -i catalogue_mariadb mariadb -u catalogue_app -p'...' catalogue \

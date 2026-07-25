@@ -787,7 +787,7 @@ a {
 }
 
 .vmc-annotation-card,
-.vmc-david-card {
+.vmc-legacy-card {
   border: 1px solid var(--vmc-border);
   border-radius: 12px;
   padding: 1rem;
@@ -851,7 +851,7 @@ a {
 }
 
 .vmc-annotation-card h3,
-.vmc-david-card h3 {
+.vmc-legacy-card h3 {
   margin-top: 0;
   color: var(--brand-primary);
 }

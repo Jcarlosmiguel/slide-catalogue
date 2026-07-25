@@ -59,9 +59,9 @@ Teacher and workflow annotations.
 
 ---
 
-## slide_david_annotations
+## slide_legacy_curation_links
 
-David Jenkinson annotation linkage.
+Legacy contributor annotation linkage.
 
 ---
 
@@ -179,9 +179,9 @@ Primary catalogue view.
 
 ---
 
-## v_slide_david_notes
+## v_slide_legacy_notes
 
-David Jenkinson annotation view.
+Legacy contributor annotation view.
 
 ---
 

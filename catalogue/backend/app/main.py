@@ -1731,7 +1731,7 @@ def search_slides(
     stain: Optional[str] = None,
     tissue: Optional[str] = None,
     has_slide_annotations: Optional[bool] = None,
-    has_david_notes: Optional[bool] = None,
+    has_legacy_notes: Optional[bool] = None,
     is_z_stack: Optional[bool] = None,
     is_multiview: Optional[bool] = None,
     is_comparison_slide: Optional[bool] = None,
@@ -1783,7 +1783,7 @@ def search_slides(
 
                 EXISTS (
                     SELECT 1
-                    FROM v_slide_david_notes vdn
+                    FROM v_slide_legacy_notes vdn
                     WHERE vdn.slide_id = s.slide_id
                       AND (
                            vdn.annotation_title LIKE %s
@@ -1831,10 +1831,10 @@ def search_slides(
     elif has_slide_annotations is False:
         where.append("NOT EXISTS (SELECT 1 FROM slide_annotations sa2 WHERE sa2.slide_id = s.slide_id AND sa2.flagged_incorrect = 0)")
 
-    if has_david_notes is True:
-        where.append("EXISTS (SELECT 1 FROM slide_david_annotations sda WHERE sda.slide_id = s.slide_id)")
-    elif has_david_notes is False:
-        where.append("NOT EXISTS (SELECT 1 FROM slide_david_annotations sda WHERE sda.slide_id = s.slide_id)")
+    if has_legacy_notes is True:
+        where.append("EXISTS (SELECT 1 FROM slide_legacy_curation_links sda WHERE sda.slide_id = s.slide_id)")
+    elif has_legacy_notes is False:
+        where.append("NOT EXISTS (SELECT 1 FROM slide_legacy_curation_links sda WHERE sda.slide_id = s.slide_id)")
 
     if is_z_stack is True:
         where.append("(sm.is_z_stack = 1 OR sm.z_plane_count > 1)")
@@ -1936,9 +1936,9 @@ def search_slides(
 
             EXISTS (
                 SELECT 1
-                FROM slide_david_annotations sda
+                FROM slide_legacy_curation_links sda
                 WHERE sda.slide_id = s.slide_id
-            ) AS has_david_notes
+            ) AS has_legacy_notes
 
         FROM slides s
         LEFT JOIN slide_metadata sm
@@ -2437,19 +2437,19 @@ def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dic
             cur.execute(
                 """
                 SELECT
-                    david_record_id,
+                    legacy_curation_id,
                     annotation_title,
                     note_text,
                     confidence_score,
                     reconciliation_method,
                     reconciliation_notes
-                FROM v_slide_david_notes
+                FROM v_slide_legacy_notes
                 WHERE slide_id = %s
-                ORDER BY david_record_id
+                ORDER BY legacy_curation_id
                 """,
                 (slide_id,),
             )
-            david_notes = cur.fetchall()
+            legacy_notes = cur.fetchall()
 
             cur.execute(
                 """
@@ -2476,7 +2476,7 @@ def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dic
     core = clean_row(core)
     tissues = clean_rows(tissues)
     annotations = clean_rows(annotations)
-    david_notes = clean_rows(david_notes)
+    legacy_notes = clean_rows(legacy_notes)
     expert_notes = clean_rows(expert_notes)
 
     share_root = get_share_root(os_key)
@@ -2553,7 +2553,7 @@ def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dic
         },
         "tissue_annotations": tissues,
         "slide_annotations": annotations,
-        "david_notes": david_notes,
+        "legacy_notes": legacy_notes,
         "expert_notes": expert_notes,
     }
 
@@ -2712,16 +2712,16 @@ def delete_expert_note(
         conn.close()
 
 
-@app.patch("/api/david-notes/{curation_id}")
-def update_david_note(
+@app.patch("/api/legacy-notes/{curation_id}")
+def update_legacy_note(
     curation_id: int,
     payload: dict = Body(...),
     user: dict = Depends(require_permission("expert_notes.write")),
 ):
-    """Lets an expert edit the historical legacy contributor note content
-    directly (trusted, no approval step) - the prior title/text is always
-    captured in david_note_edit_history first, so nothing is silently lost
-    if an edit turns out to be wrong.
+    """Lets an expert edit the legacy contributor note content directly
+    (trusted, no approval step) - the prior title/text is always captured
+    in legacy_curation_edit_history first, so nothing is silently lost if
+    an edit turns out to be wrong.
     """
     note_text = str(payload.get("note_text", "")).strip()
     annotation_title = payload.get("annotation_title")
@@ -2733,7 +2733,7 @@ def update_david_note(
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT annotation_title, note_text FROM david_jenkinson_curation WHERE curation_id = %s",
+                "SELECT annotation_title, note_text FROM legacy_curation WHERE curation_id = %s",
                 (curation_id,),
             )
             current = cur.fetchone()
@@ -2743,7 +2743,7 @@ def update_david_note(
 
             cur.execute(
                 """
-                INSERT INTO david_note_edit_history (
+                INSERT INTO legacy_curation_edit_history (
                     curation_id, previous_annotation_title, previous_note_text, edited_by_username
                 )
                 VALUES (%s, %s, %s, %s)
@@ -2753,7 +2753,7 @@ def update_david_note(
 
             cur.execute(
                 """
-                UPDATE david_jenkinson_curation
+                UPDATE legacy_curation
                 SET annotation_title = %s, note_text = %s
                 WHERE curation_id = %s
                 """,
@@ -3944,7 +3944,7 @@ def _build_corrections_report(
                     feedback_source,
                     feedback_type,
                     source_annotation_id,
-                    source_david_record_id,
+                    source_legacy_curation_id,
                     current_value,
                     suggested_value,
                     feedback_text,
@@ -4067,7 +4067,7 @@ def corrections_export_csv(
                     feedback_source,
                     feedback_type,
                     source_annotation_id,
-                    source_david_record_id,
+                    source_legacy_curation_id,
                     current_value,
                     suggested_value,
                     feedback_text,
@@ -4104,7 +4104,7 @@ def corrections_export_csv(
         "feedback_source",
         "feedback_type",
         "source_annotation_id",
-        "source_david_record_id",
+        "source_legacy_curation_id",
         "current_value",
         "suggested_value",
         "feedback_text",

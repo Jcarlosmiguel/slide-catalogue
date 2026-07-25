@@ -1,6 +1,6 @@
 -- Base schema for the catalogue database, extracted from a production
 -- schema dump with all data stripped - CREATE TABLE only. Excludes
--- role_permissions, slide_expert_notes, david_note_edit_history (created
+-- role_permissions, slide_expert_notes, legacy_curation_edit_history (created
 -- by migration 0001/0003) and schema_migrations (managed by
 -- run_migrations.sh itself).
 --
@@ -59,13 +59,13 @@ CREATE TABLE `annotation_contributors` (
   PRIMARY KEY (`contributor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reference list of individuals credited as annotation contributors/authors in imported source data, for display and attribution.';
 
-DROP TABLE IF EXISTS `david_jenkinson_curation`;
+DROP TABLE IF EXISTS `legacy_curation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `david_jenkinson_curation` (
+CREATE TABLE `legacy_curation` (
   `curation_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
-  `source_file` varchar(500) NOT NULL COMMENT 'Original source document from the David Jenkinson archive.',
-  `source_authorship` varchar(255) NOT NULL DEFAULT 'David Jenkinson' COMMENT 'Original authorship attribution for the source material.',
+  `source_file` varchar(500) NOT NULL COMMENT 'Original source document from the legacy contributor archive.',
+  `source_authorship` varchar(255) NOT NULL DEFAULT 'legacy contributor' COMMENT 'Original authorship attribution for the source material.',
   `slide_reference` varchar(255) DEFAULT NULL COMMENT 'Slide identifier, slide number or textual slide reference extracted from the source document.',
   `matched_slide_id` bigint(20) DEFAULT NULL COMMENT 'Catalogue slide matched through automated or manual reconciliation. NULL indicates no confirmed match.',
   `record_type` varchar(100) DEFAULT NULL COMMENT 'Classification of extracted content such as keyword, annotation, teaching note, specimen observation or narrative text.',
@@ -78,54 +78,54 @@ CREATE TABLE `david_jenkinson_curation` (
   `organ` varchar(255) DEFAULT NULL COMMENT 'Organ or tissue associated with the extracted record.',
   `species` varchar(255) DEFAULT NULL COMMENT 'Species associated with the extracted record where identified from the source material.',
   `stain` varchar(255) DEFAULT NULL COMMENT 'Histological stain or preparation method associated with the source material.',
-  `slide_name` varchar(255) DEFAULT NULL COMMENT 'David Jenkinson local catalogue designation, e.g. Kidney 1, Trachea 4, Pancreas 8.',
+  `slide_name` varchar(255) DEFAULT NULL COMMENT 'Legacy contributor local catalogue designation, e.g. Kidney 1, Trachea 4, Pancreas 8.',
   `annotation_title` varchar(500) DEFAULT NULL COMMENT 'Title or feature heading associated with the annotation text.',
-  `source_archive` varchar(255) DEFAULT NULL COMMENT 'Archive grouping from which the source document originated within the David Jenkinson curation archive.',
+  `source_archive` varchar(255) DEFAULT NULL COMMENT 'Archive grouping from which the source document originated within the legacy contributor curation archive.',
   PRIMARY KEY (`curation_id`),
   KEY `idx_source_file` (`source_file`),
   KEY `idx_slide_reference` (`slide_reference`),
   KEY `idx_matched_slide_id` (`matched_slide_id`),
   KEY `idx_record_type` (`record_type`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Curated David Jenkinson annotation records and note text linked to slides through slide_david_annotations.';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Curated legacy contributor annotation records and note text linked to slides through slide_legacy_curation_links.';
 
-DROP TABLE IF EXISTS `david_record_slide_links`;
+DROP TABLE IF EXISTS `legacy_curation_slide_links`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `david_record_slide_links` (
-  `david_record_id` bigint(20) NOT NULL COMMENT 'The david_jenkinson_curation.curation_id being linked.',
+CREATE TABLE `legacy_curation_slide_links` (
+  `legacy_curation_id` bigint(20) NOT NULL COMMENT 'The legacy_curation.curation_id being linked.',
   `slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id being linked.',
   `confidence_score` decimal(5,2) DEFAULT NULL COMMENT 'Confidence in this specific link.',
   `link_method` varchar(100) DEFAULT NULL COMMENT 'How this link was derived (e.g. filename match, manual review).',
   `notes` text DEFAULT NULL COMMENT 'Free-text notes on this link.',
-  PRIMARY KEY (`david_record_id`,`slide_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reconciliation candidates/links between david_jenkinson_curation records and catalogue slides - a broader or earlier-stage table than the confirmed slide_david_annotations.';
+  PRIMARY KEY (`legacy_curation_id`,`slide_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reconciliation candidates/links between legacy_curation records and catalogue slides - a broader or earlier-stage table than the confirmed slide_legacy_curation_links.';
 
-DROP TABLE IF EXISTS `david_slide_match_stage`;
+DROP TABLE IF EXISTS `legacy_curation_match_stage`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `david_slide_match_stage` (
-  `curation_id` bigint(20) NOT NULL COMMENT 'The david_jenkinson_curation.curation_id being considered.',
+CREATE TABLE `legacy_curation_match_stage` (
+  `curation_id` bigint(20) NOT NULL COMMENT 'The legacy_curation.curation_id being considered.',
   `candidate_slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id being considered as a match.',
-  `david_slide_reference` varchar(255) DEFAULT NULL COMMENT 'Slide reference/label as recorded in the David Jenkinson source material.',
-  `david_organ` varchar(255) DEFAULT NULL COMMENT 'Organ as recorded in the David Jenkinson source material.',
-  `david_species` varchar(255) DEFAULT NULL COMMENT 'Species as recorded in the David Jenkinson source material.',
-  `david_stain` varchar(255) DEFAULT NULL COMMENT 'Stain as recorded in the David Jenkinson source material.',
-  `david_tissue` varchar(255) DEFAULT NULL COMMENT 'Tissue as recorded in the David Jenkinson source material.',
+  `legacy_slide_reference` varchar(255) DEFAULT NULL COMMENT 'Slide reference/label as recorded in the legacy contributor source material.',
+  `legacy_organ` varchar(255) DEFAULT NULL COMMENT 'Organ as recorded in the legacy contributor source material.',
+  `legacy_species` varchar(255) DEFAULT NULL COMMENT 'Species as recorded in the legacy contributor source material.',
+  `legacy_stain` varchar(255) DEFAULT NULL COMMENT 'Stain as recorded in the legacy contributor source material.',
+  `legacy_tissue` varchar(255) DEFAULT NULL COMMENT 'Tissue as recorded in the legacy contributor source material.',
   `catalogue_organ` varchar(255) DEFAULT NULL COMMENT 'Organ as currently recorded in the catalogue for the candidate slide.',
   `catalogue_species` varchar(255) DEFAULT NULL COMMENT 'Species as currently recorded in the catalogue for the candidate slide.',
   `catalogue_stain` varchar(255) DEFAULT NULL COMMENT 'Stain as currently recorded in the catalogue for the candidate slide.',
   `catalogue_tissue` varchar(255) DEFAULT NULL COMMENT 'Tissue as currently recorded in the catalogue for the candidate slide.',
   `match_method` varchar(100) NOT NULL COMMENT 'How this candidate pairing was proposed (e.g. filename match, manual review).',
   `identity_confidence` decimal(5,2) DEFAULT NULL COMMENT 'Overall confidence score for this candidate match.',
-  `tissue_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue tissue values agree (1) or not (0).',
-  `stain_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue stain values agree (1) or not (0).',
-  `organ_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue organ values agree (1) or not (0).',
-  `species_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue species values agree (1) or not (0).',
+  `tissue_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue tissue values agree (1) or not (0).',
+  `stain_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue stain values agree (1) or not (0).',
+  `organ_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue organ values agree (1) or not (0).',
+  `species_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the legacy contributor and catalogue species values agree (1) or not (0).',
   `review_status` varchar(50) DEFAULT 'PENDING' COMMENT 'Curation status of this candidate match, e.g. PENDING, APPROVED, REJECTED.',
   `match_notes` text DEFAULT NULL COMMENT 'Free-text reviewer notes on this candidate match.',
   `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this candidate match was staged.',
   PRIMARY KEY (`curation_id`,`candidate_slide_id`,`match_method`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Staging table for many-to-many matching of legacy contributor records to slide_id values. Only approved rows should be inserted into slide_david_annotations.';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Staging table for many-to-many matching of legacy contributor records to slide_id values. Only approved rows should be inserted into slide_legacy_curation_links.';
 
 DROP TABLE IF EXISTS `duplicate_slide_mapping`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -300,10 +300,10 @@ CREATE TABLE `slide_corrections` (
   `feedback_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
   `slide_id` bigint(20) NOT NULL COMMENT 'Slide this feedback concerns.',
   `slide_filename` text DEFAULT NULL COMMENT 'Slide''s filename at submission time, kept for convenient display/export without a join.',
-  `feedback_source` enum('metadata','slide_annotation','david_note') NOT NULL DEFAULT 'metadata' COMMENT 'Which part of the catalogue this feedback is about - ''metadata'' (organ/species/stain/etc.), ''slide_annotation'' (a reported annotation error), or ''david_note'' (an expert contributor note correction).',
+  `feedback_source` enum('metadata','slide_annotation','legacy_note') NOT NULL DEFAULT 'metadata' COMMENT 'Which part of the catalogue this feedback is about - ''metadata'' (organ/species/stain/etc.), ''slide_annotation'' (a reported annotation error), or ''legacy_note'' (an expert contributor note correction).',
   `feedback_type` varchar(100) NOT NULL DEFAULT 'general_comment' COMMENT 'For feedback_source=''metadata'', which field is being corrected (organ, tissue, species, stain, description, notes, general_comment); for feedback_source=''slide_annotation'', always ''annotation_review''.',
   `source_annotation_id` bigint(20) DEFAULT NULL COMMENT 'For feedback_source=''slide_annotation'', the slide_annotations.annotation_id this report concerns.',
-  `source_david_record_id` bigint(20) DEFAULT NULL COMMENT 'For feedback_source=''david_note'', the related david_jenkinson_curation.curation_id this correction concerns.',
+  `source_legacy_curation_id` bigint(20) DEFAULT NULL COMMENT 'For feedback_source=''legacy_note'', the related legacy_curation.curation_id this correction concerns.',
   `current_value` text DEFAULT NULL COMMENT 'The value/context being reported on at submission time.',
   `suggested_value` text DEFAULT NULL COMMENT 'The submitter''s suggested replacement value (or, for annotation reports, their verdict: ''correct''/''incorrect'').',
   `feedback_text` text NOT NULL COMMENT 'Free-text explanation/reasoning from the submitter.',
@@ -329,26 +329,26 @@ CREATE TABLE `slide_corrections` (
   KEY `idx_slide_feedback_created_at` (`created_at`),
   KEY `idx_slide_feedback_legacy_metadata_feedback_id` (`legacy_metadata_feedback_id`),
   KEY `fk_slide_feedback_annotation` (`source_annotation_id`),
-  KEY `fk_slide_feedback_david` (`source_david_record_id`),
+  KEY `fk_slide_corrections_legacy` (`source_legacy_curation_id`),
   CONSTRAINT `fk_slide_feedback_annotation` FOREIGN KEY (`source_annotation_id`) REFERENCES `slide_annotations` (`annotation_id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_slide_feedback_david` FOREIGN KEY (`source_david_record_id`) REFERENCES `david_jenkinson_curation` (`curation_id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_slide_corrections_legacy` FOREIGN KEY (`source_legacy_curation_id`) REFERENCES `legacy_curation` (`curation_id`) ON DELETE SET NULL,
   CONSTRAINT `fk_slide_feedback_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='User-submitted feedback/correction reports awaiting admin or reviewer action - covers metadata corrections, reported annotation errors, and expert-note corrections, distinguished by feedback_source.';
 
-DROP TABLE IF EXISTS `slide_david_annotations`;
+DROP TABLE IF EXISTS `slide_legacy_curation_links`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `slide_david_annotations` (
+CREATE TABLE `slide_legacy_curation_links` (
   `slide_id` int(11) NOT NULL COMMENT 'Slide identifier',
-  `david_record_id` int(11) NOT NULL COMMENT 'References david_jenkinson_curation.david_jenkinson_curation_records.david_record_id',
+  `legacy_curation_id` int(11) NOT NULL COMMENT 'References legacy_curation.curation_id.',
   `confidence_score` decimal(5,2) DEFAULT NULL COMMENT 'Curatorial confidence in reconciliation between the slide and its legacy archive record',
   `reconciliation_method` varchar(100) DEFAULT NULL COMMENT 'FILENAME_MATCH, COLLECTION_NAME_MATCH, DOCUMENT_CONTEXT, MANUAL_REVIEW',
   `reconciliation_notes` text DEFAULT NULL COMMENT 'Explanation of why the reconciliation was accepted',
   `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this reconciliation link was created.',
-  PRIMARY KEY (`slide_id`,`david_record_id`),
+  PRIMARY KEY (`slide_id`,`legacy_curation_id`),
   KEY `idx_slide_id` (`slide_id`),
-  KEY `idx_david_record_id` (`david_record_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reconciliation layer linking slides to preserved legacy archive records. Source annotations remain in database david_jenkinson_curation and are referenced through david_record_id for provenance preservation.';
+  KEY `idx_legacy_curation_id` (`legacy_curation_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reconciliation layer linking slides to preserved legacy archive records. Source annotations remain in database legacy_curation and are referenced through legacy_curation_id for provenance preservation.';
 
 DROP TABLE IF EXISTS `slide_metadata`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -410,7 +410,7 @@ DROP TABLE IF EXISTS `slide_tissue_annotations`;
 CREATE TABLE `slide_tissue_annotations` (
   `slide_id` bigint(20) NOT NULL COMMENT 'Slide identifier from slides.slide_id',
   `tissue_id` int(11) NOT NULL COMMENT 'Canonical tissue identifier from tissue_dictionary.tissue_id',
-  `evidence_source` varchar(100) DEFAULT NULL COMMENT 'Source of tissue assignment, e.g. metadata, filename, David Jenkinson, manual review',
+  `evidence_source` varchar(100) DEFAULT NULL COMMENT 'Source of tissue assignment, e.g. metadata, filename, legacy contributor, manual review',
   `review_status` varchar(50) DEFAULT NULL COMMENT 'Curation status of this slide-tissue assignment',
   `confidence` varchar(20) DEFAULT NULL COMMENT 'Confidence in this slide-tissue assignment',
   `notes` text DEFAULT NULL COMMENT 'Additional curator notes',
@@ -567,3 +567,39 @@ CREATE TABLE `users` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Catalogue user accounts - local or LDAP-authenticated, with a role controlling what they can see and do (see role_permissions for reviewer/expert capabilities).';
 
 SET FOREIGN_KEY_CHECKS=1;
+
+-- Two views used by the app (v_slide_legacy_notes, queried directly by
+-- get_slide/search_slides) and kept for convenience (v_slide_catalogue_app,
+-- a flattened slide+metadata+stain view for ad-hoc reporting/Adminer use -
+-- not queried by the app itself). Neither was captured in any prior dump or
+-- migration; both were reconstructed here from the live view definitions.
+
+DROP VIEW IF EXISTS `v_slide_legacy_notes`;
+CREATE VIEW `v_slide_legacy_notes` AS
+SELECT
+  `s`.`slide_id` AS `slide_id`,
+  `s`.`filename` AS `filename`,
+  `d`.`curation_id` AS `legacy_curation_id`,
+  `d`.`annotation_title` AS `annotation_title`,
+  `d`.`note_text` AS `note_text`,
+  `sda`.`confidence_score` AS `confidence_score`,
+  `sda`.`reconciliation_method` AS `reconciliation_method`,
+  `sda`.`reconciliation_notes` AS `reconciliation_notes`
+FROM (`slide_legacy_curation_links` `sda`
+  JOIN `slides` `s` ON (`s`.`slide_id` = `sda`.`slide_id`))
+  JOIN `legacy_curation` `d` ON (`d`.`curation_id` = `sda`.`legacy_curation_id`);
+
+DROP VIEW IF EXISTS `v_slide_catalogue_app`;
+CREATE VIEW `v_slide_catalogue_app` AS
+SELECT
+  `s`.`slide_id` AS `slide_id`,
+  `s`.`filename` AS `filename`,
+  `sm`.`organ` AS `organ`,
+  `sm`.`species` AS `species`,
+  `sm`.`stain` AS `raw_stain`,
+  `sd`.`canonical_stain` AS `canonical_stain`,
+  `sd`.`stain_family` AS `stain_family`,
+  `sm`.`description` AS `description`
+FROM (`slides` `s`
+  LEFT JOIN `slide_metadata` `sm` ON (`sm`.`slide_id` = `s`.`slide_id`))
+  LEFT JOIN `stain_dictionary` `sd` ON (`sd`.`original_stain` = `sm`.`stain`);

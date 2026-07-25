@@ -117,7 +117,7 @@ function addBadges(container, slide) {
     container.appendChild(createBadge("ANN", "Slide annotations available"));
   }
 
-  if ((slide.david_notes || []).length > 0) {
+  if ((slide.legacy_notes || []).length > 0) {
     container.appendChild(createNotepadBadge());
   }
 
@@ -182,13 +182,13 @@ function createSectionNavigator(root, slide) {
   nav.setAttribute("aria-label", "Slide detail sections");
 
   const hasAnnotations = (slide.slide_annotations || []).length > 0;
-  const hasExpertNotes = (slide.david_notes || []).length > 0;
+  const hasExpertNotes = (slide.legacy_notes || []).length > 0;
 
   const sections = [
     ["slide-top", "IMG", "Image and share path", ""],
     ["slide-metadata", "MET", "Metadata", ""],
     ["slide-annotations", "ANN", "Slide annotations", hasAnnotations ? "vmc-section-nav-gold" : "vmc-section-nav-muted"],
-    ["slide-david", "EXP", "Expert contributor notes", hasExpertNotes ? "vmc-section-nav-gold" : "vmc-section-nav-muted"],
+    ["slide-legacy", "EXP", "Expert contributor notes", hasExpertNotes ? "vmc-section-nav-gold" : "vmc-section-nav-muted"],
     ["slide-technical", "TEC", "Technical metadata", ""],
   ];
 
@@ -1123,8 +1123,8 @@ function buildExpertNoteCard(slideId, note, onChanged) {
   return card;
 }
 
-function buildDavidNoteCard(note, onChanged) {
-  const card = createEl("article", "vmc-david-card");
+function buildLegacyNoteCard(note, onChanged) {
+  const card = createEl("article", "vmc-legacy-card");
 
   const canEdit = canWriteExpertNotes();
   let titleInput = null;
@@ -1138,7 +1138,7 @@ function buildDavidNoteCard(note, onChanged) {
     titleInput.style.marginBottom = "0.5rem";
     card.appendChild(titleInput);
   } else {
-    card.appendChild(createEl("h3", "", note.annotation_title || "Expert note " + note.david_record_id));
+    card.appendChild(createEl("h3", "", note.annotation_title || "Expert note " + note.legacy_curation_id));
   }
 
   const textArea = document.createElement("textarea");
@@ -1155,7 +1155,7 @@ function buildDavidNoteCard(note, onChanged) {
   });
 
   renderDetailGrid(card, [
-    ["David record ID", note.david_record_id],
+    ["Legacy record ID", note.legacy_curation_id],
     ["Confidence score", note.confidence_score],
     ["Reconciliation method", note.reconciliation_method],
     ["Reconciliation notes", note.reconciliation_notes],
@@ -1179,7 +1179,7 @@ function buildDavidNoteCard(note, onChanged) {
     });
 
     saveButton.addEventListener("click", async function () {
-      const response = await fetch("/api/david-notes/" + note.david_record_id, {
+      const response = await fetch("/api/legacy-notes/" + note.legacy_curation_id, {
         method: "PATCH",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
@@ -1202,12 +1202,12 @@ function buildDavidNoteCard(note, onChanged) {
   return card;
 }
 
-function renderDavidNotes(root, slide) {
-  const notes = slide.david_notes || [];
+function renderLegacyNotes(root, slide) {
+  const notes = slide.legacy_notes || [];
   const expertNotes = slide.expert_notes || [];
 
   const section = createEl("section", "vmc-section vmc-section-anchor");
-  section.id = "slide-david";
+  section.id = "slide-legacy";
   section.appendChild(createEl("h2", "", "Expert contributor notes"));
 
   if (canWriteExpertNotes()) {
@@ -1235,7 +1235,7 @@ function renderDavidNotes(root, slide) {
       appendAnnotationSeparator(section);
     }
 
-    section.appendChild(buildDavidNoteCard(note, function () {
+    section.appendChild(buildLegacyNoteCard(note, function () {
       loadSlide();
     }));
   });
@@ -1282,7 +1282,7 @@ function renderSlide(slide) {
   renderAnnotations(root, slide);
 
   appendSubjectDivider(root);
-  renderDavidNotes(root, slide);
+  renderLegacyNotes(root, slide);
 
   appendSubjectDivider(root);
   renderTechnical(root, slide);

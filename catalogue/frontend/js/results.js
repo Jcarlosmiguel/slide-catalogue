@@ -44,7 +44,7 @@ function addBadges(container, slide) {
     container.appendChild(createBadge("ANN", "Slide annotations available"));
   }
 
-  if (slide.has_david_notes) {
+  if (slide.has_legacy_notes) {
     container.appendChild(createBadge("EXP", "Expert contributor notes available", "vmc-badge-gold"));
   }
 
