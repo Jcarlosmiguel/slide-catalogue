@@ -7,7 +7,9 @@ For architecture, database schema, deployment mechanics, and
 maintenance procedures, see `docs/` inside this folder
 (`architecture.md`, `database.md`, `deployment.md`, `mariadb.md`,
 `thumbnail-maintenance.md`) - this file only covers what's in each
-top-level folder here.
+top-level folder here. For running this alongside an existing OMERO
+deployment (sharing one nginx/public IP), see
+`docs/omero-integration/README.md`.
 
 ## Source
 

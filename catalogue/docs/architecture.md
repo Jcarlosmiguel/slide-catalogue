@@ -13,6 +13,13 @@ The application is designed to support:
 - Catalogue administrators
 - Archive curators
 
+This app is fully standalone and doesn't require OMERO. It was originally
+built to run alongside an OMERO deployment, sharing one nginx/public IP
+and routed by domain, with each app's own database kept fully
+independent. See `docs/omero-integration/` for sanitized example
+`compose.yaml`/`.env`/`nginx.conf` files and a step-by-step guide if you
+want to run it the same way.
+
 ---
 
 # High-Level Architecture
