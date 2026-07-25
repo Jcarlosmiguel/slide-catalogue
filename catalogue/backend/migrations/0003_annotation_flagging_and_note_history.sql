@@ -18,7 +18,7 @@ ALTER TABLE slide_annotations
   AFTER invisible;
 
 CREATE TABLE IF NOT EXISTS legacy_curation_edit_history (
-  history_id BIGINT AUTO_INCREMENT PRIMARY KEY,
+  history_id BIGINT AUTO_INCREMENT PRIMARY KEY COMMENT 'Primary key.',
   curation_id BIGINT NOT NULL COMMENT 'The legacy_curation.curation_id this history entry preserves a prior version of.',
   previous_annotation_title VARCHAR(500) COMMENT 'annotation_title value immediately before this edit.',
   previous_note_text LONGTEXT COMMENT 'note_text value immediately before this edit.',

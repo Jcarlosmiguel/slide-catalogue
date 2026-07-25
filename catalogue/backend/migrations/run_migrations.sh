@@ -53,8 +53,8 @@ run_sql() {
 }
 
 echo "CREATE TABLE IF NOT EXISTS schema_migrations (
-  filename VARCHAR(255) PRIMARY KEY,
-  applied_at DATETIME DEFAULT CURRENT_TIMESTAMP
+  filename VARCHAR(255) PRIMARY KEY COMMENT 'Migration filename, e.g. 0001_reviewer_expert_roles.sql.',
+  applied_at DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT 'When this migration was applied.'
 ) COMMENT='Tracks which migrations/*.sql files have already been applied, so run_migrations.sh only ever applies each one once.';" | run_sql
 
 mapfile -t applied < <(echo "SELECT filename FROM schema_migrations;" | run_sql -N)
