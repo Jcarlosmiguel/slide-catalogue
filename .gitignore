@@ -8,6 +8,7 @@ __pycache__/
 
 # Database dumps
 *.sql
+!catalogue/backend/migrations/*.sql
 
 # Archives
 *.tar.gz
@@ -42,4 +43,4 @@ manual_thumbnails/
 thumbnail_backups/
 
 # Generated documentation
-mvls-catalogue_tree.txt
+slide-catalogue_tree.txt

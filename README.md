@@ -25,11 +25,24 @@ Required environment variables (see `compose.yaml` for the full list):
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` -
   outgoing mail for account activation/password reset
 
-Run database migrations after first startup and after every pull:
+Run database migrations after first startup and after every pull (this also
+creates the base schema automatically on a fresh, empty database):
 
 ```bash
 ./catalogue/backend/migrations/run_migrations.sh
 ```
+
+On a fresh database there are no users yet. Seed one example admin login
+and one example slide (with generated placeholder thumbnails) to have
+something to log in with and look at:
+
+```bash
+docker exec -it catalogue_backend python3 /app/app/seed_example_data.py
+```
+
+Safe to re-run - it skips anything that already exists. Prints the example
+login (`admin` / `ChangeMe123!`) - change that password before using this
+anywhere beyond local testing.
 
 ## Where to look
 
