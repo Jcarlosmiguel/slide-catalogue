@@ -34,8 +34,8 @@ THUMBNAIL_SIZES = (512, 1024, 2048)
 EXAMPLE_SLIDES = [
     {
         "source_key": "1",
-        "filename": "Slide AD139 Kidney Dog H&E - example.ndpi",
-        "archive_relative_path": "Archive/Urinary/Renal/Kidney unannotated/Slide AD139 Kidney Dog H&E - example.ndpi",
+        "filename": "slide-1.ndpi",
+        "archive_relative_path": "Archive/slide-1.ndpi",
         "slide_format": "NDPI",
         "file_size_bytes": 269105756,
         "width_pixels": 51200,
@@ -60,8 +60,8 @@ EXAMPLE_SLIDES = [
     },
     {
         "source_key": "2",
-        "filename": "Slide 1282 Lung Rabbit H&E - example.ndpi",
-        "archive_relative_path": "Archive/Pulmonary/Lung/Lung unannotated/Slide 1282 Lung Rabbit H&E - example.ndpi",
+        "filename": "slide-2.ndpi",
+        "archive_relative_path": "Archive/slide-2.ndpi",
         "slide_format": "NDPI",
         "file_size_bytes": 1046411512,
         "width_pixels": 47104,
@@ -86,8 +86,8 @@ EXAMPLE_SLIDES = [
     },
     {
         "source_key": "3",
-        "filename": "Slide 722 Sublingual gland Dog H&E - example.ndpi",
-        "archive_relative_path": "Archive/Alimentary/Mouth/Salivary glands/Slide 722 Sublingual gland Dog H&E - example.ndpi",
+        "filename": "slide-3.ndpi",
+        "archive_relative_path": "Archive/slide-3.ndpi",
         "slide_format": "NDPI",
         "file_size_bytes": 66509952,
         "width_pixels": 20480,
