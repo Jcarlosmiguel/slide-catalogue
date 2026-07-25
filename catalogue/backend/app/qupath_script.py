@@ -3,9 +3,9 @@ import xml.etree.ElementTree as ET
 
 # Whether rect_x/rect_y/rect_w/rect_h (and the arrow/point coordinates) need
 # multiplying by the per-annotation "zoom" field to reach true full-resolution
-# pixel coordinates is still being verified against real data - see HANDOFF.md
-# in dih-slide-reconciler. Exposed as a toggle (apply_zoom) so both hypotheses
-# can be generated and visually compared directly in QuPath.
+# pixel coordinates is still being verified against real data. Exposed as a
+# toggle (apply_zoom) so both hypotheses can be generated and visually
+# compared directly in QuPath.
 
 
 def _groovy_str(value):

@@ -81,8 +81,10 @@ Responsibilities:
 - Authentication
 - Database access
 - Searches
-- Feedback handling
+- Feedback and correction handling (metadata corrections, reported
+  annotation errors, expert-note corrections)
 - Access requests
+- QuPath annotation script generation
 - Administration
 
 Location:
@@ -151,12 +153,33 @@ Examples:
 
 ---
 
-## Administrative
+## Reviewer / Expert
 
-Requires administrator privileges.
+Requires the `reviewer` or `expert` role, authorized per-permission via
+`role_permissions` rather than hardcoded role checks (see
+`app/permissions.py`). Roles are DB-assigned, not self-service.
 
 Examples:
 
-- Feedback Management
+- Reviewer dashboard - review and act on submitted corrections
+  (`reviewer-dashboard.html`), cannot approve a correction they submitted
+  themselves
+- Annotation error review (`annotation-review.html`)
+- Expert-authored slide notes and legacy contributor note editing
+
+---
+
+## Administrative
+
+Requires administrator privileges (`admin` or `system_admin`;
+`system_admin` is full-access and DB-assignable only).
+
+Examples:
+
+- Corrections Management
+- Site Feedback
+- User Management
 - Access Requests
+- Blocked Access Requests
+- Password Reset Log
 - System Settings

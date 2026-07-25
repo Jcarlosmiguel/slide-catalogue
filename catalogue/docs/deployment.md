@@ -119,6 +119,36 @@ docker compose down
 docker compose up -d
 ```
 
+Apply any new database migrations (safe to run every time - already-applied
+migrations are skipped):
+
+```bash
+./catalogue/backend/migrations/run_migrations.sh
+```
+
+---
+
+# Database Schema and Seed Data
+
+First-time setup on a fresh, empty database:
+
+```bash
+./catalogue/backend/migrations/run_migrations.sh
+```
+
+This creates every table and view (`0000_initial_schema.sql`) and applies
+all subsequent migrations in order - see `docs/database.md` for what each
+table is for.
+
+A fresh database has no users. To seed one example admin login and three
+example teaching slides to log in with and look at:
+
+```bash
+docker exec -it catalogue_backend python3 /app/app/seed_example_data.py
+```
+
+Safe to re-run - skips anything that already exists.
+
 ---
 
 # Database Backup

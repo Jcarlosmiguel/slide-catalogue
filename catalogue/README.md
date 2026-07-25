@@ -13,7 +13,7 @@ top-level folder here.
 
 | Folder | What's there |
 |---|---|
-| `backend/` | FastAPI application - auth, search, feedback, access requests, admin functions, system settings. `Dockerfile` builds the `catalogue_backend` container. |
+| `backend/` | FastAPI application - auth, search, corrections/feedback, access requests, reviewer/expert roles, QuPath script export, admin functions, system settings. `migrations/` holds the schema + `seed_example_data.py` seeds example data. `Dockerfile` builds the `catalogue_backend` container. |
 | `frontend/` | Static HTML/CSS/JS served by `catalogue_nginx`. |
 | `nginx/` | `catalogue.dev.conf` - `catalogue_nginx`'s own config (serves the frontend, `/thumbnails/`, `/documents/`, proxies `/api/` to the backend). |
 | `tools/` | Maintenance scripts (thumbnail generation etc.) - see `docs/thumbnail-maintenance.md`. |

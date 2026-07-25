@@ -134,6 +134,9 @@ def require_system_admin(user: dict = Depends(require_user)):
 
 @app.post("/api/login")
 def login(response: Response, payload: dict = Body(...)):
+    """Authenticate by username, email, or GUID + password. Rejects
+    non-ACTIVE accounts. Sets a signed session cookie and updates
+    last_login_at on success."""
     username = str(payload.get("username", "")).strip()
     password = str(payload.get("password", ""))
 
@@ -243,12 +246,14 @@ def login(response: Response, payload: dict = Body(...)):
 
 @app.post("/api/logout")
 def logout(response: Response):
+    """Clear the session cookie."""
     response.delete_cookie(SESSION_COOKIE_NAME, path="/")
     return {"status": "ok"}
 
 
 @app.get("/api/me")
 def me(user: dict = Depends(require_user)):
+    """Return the currently-authenticated user's identity/role."""
     return {
         "authenticated": True,
         "user": {
@@ -565,6 +570,7 @@ def get_share_root(os_key: str):
 
 @app.get("/api/health")
 def health():
+    """Unauthenticated liveness check - does not touch the database."""
     return {
         "status": "ok",
         "service": "catalogue-backend"
@@ -573,6 +579,8 @@ def health():
 
 @app.get("/api/db-health")
 def db_health():
+    """Unauthenticated database connectivity check - returns the connected
+    database name and current slide count, or an error detail."""
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
@@ -599,6 +607,9 @@ def db_health():
 
 @app.get("/api/thumbnail-paths/{slide_id}")
 def thumbnail_paths(slide_id: int):
+    """Build the search/detail/large thumbnail URLs for a slide_id.
+    Purely derived from the ID - does not check the slide exists or that
+    the thumbnail files are actually present on disk."""
     return {
         "slide_id": slide_id,
         "thumbnails": {
@@ -641,6 +652,7 @@ class ProfileUpdateRequest(BaseModel):
 
 @app.get("/api/me/profile")
 def get_profile(user: dict = Depends(require_user)):
+    """Return the current user's own profile fields (not the password hash)."""
     conn = get_db_connection()
 
     try:
@@ -682,6 +694,10 @@ def update_profile(
     payload: ProfileUpdateRequest,
     user: dict = Depends(require_user),
 ):
+    """Update the current user's own profile fields, and/or change their
+    password (requires current_password when setting new_password). If a
+    GUID is present, username must match it. Re-signs the session cookie
+    since the username/role embedded in it may have changed."""
     conn = get_db_connection()
 
     try:
@@ -908,6 +924,10 @@ def _notify_system_admins_of_blocked_request(cur, email, full_name, reason_text)
 
 @app.post("/api/access-request")
 def create_access_request(request: AccessRequestCreate, http_request: Request):
+    """Public, unauthenticated self-service request for a new account.
+    If the email already has an account or a pending request, returns a
+    409 explaining which, and separately logs the attempt to
+    access_request_blocked_attempts and emails system_admins about it."""
 
     conn = get_db_connection()
 
@@ -1008,6 +1028,7 @@ def create_access_request(request: AccessRequestCreate, http_request: Request):
 def list_access_requests(
     user: dict = Depends(require_admin),
 ):
+    """List every access request (all statuses), newest first."""
 
     conn = get_db_connection()
 
@@ -1045,6 +1066,11 @@ def approve_access_request(
     request_id: int,
     user: dict = Depends(require_admin),
 ):
+    """Approve a pending access request. Creates a new PENDING_ACTIVATION
+    user with an auto-generated username (first-initial.surname.user_id),
+    a 7-day activation token, and emails the activation link. If a user
+    with this email already exists (e.g. a duplicate request), just marks
+    the request APPROVED without creating a second account."""
 
     conn = get_db_connection()
 
@@ -1246,6 +1272,8 @@ def reject_access_request(
     request_id: int,
     user: dict = Depends(require_admin),
 ):
+    """Mark a pending access request REJECTED. No account or notification
+    email is created."""
 
     conn = get_db_connection()
 
@@ -1279,6 +1307,9 @@ def reject_access_request(
 
 @app.get("/api/activation-token/{token}")
 def get_activation_token(token: str):
+    """Public lookup used by the activation page to show which account a
+    token belongs to before the user sets a password. Does not check
+    expiry/used_at itself - just returns them for the caller to check."""
 
     conn = get_db_connection()
 
@@ -1329,6 +1360,9 @@ def get_activation_token(token: str):
 def activate_account(
     request: ActivationRequest
 ):
+    """Set the initial password for a PENDING_ACTIVATION account and mark
+    it ACTIVE, consuming the one-time activation token (400 if already
+    used or expired). Sends an activation-confirmation email."""
 
     conn = get_db_connection()
 
@@ -1444,6 +1478,10 @@ def request_password_reset(
     request: PasswordResetRequestCreate,
     http_request: Request,
 ):
+    """Public, unauthenticated "forgot password" request - issues a
+    2-hour reset token and emails the link if the account exists and is
+    ACTIVE. Every outcome (unknown email, inactive account, success) is
+    logged to password_reset_log for abuse monitoring."""
 
     email = request.email.strip()
 
@@ -1519,6 +1557,9 @@ def request_password_reset(
 
 @app.get("/api/password-reset-token/{token}")
 def get_password_reset_token(token: str):
+    """Public lookup used by the reset-password page to show which
+    account a token belongs to. Does not check expiry/used_at itself -
+    just returns them for the caller to check."""
 
     conn = get_db_connection()
 
@@ -1562,6 +1603,8 @@ def reset_password(
     request: PasswordResetConfirm,
     http_request: Request,
 ):
+    """Set a new password from a reset token (400 if already used or
+    expired), enforcing the password policy. Consumes the token."""
 
     conn = get_db_connection()
 
@@ -1695,6 +1738,7 @@ def contribution_ticker():
 
 @app.get("/api/featured-slides")
 def featured_slides():
+    """Public (unauthenticated) - 4 random active slides for the homepage."""
 
     conn = get_db_connection()
 
@@ -1742,6 +1786,9 @@ def search_slides(
     limit: int = Query(50, ge=1, le=200),
     offset: int = Query(0, ge=0),
 ):
+    """Main slide search/filter/listing endpoint - free-text q (matches
+    metadata, legacy notes, filenames), exact/range filters, the various
+    has_*/is_* quick-filter booleans, sorting, and pagination."""
     where = []
     params = []
 
@@ -2080,6 +2127,10 @@ def create_metadata_correction(
     payload: dict = Body(...),
     user: dict = Depends(require_user),
 ):
+    """Submit a metadata correction (organ/tissue/species/stain/description/
+    notes/general_comment) for review - creates a slide_corrections row
+    with feedback_source='metadata' and increments the submitter's
+    contributions_count."""
     feedback_type = str(payload.get("feedback_type", "general_comment")).strip()
     current_value = payload.get("current_value")
     suggested_value = payload.get("suggested_value")
@@ -2191,6 +2242,11 @@ def create_annotation_feedback(
     payload: dict = Body(...),
     user: dict = Depends(require_user),
 ):
+    """Report an existing slide annotation as correct/incorrect, for
+    review - creates a slide_corrections row with
+    feedback_source='slide_annotation'. If accepted with verdict
+    'incorrect', the annotation gets hidden (slide_annotations.
+    flagged_incorrect) once a reviewer approves it."""
     annotation_id = payload.get("annotation_id")
     verdict = str(payload.get("verdict", "")).strip().lower()
     feedback_text = str(payload.get("feedback_text", "")).strip()
@@ -2296,6 +2352,10 @@ def create_annotation_feedback(
 
 @app.get("/api/slides/{slide_id}")
 def get_slide(slide_id: int, os_key: str = Query("linux", alias="os"), user: dict = Depends(require_user)):
+    """Full slide detail: metadata, technical metadata, thumbnails,
+    annotations (excluding flagged_incorrect ones), legacy contributor
+    notes, expert notes, and an OS-specific share path for the given
+    os_key (linux/windows/macos)."""
     conn = get_db_connection()
 
     try:
@@ -2563,6 +2623,8 @@ def list_expert_notes(
     slide_id: Optional[int] = None,
     user: dict = Depends(require_user),
 ):
+    """List expert-authored notes, newest first, optionally filtered to
+    one slide_id."""
     where_sql = ""
     params = []
     if slide_id:
@@ -2604,6 +2666,7 @@ def create_expert_note(
     payload: dict = Body(...),
     user: dict = Depends(require_permission("expert_notes.write")),
 ):
+    """Create a new expert-authored note on a slide."""
     note_title = payload.get("note_title")
     note_text = str(payload.get("note_text", "")).strip()
 
@@ -2652,6 +2715,9 @@ def update_expert_note(
     payload: dict = Body(...),
     user: dict = Depends(require_permission("expert_notes.write")),
 ):
+    """Overwrite an expert note's title/text. Unlike legacy_curation
+    edits, no prior-version history is kept here - this is a direct
+    overwrite of the expert's own note content."""
     note_title = payload.get("note_title")
     note_text = str(payload.get("note_text", "")).strip()
 
@@ -2691,6 +2757,7 @@ def delete_expert_note(
     note_id: int,
     user: dict = Depends(require_permission("expert_notes.write")),
 ):
+    """Permanently delete an expert note. No soft-delete or history."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -2775,10 +2842,14 @@ def update_legacy_note(
 @app.get("/api/slides/{slide_id}/qupath-script")
 def get_slide_qupath_script(
     slide_id: int,
-    apply_zoom: bool = Query(True, description="Multiply rect/point coordinates by each annotation's own 'zoom' field - still being verified, see HANDOFF.md in dih-slide-reconciler"),
+    apply_zoom: bool = Query(True, description="Multiply rect/point coordinates by each annotation's own 'zoom' field - still being verified against real data, see the comment at the top of qupath_script.py"),
     color: str = Query("FFFF00", description="Annotation colour as a hex triplet (with or without a leading '#') - defaults to yellow, applied to every annotation in the script"),
     user: dict = Depends(require_user),
 ):
+    """Generate a downloadable QuPath Groovy script that recreates this
+    slide's stored annotations (rect/arrow/point etc.) as real QuPath
+    annotation objects when run inside QuPath against the matching image.
+    404s if the slide has no non-flagged annotations."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -2843,6 +2914,9 @@ def admin_dictionary_values(
     dictionary_name: str,
     admin_user: dict = Depends(require_admin),
 ):
+    """Admin-only dictionary values, with extra organ_system/organ_group
+    columns for organ - unlike the plain /api/dictionaries/{name} used by
+    the correction form's dropdowns."""
     dictionary_name = dictionary_name.lower()
 
     if dictionary_name not in {"organ", "tissue", "species", "stain"}:
@@ -3030,6 +3104,12 @@ def _send_contribution_thanks(submitter_email, slide_id, body_intro):
 
 
 def _update_correction_status(correction_id: int, payload: dict, acting_user: dict):
+    """Shared review-decision logic for both the admin and reviewer
+    review endpoints. Rejects self-review (submitter == acting_user),
+    logs the status change to slide_correction_actions, keeps
+    slide_annotations.flagged_incorrect in sync with the current
+    decision (reversibly), and emails the submitter a thank-you the
+    first time a correction reaches 'resolved'."""
     status = str(payload.get("status", "")).strip()
     admin_notes = payload.get("admin_notes")
 
@@ -3157,6 +3237,7 @@ def admin_update_correction_review(
     payload: dict = Body(...),
     admin_user: dict = Depends(require_admin),
 ):
+    """Admin review-decision endpoint - see _update_correction_status."""
     return _update_correction_status(correction_id, payload, admin_user)
 
 
@@ -3166,6 +3247,8 @@ def reviewer_update_correction_review(
     payload: dict = Body(...),
     user: dict = Depends(require_permission("corrections.review")),
 ):
+    """Reviewer-role review-decision endpoint (permission-gated via
+    corrections.review) - see _update_correction_status."""
     return _update_correction_status(correction_id, payload, user)
 
 
@@ -3175,6 +3258,13 @@ def admin_apply_metadata_correction(
     payload: dict = Body(...),
     admin_user: dict = Depends(require_admin),
 ):
+    """Apply a metadata correction's suggested value to the actual
+    slide_metadata row (or slide_tissue_annotations for field_name=
+    'tissue') - dictionary-backed fields (organ/tissue/species/stain)
+    are validated against the relevant dictionary first and rejected if
+    not already present, not auto-created. Marks the correction
+    'resolved' and thanks the submitter by email. Separate step from
+    reviewing the correction - accepting it doesn't auto-apply."""
     field_name = str(payload.get("field_name", "")).strip().lower()
     new_value = str(payload.get("new_value", "")).strip()
     admin_notes = payload.get("admin_notes")
@@ -3464,6 +3554,8 @@ def admin_apply_metadata_correction(
 def admin_list_users(
     admin_user: dict = Depends(require_system_admin),
 ):
+    """List every user account (all roles/statuses), alphabetical by
+    full name."""
 
     conn = get_db_connection()
 
@@ -3503,6 +3595,9 @@ def admin_list_users(
 def admin_list_blocked_access_requests(
     admin_user: dict = Depends(require_system_admin),
 ):
+    """List access-request attempts that were auto-rejected before
+    reaching the review queue, newest first (see
+    access_request_blocked_attempts)."""
 
     conn = get_db_connection()
 
@@ -3534,6 +3629,9 @@ def admin_list_blocked_access_requests(
 def admin_list_password_reset_log(
     admin_user: dict = Depends(require_system_admin),
 ):
+    """List every password-reset attempt (requested/completed/invalid/
+    inactive), newest first, joined to the account it targeted where one
+    exists."""
 
     conn = get_db_connection()
 
@@ -3570,6 +3668,9 @@ def _set_user_account_status(
     admin_user: dict,
     block_self: bool,
 ):
+    """Shared by deactivate/activate. Only role='user' accounts can be
+    touched here - admin/system_admin/reviewer/expert accounts are
+    managed directly in the database, not through this endpoint."""
     conn = get_db_connection()
 
     try:
@@ -3620,6 +3721,8 @@ def admin_deactivate_user(
     user_id: int,
     admin_user: dict = Depends(require_system_admin),
 ):
+    """Set a regular user's account_status to DISABLED. Cannot target
+    your own account."""
     return _set_user_account_status(user_id, "DISABLED", admin_user, block_self=True)
 
 
@@ -3628,6 +3731,7 @@ def admin_activate_user(
     user_id: int,
     admin_user: dict = Depends(require_system_admin),
 ):
+    """Set a regular user's account_status back to ACTIVE."""
     return _set_user_account_status(user_id, "ACTIVE", admin_user, block_self=False)
 
 
@@ -3681,6 +3785,9 @@ def admin_promote_user(
     user_id: int,
     admin_user: dict = Depends(require_system_admin),
 ):
+    """Promote a role='user' account to 'admin'. 400 if the target isn't
+    currently a plain user. Not called by the current frontend (users.html
+    uses set-role below instead) - kept as a narrower alternative."""
     return _set_user_role(
         user_id,
         required_current_role="user",
@@ -3694,6 +3801,8 @@ def admin_demote_user(
     user_id: int,
     admin_user: dict = Depends(require_system_admin),
 ):
+    """Demote a role='admin' account back to 'user'. 400 if the target
+    isn't currently an admin."""
     return _set_user_role(
         user_id,
         required_current_role="admin",
@@ -3747,6 +3856,9 @@ def admin_set_user_role(
 def admin_get_settings(
     admin_user: dict = Depends(require_admin),
 ):
+    """Return every system_settings row as a flat {setting_name:
+    setting_value} dict (e.g. registration/activation notification
+    templates and toggles)."""
 
     conn = get_db_connection()
 
@@ -3780,6 +3892,9 @@ def admin_update_settings(
     payload: dict = Body(...),
     admin_user: dict = Depends(require_admin),
 ):
+    """Bulk-update system_settings from a {setting_name: setting_value}
+    payload. Every key must already exist as a row - 400s on the first
+    unknown setting name rather than creating new ones."""
     conn = get_db_connection()
 
     try:
@@ -3846,6 +3961,9 @@ def _build_corrections_report(
     submitter_username: Optional[str],
     limit: int,
 ):
+    """Shared filterable corrections listing behind both the admin and
+    reviewer report endpoints - filtered rows plus summary counts grouped
+    by source/type/status."""
     where = []
     params = []
 
@@ -3998,6 +4116,7 @@ def corrections_report(
     limit: int = Query(100, ge=1, le=500),
     admin_user: dict = Depends(require_admin),
 ):
+    """Admin corrections report/listing - see _build_corrections_report."""
     return _build_corrections_report(
         status, feedback_source, feedback_type, slide_id, submitter_username, limit,
     )
@@ -4013,6 +4132,8 @@ def reviewer_corrections_report(
     limit: int = Query(100, ge=1, le=500),
     user: dict = Depends(require_permission("corrections.view")),
 ):
+    """Reviewer-role corrections report (permission-gated via
+    corrections.view) - see _build_corrections_report."""
     return _build_corrections_report(
         status, feedback_source, feedback_type, slide_id, submitter_username, limit,
     )
@@ -4027,6 +4148,9 @@ def corrections_export_csv(
     submitter_username: Optional[str] = None,
     admin_user: dict = Depends(require_admin),
 ):
+    """Same filters as the corrections report, but streamed as a CSV
+    download (slide_corrections_report.csv) instead of JSON - no row
+    limit."""
     where = []
     params = []
 
@@ -4145,6 +4269,8 @@ def corrections_export_csv(
 
 @app.get("/api/filters/organs")
 def filter_organs(user: dict = Depends(require_user)):
+    """Distinct non-empty organ values actually in use in slide_metadata,
+    for populating a search filter dropdown."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -4165,6 +4291,8 @@ def filter_organs(user: dict = Depends(require_user)):
 
 @app.get("/api/filters/species")
 def filter_species(user: dict = Depends(require_user)):
+    """Distinct non-empty species values actually in use in
+    slide_metadata, for populating a search filter dropdown."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -4185,6 +4313,9 @@ def filter_species(user: dict = Depends(require_user)):
 
 @app.get("/api/filters/stains")
 def filter_stains(user: dict = Depends(require_user)):
+    """Distinct stain values in use, canonicalized through
+    stain_dictionary where a mapping exists, for a search filter
+    dropdown."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -4208,6 +4339,8 @@ def filter_stains(user: dict = Depends(require_user)):
 
 @app.get("/api/filters/tissues")
 def filter_tissues(user: dict = Depends(require_user)):
+    """Active canonical tissue values from tissue_dictionary, for a
+    search filter dropdown."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
@@ -4308,6 +4441,8 @@ def admin_site_feedback_report(
     status: Optional[str] = None,
     admin_user: dict = Depends(require_admin),
 ):
+    """List site_feedback rows, optionally filtered by status, newest
+    first."""
     conn = get_db_connection()
 
     try:
@@ -4357,6 +4492,10 @@ def admin_update_site_feedback_review(
     payload: dict = Body(...),
     admin_user: dict = Depends(require_admin),
 ):
+    """Update a site_feedback row's review status/notes. Unlike
+    slide_corrections, there's no self-review guard, no correction
+    actions log, and no thank-you email here - just a status/notes
+    update."""
     status = str(payload.get("status", "")).strip()
     admin_notes = payload.get("admin_notes")
 
