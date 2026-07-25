@@ -33,8 +33,9 @@ creates the base schema automatically on a fresh, empty database):
 ```
 
 On a fresh database there are no users yet. Seed one example admin login
-and one example slide (with generated placeholder thumbnails) to have
-something to log in with and look at:
+and three example teaching slides (real histology images, non-human
+specimens, with their thumbnails) to have something to log in with and
+look at:
 
 ```bash
 docker exec -it catalogue_backend python3 /app/app/seed_example_data.py

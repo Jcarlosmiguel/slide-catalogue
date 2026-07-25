@@ -1,5 +1,8 @@
--- Base schema for the catalogue database (26 tables), extracted from a
--- production schema dump with all data stripped - CREATE TABLE only.
+-- Base schema for the catalogue database, extracted from a production
+-- schema dump with all data stripped - CREATE TABLE only. Excludes
+-- role_permissions, slide_expert_notes, david_note_edit_history (created
+-- by migration 0001/0003) and schema_migrations (managed by
+-- run_migrations.sh itself).
 --
 -- Numbered like any other migration, so run_migrations.sh picks it up and
 -- applies it first automatically on a fresh database - no separate manual
@@ -14,53 +17,53 @@ DROP TABLE IF EXISTS `access_request_blocked_attempts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `access_request_blocked_attempts` (
-  `attempt_id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `attempted_email` varchar(255) NOT NULL,
-  `attempted_full_name` varchar(255) DEFAULT NULL,
-  `reason` enum('email_already_registered','duplicate_pending_request') NOT NULL,
-  `remote_addr` varchar(100) DEFAULT NULL,
-  `user_agent` varchar(500) DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `attempt_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `attempted_email` varchar(255) NOT NULL COMMENT 'Email address used in the blocked attempt.',
+  `attempted_full_name` varchar(255) DEFAULT NULL COMMENT 'Full name given in the blocked attempt.',
+  `reason` enum('email_already_registered','duplicate_pending_request') NOT NULL COMMENT 'Why the attempt was blocked automatically - email_already_registered or duplicate_pending_request.',
+  `remote_addr` varchar(100) DEFAULT NULL COMMENT 'IP address the attempt came from.',
+  `user_agent` varchar(500) DEFAULT NULL COMMENT 'Browser user-agent of the attempt.',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'When the blocked attempt occurred.',
   PRIMARY KEY (`attempt_id`),
   KEY `idx_attempted_email` (`attempted_email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Log of access requests rejected automatically before reaching the review queue (e.g. duplicate email already registered), kept for abuse monitoring.';
 
 DROP TABLE IF EXISTS `access_requests`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `access_requests` (
-  `request_id` int(11) NOT NULL AUTO_INCREMENT,
-  `full_name` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `institution` varchar(255) NOT NULL,
-  `guid` varchar(64) DEFAULT NULL,
-  `authentication_method` enum('LOCAL','LDAP') NOT NULL DEFAULT 'LOCAL',
-  `request_reason` text NOT NULL,
-  `status` enum('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING',
-  `submitted_at` timestamp NULL DEFAULT current_timestamp(),
-  `reviewed_at` timestamp NULL DEFAULT NULL,
-  `reviewed_by` varchar(100) DEFAULT NULL,
-  `review_notes` text DEFAULT NULL,
+  `request_id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `full_name` varchar(255) NOT NULL COMMENT 'Requester''s full name.',
+  `email` varchar(255) NOT NULL COMMENT 'Requester''s email address.',
+  `institution` varchar(255) NOT NULL COMMENT 'Requester''s self-reported institution/affiliation.',
+  `guid` varchar(64) DEFAULT NULL COMMENT 'External identity provider GUID, if applying via LDAP.',
+  `authentication_method` enum('LOCAL','LDAP') NOT NULL DEFAULT 'LOCAL' COMMENT 'Whether the resulting account should authenticate locally (LOCAL) or via LDAP.',
+  `request_reason` text NOT NULL COMMENT 'Requester''s free-text reason for wanting access.',
+  `status` enum('PENDING','APPROVED','REJECTED') NOT NULL DEFAULT 'PENDING' COMMENT 'PENDING, APPROVED, or REJECTED.',
+  `submitted_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When the request was submitted.',
+  `reviewed_at` timestamp NULL DEFAULT NULL COMMENT 'When an admin reviewed this request.',
+  `reviewed_by` varchar(100) DEFAULT NULL COMMENT 'Username of the admin who reviewed this request.',
+  `review_notes` text DEFAULT NULL COMMENT 'Admin''s free-text notes on the decision.',
   PRIMARY KEY (`request_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Self-service requests for catalogue access, reviewed by an admin before a user account is created.';
 
 DROP TABLE IF EXISTS `annotation_contributors`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `annotation_contributors` (
-  `contributor_id` int(11) NOT NULL,
-  `first_name` varchar(255) DEFAULT NULL,
-  `surname` varchar(255) DEFAULT NULL,
-  `source_system` varchar(100) DEFAULT NULL,
-  `notes` text DEFAULT NULL,
+  `contributor_id` int(11) NOT NULL COMMENT 'Primary key (matches the source system''s own user/owner id where applicable).',
+  `first_name` varchar(255) DEFAULT NULL COMMENT 'Contributor''s first name.',
+  `surname` varchar(255) DEFAULT NULL COMMENT 'Contributor''s surname.',
+  `source_system` varchar(100) DEFAULT NULL COMMENT 'Which legacy/source system this contributor record came from (e.g. dih).',
+  `notes` text DEFAULT NULL COMMENT 'Free-text notes.',
   PRIMARY KEY (`contributor_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reference list of individuals credited as annotation contributors/authors in imported source data, for display and attribution.';
 
 DROP TABLE IF EXISTS `david_jenkinson_curation`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `david_jenkinson_curation` (
-  `curation_id` bigint(20) NOT NULL AUTO_INCREMENT,
+  `curation_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
   `source_file` varchar(500) NOT NULL COMMENT 'Original source document from the David Jenkinson archive.',
   `source_authorship` varchar(255) NOT NULL DEFAULT 'David Jenkinson' COMMENT 'Original authorship attribution for the source material.',
   `slide_reference` varchar(255) DEFAULT NULL COMMENT 'Slide identifier, slide number or textual slide reference extracted from the source document.',
@@ -89,38 +92,38 @@ DROP TABLE IF EXISTS `david_record_slide_links`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `david_record_slide_links` (
-  `david_record_id` bigint(20) NOT NULL,
-  `slide_id` bigint(20) NOT NULL,
-  `confidence_score` decimal(5,2) DEFAULT NULL,
-  `link_method` varchar(100) DEFAULT NULL,
-  `notes` text DEFAULT NULL,
+  `david_record_id` bigint(20) NOT NULL COMMENT 'The david_jenkinson_curation.curation_id being linked.',
+  `slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id being linked.',
+  `confidence_score` decimal(5,2) DEFAULT NULL COMMENT 'Confidence in this specific link.',
+  `link_method` varchar(100) DEFAULT NULL COMMENT 'How this link was derived (e.g. filename match, manual review).',
+  `notes` text DEFAULT NULL COMMENT 'Free-text notes on this link.',
   PRIMARY KEY (`david_record_id`,`slide_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reconciliation candidates/links between david_jenkinson_curation records and catalogue slides - a broader or earlier-stage table than the confirmed slide_david_annotations.';
 
 DROP TABLE IF EXISTS `david_slide_match_stage`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `david_slide_match_stage` (
-  `curation_id` bigint(20) NOT NULL,
-  `candidate_slide_id` bigint(20) NOT NULL,
-  `david_slide_reference` varchar(255) DEFAULT NULL,
-  `david_organ` varchar(255) DEFAULT NULL,
-  `david_species` varchar(255) DEFAULT NULL,
-  `david_stain` varchar(255) DEFAULT NULL,
-  `david_tissue` varchar(255) DEFAULT NULL,
-  `catalogue_organ` varchar(255) DEFAULT NULL,
-  `catalogue_species` varchar(255) DEFAULT NULL,
-  `catalogue_stain` varchar(255) DEFAULT NULL,
-  `catalogue_tissue` varchar(255) DEFAULT NULL,
-  `match_method` varchar(100) NOT NULL,
-  `identity_confidence` decimal(5,2) DEFAULT NULL,
-  `tissue_match` tinyint(1) DEFAULT 0,
-  `stain_match` tinyint(1) DEFAULT 0,
-  `organ_match` tinyint(1) DEFAULT 0,
-  `species_match` tinyint(1) DEFAULT 0,
-  `review_status` varchar(50) DEFAULT 'PENDING',
-  `match_notes` text DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `curation_id` bigint(20) NOT NULL COMMENT 'The david_jenkinson_curation.curation_id being considered.',
+  `candidate_slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id being considered as a match.',
+  `david_slide_reference` varchar(255) DEFAULT NULL COMMENT 'Slide reference/label as recorded in the David Jenkinson source material.',
+  `david_organ` varchar(255) DEFAULT NULL COMMENT 'Organ as recorded in the David Jenkinson source material.',
+  `david_species` varchar(255) DEFAULT NULL COMMENT 'Species as recorded in the David Jenkinson source material.',
+  `david_stain` varchar(255) DEFAULT NULL COMMENT 'Stain as recorded in the David Jenkinson source material.',
+  `david_tissue` varchar(255) DEFAULT NULL COMMENT 'Tissue as recorded in the David Jenkinson source material.',
+  `catalogue_organ` varchar(255) DEFAULT NULL COMMENT 'Organ as currently recorded in the catalogue for the candidate slide.',
+  `catalogue_species` varchar(255) DEFAULT NULL COMMENT 'Species as currently recorded in the catalogue for the candidate slide.',
+  `catalogue_stain` varchar(255) DEFAULT NULL COMMENT 'Stain as currently recorded in the catalogue for the candidate slide.',
+  `catalogue_tissue` varchar(255) DEFAULT NULL COMMENT 'Tissue as currently recorded in the catalogue for the candidate slide.',
+  `match_method` varchar(100) NOT NULL COMMENT 'How this candidate pairing was proposed (e.g. filename match, manual review).',
+  `identity_confidence` decimal(5,2) DEFAULT NULL COMMENT 'Overall confidence score for this candidate match.',
+  `tissue_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue tissue values agree (1) or not (0).',
+  `stain_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue stain values agree (1) or not (0).',
+  `organ_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue organ values agree (1) or not (0).',
+  `species_match` tinyint(1) DEFAULT 0 COMMENT 'Whether the David Jenkinson and catalogue species values agree (1) or not (0).',
+  `review_status` varchar(50) DEFAULT 'PENDING' COMMENT 'Curation status of this candidate match, e.g. PENDING, APPROVED, REJECTED.',
+  `match_notes` text DEFAULT NULL COMMENT 'Free-text reviewer notes on this candidate match.',
+  `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this candidate match was staged.',
   PRIMARY KEY (`curation_id`,`candidate_slide_id`,`match_method`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Staging table for many-to-many matching of legacy contributor records to slide_id values. Only approved rows should be inserted into slide_david_annotations.';
 
@@ -128,12 +131,12 @@ DROP TABLE IF EXISTS `duplicate_slide_mapping`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `duplicate_slide_mapping` (
-  `duplicate_slide_id` bigint(20) NOT NULL,
-  `canonical_slide_id` bigint(20) NOT NULL,
-  `duplicate_crawler_id` bigint(20) DEFAULT NULL,
-  `reason` varchar(255) DEFAULT NULL,
-  `evidence` text DEFAULT NULL,
-  `created_date` timestamp NULL DEFAULT current_timestamp(),
+  `duplicate_slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id identified as a duplicate.',
+  `canonical_slide_id` bigint(20) NOT NULL COMMENT 'The slides.slide_id this duplicate should be treated as equivalent to.',
+  `duplicate_crawler_id` bigint(20) DEFAULT NULL COMMENT 'Crawler-assigned identifier for the duplicate file, kept for provenance.',
+  `reason` varchar(255) DEFAULT NULL COMMENT 'Why this slide was flagged as a duplicate.',
+  `evidence` text DEFAULT NULL COMMENT 'Free-text supporting evidence for the duplicate determination.',
+  `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this mapping was recorded.',
   PRIMARY KEY (`duplicate_slide_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Temporary curation table for suspected or confirmed duplicate slide mappings.';
 
@@ -141,11 +144,11 @@ DROP TABLE IF EXISTS `organ_dictionary`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `organ_dictionary` (
-  `organ_id` int(11) NOT NULL AUTO_INCREMENT,
-  `organ_name` varchar(255) NOT NULL,
-  `organ_system` varchar(255) DEFAULT NULL,
-  `active` tinyint(1) DEFAULT 1,
-  `notes` text DEFAULT NULL,
+  `organ_id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `organ_name` varchar(255) NOT NULL COMMENT 'Raw/original organ name as it appears in source data before normalisation.',
+  `organ_system` varchar(255) DEFAULT NULL COMMENT 'Broader body system this organ belongs to (e.g. Cardiovascular, Respiratory).',
+  `active` tinyint(1) DEFAULT 1 COMMENT 'Whether this dictionary entry is currently in active use (0 = retired/superseded).',
+  `notes` text DEFAULT NULL COMMENT 'Free-text curator notes.',
   `canonical_organ` varchar(255) DEFAULT NULL COMMENT 'Preferred canonical organ or anatomical structure name',
   `organ_group` varchar(255) DEFAULT NULL COMMENT 'Broad anatomical grouping used for search and reconciliation',
   `normalisation_status` varchar(50) DEFAULT NULL COMMENT 'Status of dictionary normalisation, e.g. NORMALISED, REVIEW, EXCLUDED',
@@ -160,9 +163,9 @@ DROP TABLE IF EXISTS `organ_tissue_dictionary`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `organ_tissue_dictionary` (
-  `organ_id` int(11) NOT NULL,
-  `tissue_id` int(11) NOT NULL,
-  `notes` text DEFAULT NULL,
+  `organ_id` int(11) NOT NULL COMMENT 'Organ side of the relationship (organ_dictionary.organ_id).',
+  `tissue_id` int(11) NOT NULL COMMENT 'Tissue side of the relationship (tissue_dictionary.tissue_id).',
+  `notes` text DEFAULT NULL COMMENT 'Free-text curator notes.',
   `relationship_type` varchar(100) DEFAULT NULL COMMENT 'Nature of organ-tissue relationship, e.g. CONTAINS, REGION_OF, ASSOCIATED_WITH',
   `review_status` varchar(50) DEFAULT NULL COMMENT 'Curation status of this organ-tissue relationship',
   `confidence` varchar(20) DEFAULT NULL COMMENT 'Confidence in this relationship, e.g. HIGH, MEDIUM, LOW',
@@ -173,75 +176,164 @@ DROP TABLE IF EXISTS `password_reset_log`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_log` (
-  `log_id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) DEFAULT NULL,
-  `email_provided` varchar(255) NOT NULL,
-  `event_type` enum('requested','completed','invalid_email','inactive_account') NOT NULL,
-  `remote_addr` varchar(100) DEFAULT NULL,
-  `user_agent` varchar(500) DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
+  `log_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `user_id` int(11) DEFAULT NULL COMMENT 'The users.user_id this attempt was for, when the email matched an account.',
+  `email_provided` varchar(255) NOT NULL COMMENT 'Email address entered in the reset request.',
+  `event_type` enum('requested','completed','invalid_email','inactive_account') NOT NULL COMMENT 'requested (reset email sent), completed (password actually changed), invalid_email (no matching account), or inactive_account (account not ACTIVE).',
+  `remote_addr` varchar(100) DEFAULT NULL COMMENT 'IP address the request came from.',
+  `user_agent` varchar(500) DEFAULT NULL COMMENT 'Browser user-agent of the request.',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'When this event occurred.',
   PRIMARY KEY (`log_id`),
   KEY `idx_email_provided` (`email_provided`),
   KEY `fk_password_reset_log_user` (`user_id`),
   CONSTRAINT `fk_password_reset_log_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE SET NULL
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Audit log of password-reset attempts, successful or not, for abuse monitoring and support troubleshooting.';
 
 DROP TABLE IF EXISTS `password_reset_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `password_reset_tokens` (
-  `token_id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL,
-  `reset_token` char(36) NOT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
-  `expires_at` timestamp NULL DEFAULT NULL,
-  `used_at` timestamp NULL DEFAULT NULL,
+  `token_id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `user_id` int(11) NOT NULL COMMENT 'The users.user_id this token was issued for.',
+  `reset_token` char(36) NOT NULL COMMENT 'The single-use token value emailed to the user.',
+  `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When the token was issued.',
+  `expires_at` timestamp NULL DEFAULT NULL COMMENT 'When the token stops being valid.',
+  `used_at` timestamp NULL DEFAULT NULL COMMENT 'When the token was redeemed; NULL if not yet used.',
   PRIMARY KEY (`token_id`),
   UNIQUE KEY `reset_token` (`reset_token`),
   KEY `fk_password_reset_user` (`user_id`),
   CONSTRAINT `fk_password_reset_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Single-use, time-limited tokens issued for the forgot-password flow.';
+
+DROP TABLE IF EXISTS `site_feedback`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `site_feedback` (
+  `feedback_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `feedback_text` text NOT NULL COMMENT 'The submitted feedback content.',
+  `page_url` varchar(500) DEFAULT NULL COMMENT 'URL of the page the feedback was submitted from.',
+  `submitter_username` varchar(191) NOT NULL COMMENT 'Username of the user who submitted this feedback, captured at submission time.',
+  `submitter_email` varchar(255) DEFAULT NULL COMMENT 'Email of the submitting user, captured at submission time.',
+  `submitter_display_name` varchar(255) DEFAULT NULL COMMENT 'Display name of the submitting user, captured at submission time.',
+  `submitter_role` varchar(50) DEFAULT NULL COMMENT 'Role of the submitting user, captured at submission time.',
+  `status` enum('new','under_review','accepted','rejected','resolved') NOT NULL DEFAULT 'new' COMMENT 'Review workflow state - new, under_review, accepted, rejected, or resolved.',
+  `admin_notes` text DEFAULT NULL COMMENT 'Reviewer''s notes.',
+  `reviewed_by_username` varchar(191) DEFAULT NULL COMMENT 'Username of whoever last reviewed this feedback.',
+  `reviewed_at` datetime DEFAULT NULL COMMENT 'When it was last reviewed.',
+  `remote_addr` varchar(100) DEFAULT NULL COMMENT 'Submitter''s IP address, captured for abuse/audit purposes.',
+  `user_agent` varchar(500) DEFAULT NULL COMMENT 'Submitter''s browser user-agent, captured for abuse/audit purposes.',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Row creation timestamp.',
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp() COMMENT 'Row last-updated timestamp.',
+  PRIMARY KEY (`feedback_id`),
+  KEY `idx_status` (`status`),
+  KEY `idx_submitter` (`submitter_username`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='General free-text feedback about the catalogue site/UX, not tied to a specific slide or correction - distinct from slide_corrections.';
 
 DROP TABLE IF EXISTS `slide_annotations`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `slide_annotations` (
-  `annotation_id` bigint(20) NOT NULL,
-  `slide_id` bigint(20) NOT NULL,
-  `annotation_type` varchar(128) NOT NULL,
-  `rect_x` int(11) NOT NULL DEFAULT -1,
-  `rect_y` int(11) NOT NULL DEFAULT -1,
-  `rect_w` int(11) NOT NULL DEFAULT -1,
-  `rect_h` int(11) NOT NULL DEFAULT -1,
-  `window_x` int(11) NOT NULL DEFAULT -1,
-  `window_y` int(11) NOT NULL DEFAULT -1,
-  `window_w` int(11) NOT NULL DEFAULT -1,
-  `window_h` int(11) NOT NULL DEFAULT -1,
-  `arrow_start_x` int(11) NOT NULL DEFAULT -1,
-  `arrow_start_y` int(11) NOT NULL DEFAULT -1,
-  `arrow_end_x` int(11) NOT NULL DEFAULT -1,
-  `arrow_end_y` int(11) NOT NULL DEFAULT -1,
-  `zoom` double NOT NULL,
-  `focal_plane` int(10) unsigned NOT NULL DEFAULT 0,
-  `current_frame` int(10) unsigned NOT NULL DEFAULT 0,
-  `title` varchar(255) NOT NULL,
-  `description` varchar(255) NOT NULL,
-  `annotation_date` timestamp NULL DEFAULT NULL,
-  `line_colour` varchar(255) NOT NULL,
-  `drawing` longtext DEFAULT NULL,
-  `moveable` varchar(24) NOT NULL,
-  `area` bigint(20) NOT NULL DEFAULT 0,
-  `filled` enum('true','false') NOT NULL DEFAULT 'false',
-  `invisible` enum('true','false') NOT NULL DEFAULT 'false',
-  `tma_core` smallint(5) unsigned DEFAULT NULL,
-  `owner` int(11) DEFAULT NULL,
-  `source_annotation_id` int(11) DEFAULT NULL,
-  `created_date` timestamp NULL DEFAULT current_timestamp(),
-  `updated_date` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `annotation_id` bigint(20) NOT NULL COMMENT 'Primary key; reuses dih''s own annotationId for imported rows so it''s a stable global identifier.',
+  `slide_id` bigint(20) NOT NULL COMMENT 'Slide this annotation belongs to (slides.slide_id).',
+  `annotation_type` varchar(128) NOT NULL COMMENT 'Shape/kind of annotation (e.g. rectangle, ellipse, arrow, measure, pin, drawing, polygon, scanned_region).',
+  `rect_x` int(11) NOT NULL DEFAULT -1 COMMENT 'Bounding rectangle (or ellipse bounding box) X coordinate; -1 when not applicable to this annotation_type.',
+  `rect_y` int(11) NOT NULL DEFAULT -1 COMMENT 'Bounding rectangle (or ellipse bounding box) Y coordinate; -1 when not applicable to this annotation_type.',
+  `rect_w` int(11) NOT NULL DEFAULT -1 COMMENT 'Bounding rectangle (or ellipse bounding box) width; -1 when not applicable to this annotation_type.',
+  `rect_h` int(11) NOT NULL DEFAULT -1 COMMENT 'Bounding rectangle (or ellipse bounding box) height; -1 when not applicable to this annotation_type.',
+  `window_x` int(11) NOT NULL DEFAULT -1 COMMENT 'Viewport X bound at the time the annotation was drawn, when recorded by the source system; -1 when not populated.',
+  `window_y` int(11) NOT NULL DEFAULT -1 COMMENT 'Viewport Y bound at the time the annotation was drawn, when recorded by the source system; -1 when not populated.',
+  `window_w` int(11) NOT NULL DEFAULT -1 COMMENT 'Viewport width at the time the annotation was drawn, when recorded by the source system; -1 when not populated.',
+  `window_h` int(11) NOT NULL DEFAULT -1 COMMENT 'Viewport height at the time the annotation was drawn, when recorded by the source system; -1 when not populated.',
+  `arrow_start_x` int(11) NOT NULL DEFAULT -1 COMMENT 'Start-point X for line-shaped annotations (arrow, measure); -1 when not applicable.',
+  `arrow_start_y` int(11) NOT NULL DEFAULT -1 COMMENT 'Start-point Y for line-shaped annotations (arrow, measure); -1 when not applicable.',
+  `arrow_end_x` int(11) NOT NULL DEFAULT -1 COMMENT 'End-point X for line-shaped annotations (arrow, measure); -1 when not applicable.',
+  `arrow_end_y` int(11) NOT NULL DEFAULT -1 COMMENT 'End-point Y for line-shaped annotations (arrow, measure); -1 when not applicable.',
+  `zoom` double NOT NULL COMMENT 'View-scale factor recorded at the time the annotation was drawn by the source system; whether coordinates need multiplying by this to reach full-resolution pixels is still being verified (see dih-slide-reconciler HANDOFF.md).',
+  `focal_plane` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'Focal plane index the annotation was drawn on, for multi-focal-plane slides.',
+  `current_frame` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'Frame/view index the annotation was drawn on, for multi-view slides.',
+  `title` varchar(255) NOT NULL COMMENT 'Short heading/name for the annotation.',
+  `description` varchar(255) NOT NULL COMMENT 'Longer free-text description, may include imported source comments.',
+  `annotation_date` timestamp NULL DEFAULT NULL COMMENT 'When the annotation was originally authored in the source system.',
+  `line_colour` varchar(255) NOT NULL COMMENT 'Display colour for the annotation outline, as recorded by the source system.',
+  `drawing` longtext DEFAULT NULL COMMENT 'Freehand/polygon shape data (HTML-escaped XML with a point list relative to rect_x/rect_y), only populated for annotation_type drawing/polygon.',
+  `moveable` varchar(24) NOT NULL COMMENT 'Source system''s movability flag for this annotation object.',
+  `area` bigint(20) NOT NULL DEFAULT 0 COMMENT 'Measured area of the annotation, as recorded by the source system.',
+  `filled` enum('true','false') NOT NULL DEFAULT 'false' COMMENT 'Whether the annotation shape is rendered filled (''true'') or outline-only (''false'').',
+  `invisible` enum('true','false') NOT NULL DEFAULT 'false' COMMENT 'Whether the source system had this annotation marked hidden - real per-annotation data, not something to filter out by default (many slides have some or all annotations marked this way).',
+  `tma_core` smallint(5) unsigned DEFAULT NULL COMMENT 'Tissue microarray core index, for TMA slides.',
+  `owner` int(11) DEFAULT NULL COMMENT 'Numeric user id of the annotation''s author in the source system (0 = system-recorded, e.g. scanned_region marking the scan bounds rather than a teaching annotation).',
+  `source_annotation_id` int(11) DEFAULT NULL COMMENT 'Original annotationId from the legacy dih database, for provenance/audit; NULL for annotations created directly in the app.',
+  `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'Row creation timestamp in this catalogue.',
+  `updated_date` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Row last-updated timestamp in this catalogue.',
   PRIMARY KEY (`annotation_id`),
   KEY `idx_slide_annotations_slide_id` (`slide_id`),
   CONSTRAINT `fk_slide_annotations_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Region/point/line annotations attached to a slide - imported from the legacy Slidepath DIH database via dih-slide-reconciler (source_annotation_id preserves the original dih annotationId), or created directly by the app going forward.';
+
+DROP TABLE IF EXISTS `slide_correction_actions`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `slide_correction_actions` (
+  `action_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `feedback_id` bigint(20) NOT NULL COMMENT 'The slide_corrections row this action was taken against.',
+  `slide_id` bigint(20) NOT NULL COMMENT 'Slide the correction concerns, denormalised for convenient querying.',
+  `action_type` enum('status_update','metadata_update') NOT NULL COMMENT 'Kind of action performed - status_update (correction''s status changed) or metadata_update (a metadata field was actually applied to the slide).',
+  `field_name` varchar(100) DEFAULT NULL COMMENT 'For metadata_update actions, which slide_metadata/slide_tissue_annotations field was changed; for status_update actions, always ''status''.',
+  `old_value` text DEFAULT NULL COMMENT 'The value before this action.',
+  `new_value` text DEFAULT NULL COMMENT 'The value after this action.',
+  `action_notes` text DEFAULT NULL COMMENT 'Free-text notes attached to this specific action.',
+  `performed_by_username` varchar(191) NOT NULL COMMENT 'Username of the admin/reviewer who performed this action.',
+  `performed_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'When this action was performed.',
+  PRIMARY KEY (`action_id`),
+  KEY `idx_feedback_actions_feedback_id` (`feedback_id`),
+  KEY `idx_feedback_actions_slide_id` (`slide_id`),
+  KEY `idx_feedback_actions_action_type` (`action_type`),
+  KEY `idx_feedback_actions_performed_at` (`performed_at`),
+  CONSTRAINT `fk_feedback_actions_feedback` FOREIGN KEY (`feedback_id`) REFERENCES `slide_corrections` (`feedback_id`),
+  CONSTRAINT `fk_feedback_actions_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Append-only audit log of actions taken against a slide_corrections row - one row per status change or applied metadata update.';
+
+DROP TABLE IF EXISTS `slide_corrections`;
+/*!40101 SET @saved_cs_client     = @@character_set_client */;
+/*!40101 SET character_set_client = utf8mb4 */;
+CREATE TABLE `slide_corrections` (
+  `feedback_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `slide_id` bigint(20) NOT NULL COMMENT 'Slide this feedback concerns.',
+  `slide_filename` text DEFAULT NULL COMMENT 'Slide''s filename at submission time, kept for convenient display/export without a join.',
+  `feedback_source` enum('metadata','slide_annotation','david_note') NOT NULL DEFAULT 'metadata' COMMENT 'Which part of the catalogue this feedback is about - ''metadata'' (organ/species/stain/etc.), ''slide_annotation'' (a reported annotation error), or ''david_note'' (an expert contributor note correction).',
+  `feedback_type` varchar(100) NOT NULL DEFAULT 'general_comment' COMMENT 'For feedback_source=''metadata'', which field is being corrected (organ, tissue, species, stain, description, notes, general_comment); for feedback_source=''slide_annotation'', always ''annotation_review''.',
+  `source_annotation_id` bigint(20) DEFAULT NULL COMMENT 'For feedback_source=''slide_annotation'', the slide_annotations.annotation_id this report concerns.',
+  `source_david_record_id` bigint(20) DEFAULT NULL COMMENT 'For feedback_source=''david_note'', the related david_jenkinson_curation.curation_id this correction concerns.',
+  `current_value` text DEFAULT NULL COMMENT 'The value/context being reported on at submission time.',
+  `suggested_value` text DEFAULT NULL COMMENT 'The submitter''s suggested replacement value (or, for annotation reports, their verdict: ''correct''/''incorrect'').',
+  `feedback_text` text NOT NULL COMMENT 'Free-text explanation/reasoning from the submitter.',
+  `submitter_username` varchar(191) NOT NULL COMMENT 'Username of the user who submitted this feedback, captured at submission time.',
+  `submitter_email` varchar(255) DEFAULT NULL COMMENT 'Email of the submitting user, captured at submission time.',
+  `submitter_display_name` varchar(255) DEFAULT NULL COMMENT 'Display name of the submitting user, captured at submission time.',
+  `submitter_role` varchar(50) DEFAULT NULL COMMENT 'Role of the submitting user, captured at submission time (a later role change doesn''t rewrite this).',
+  `status` enum('new','under_review','accepted','rejected','resolved') NOT NULL DEFAULT 'new' COMMENT 'Review workflow state - new, under_review, accepted, rejected, or resolved.',
+  `admin_notes` text DEFAULT NULL COMMENT 'Reviewer''s notes, added when changing status.',
+  `reviewed_by_username` varchar(191) DEFAULT NULL COMMENT 'Username of whoever last changed this correction''s status.',
+  `reviewed_at` datetime DEFAULT NULL COMMENT 'When the status was last changed.',
+  `remote_addr` varchar(100) DEFAULT NULL COMMENT 'Submitter''s IP address, captured for abuse/audit purposes.',
+  `user_agent` varchar(500) DEFAULT NULL COMMENT 'Submitter''s browser user-agent, captured for abuse/audit purposes.',
+  `legacy_metadata_feedback_id` bigint(20) DEFAULT NULL COMMENT 'Reference to a pre-migration feedback record, for rows imported from an earlier version of this feature.',
+  `created_at` datetime NOT NULL DEFAULT current_timestamp() COMMENT 'Row creation timestamp.',
+  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp() COMMENT 'Row last-updated timestamp.',
+  PRIMARY KEY (`feedback_id`),
+  KEY `idx_slide_feedback_slide_id` (`slide_id`),
+  KEY `idx_slide_feedback_source` (`feedback_source`),
+  KEY `idx_slide_feedback_type` (`feedback_type`),
+  KEY `idx_slide_feedback_status` (`status`),
+  KEY `idx_slide_feedback_submitter` (`submitter_username`),
+  KEY `idx_slide_feedback_created_at` (`created_at`),
+  KEY `idx_slide_feedback_legacy_metadata_feedback_id` (`legacy_metadata_feedback_id`),
+  KEY `fk_slide_feedback_annotation` (`source_annotation_id`),
+  KEY `fk_slide_feedback_david` (`source_david_record_id`),
+  CONSTRAINT `fk_slide_feedback_annotation` FOREIGN KEY (`source_annotation_id`) REFERENCES `slide_annotations` (`annotation_id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_slide_feedback_david` FOREIGN KEY (`source_david_record_id`) REFERENCES `david_jenkinson_curation` (`curation_id`) ON DELETE SET NULL,
+  CONSTRAINT `fk_slide_feedback_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='User-submitted feedback/correction reports awaiting admin or reviewer action - covers metadata corrections, reported annotation errors, and expert-note corrections, distinguished by feedback_source.';
 
 DROP TABLE IF EXISTS `slide_david_annotations`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -252,115 +344,25 @@ CREATE TABLE `slide_david_annotations` (
   `confidence_score` decimal(5,2) DEFAULT NULL COMMENT 'Curatorial confidence in reconciliation between the slide and its legacy archive record',
   `reconciliation_method` varchar(100) DEFAULT NULL COMMENT 'FILENAME_MATCH, COLLECTION_NAME_MATCH, DOCUMENT_CONTEXT, MANUAL_REVIEW',
   `reconciliation_notes` text DEFAULT NULL COMMENT 'Explanation of why the reconciliation was accepted',
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
+  `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this reconciliation link was created.',
   PRIMARY KEY (`slide_id`,`david_record_id`),
   KEY `idx_slide_id` (`slide_id`),
   KEY `idx_david_record_id` (`david_record_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reconciliation layer linking slides to preserved legacy archive records. Source annotations remain in database david_jenkinson_curation and are referenced through david_record_id for provenance preservation.';
 
-DROP TABLE IF EXISTS `slide_corrections`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `slide_corrections` (
-  `feedback_id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `slide_id` bigint(20) NOT NULL,
-  `slide_filename` text DEFAULT NULL,
-  `feedback_source` enum('metadata','slide_annotation','david_note') NOT NULL DEFAULT 'metadata',
-  `feedback_type` varchar(100) NOT NULL DEFAULT 'general_comment',
-  `source_annotation_id` bigint(20) DEFAULT NULL,
-  `source_david_record_id` bigint(20) DEFAULT NULL,
-  `current_value` text DEFAULT NULL,
-  `suggested_value` text DEFAULT NULL,
-  `feedback_text` text NOT NULL,
-  `submitter_username` varchar(191) NOT NULL,
-  `submitter_email` varchar(255) DEFAULT NULL,
-  `submitter_display_name` varchar(255) DEFAULT NULL,
-  `submitter_role` varchar(50) DEFAULT NULL,
-  `status` enum('new','under_review','accepted','rejected','resolved') NOT NULL DEFAULT 'new',
-  `admin_notes` text DEFAULT NULL,
-  `reviewed_by_username` varchar(191) DEFAULT NULL,
-  `reviewed_at` datetime DEFAULT NULL,
-  `remote_addr` varchar(100) DEFAULT NULL,
-  `user_agent` varchar(500) DEFAULT NULL,
-  `legacy_metadata_feedback_id` bigint(20) DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
-  PRIMARY KEY (`feedback_id`),
-  KEY `idx_slide_corrections_slide_id` (`slide_id`),
-  KEY `idx_slide_corrections_source` (`feedback_source`),
-  KEY `idx_slide_corrections_type` (`feedback_type`),
-  KEY `idx_slide_corrections_status` (`status`),
-  KEY `idx_slide_corrections_submitter` (`submitter_username`),
-  KEY `idx_slide_corrections_created_at` (`created_at`),
-  KEY `idx_slide_corrections_legacy_metadata_feedback_id` (`legacy_metadata_feedback_id`),
-  KEY `fk_slide_corrections_annotation` (`source_annotation_id`),
-  KEY `fk_slide_corrections_david` (`source_david_record_id`),
-  CONSTRAINT `fk_slide_corrections_annotation` FOREIGN KEY (`source_annotation_id`) REFERENCES `slide_annotations` (`annotation_id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_slide_corrections_david` FOREIGN KEY (`source_david_record_id`) REFERENCES `david_jenkinson_curation` (`curation_id`) ON DELETE SET NULL,
-  CONSTRAINT `fk_slide_corrections_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-
-DROP TABLE IF EXISTS `slide_correction_actions`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `slide_correction_actions` (
-  `action_id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `feedback_id` bigint(20) NOT NULL,
-  `slide_id` bigint(20) NOT NULL,
-  `action_type` enum('status_update','metadata_update') NOT NULL,
-  `field_name` varchar(100) DEFAULT NULL,
-  `old_value` text DEFAULT NULL,
-  `new_value` text DEFAULT NULL,
-  `action_notes` text DEFAULT NULL,
-  `performed_by_username` varchar(191) NOT NULL,
-  `performed_at` datetime NOT NULL DEFAULT current_timestamp(),
-  PRIMARY KEY (`action_id`),
-  KEY `idx_correction_actions_feedback_id` (`feedback_id`),
-  KEY `idx_correction_actions_slide_id` (`slide_id`),
-  KEY `idx_correction_actions_action_type` (`action_type`),
-  KEY `idx_correction_actions_performed_at` (`performed_at`),
-  CONSTRAINT `fk_correction_actions_feedback` FOREIGN KEY (`feedback_id`) REFERENCES `slide_corrections` (`feedback_id`),
-  CONSTRAINT `fk_correction_actions_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-
-DROP TABLE IF EXISTS `site_feedback`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `site_feedback` (
-  `feedback_id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `feedback_text` text NOT NULL,
-  `page_url` varchar(500) DEFAULT NULL,
-  `submitter_username` varchar(191) NOT NULL,
-  `submitter_email` varchar(255) DEFAULT NULL,
-  `submitter_display_name` varchar(255) DEFAULT NULL,
-  `submitter_role` varchar(50) DEFAULT NULL,
-  `status` enum('new','under_review','accepted','rejected','resolved') NOT NULL DEFAULT 'new',
-  `admin_notes` text DEFAULT NULL,
-  `reviewed_by_username` varchar(191) DEFAULT NULL,
-  `reviewed_at` datetime DEFAULT NULL,
-  `remote_addr` varchar(100) DEFAULT NULL,
-  `user_agent` varchar(500) DEFAULT NULL,
-  `created_at` datetime NOT NULL DEFAULT current_timestamp(),
-  `updated_at` datetime DEFAULT NULL ON UPDATE current_timestamp(),
-  PRIMARY KEY (`feedback_id`),
-  KEY `idx_site_feedback_status` (`status`),
-  KEY `idx_site_feedback_submitter` (`submitter_username`),
-  KEY `idx_site_feedback_created_at` (`created_at`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='General free-text feedback about the catalogue site/UX, not tied to a specific slide or correction.';
-
 DROP TABLE IF EXISTS `slide_metadata`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `slide_metadata` (
-  `slide_id` bigint(20) NOT NULL,
-  `organ` varchar(255) DEFAULT NULL,
-  `species` varchar(255) DEFAULT NULL,
-  `stain` varchar(255) DEFAULT NULL,
-  `magnification` int(11) DEFAULT NULL,
-  `description` text DEFAULT NULL,
-  `notes` text DEFAULT NULL,
-  `created_date` timestamp NULL DEFAULT current_timestamp(),
-  `updated_date` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `slide_id` bigint(20) NOT NULL COMMENT 'Slide this metadata belongs to (slides.slide_id).',
+  `organ` varchar(255) DEFAULT NULL COMMENT 'Curated organ or anatomical structure for this slide.',
+  `species` varchar(255) DEFAULT NULL COMMENT 'Curated species for this slide.',
+  `stain` varchar(255) DEFAULT NULL COMMENT 'Curated (or raw, pre-normalisation) stain description for this slide.',
+  `magnification` int(11) DEFAULT NULL COMMENT 'Curated primary objective magnification for this slide.',
+  `description` text DEFAULT NULL COMMENT 'Free-text description of the slide''s content.',
+  `notes` text DEFAULT NULL COMMENT 'Free-text curator notes.',
+  `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'Row creation timestamp.',
+  `updated_date` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Row last-updated timestamp.',
   `is_comparison_slide` tinyint(1) DEFAULT NULL COMMENT 'Teaching/comparison slide. NULL=not assessed or not defined. 0=single specimen with a single preparation. 1=contains multiple specimens and/or preparations intended for side-by-side comparison (e.g. PAS vs H&E, Masson vs H&E).',
   `meaningful_view_count` int(11) DEFAULT NULL COMMENT 'Number of meaningful specimen views present in the slide after vendor-specific normalisation. Derived from crawler metadata. For Leica SCN slides the standard macro image is excluded from the count. NDPI slides with crawler view_count=0 are normalised to a single specimen view. A value greater than 1 indicates a multi-view slide and may be used by catalogue applications to identify and display multi-view slides.',
   `image_dimensions` text DEFAULT NULL COMMENT 'Curated specimen dimensions. For Leica SCN slides the standard macro image (1616x4668) has been removed.',
@@ -372,7 +374,7 @@ CREATE TABLE `slide_metadata` (
   `legacy_thick_section` tinyint(1) NOT NULL DEFAULT 0 COMMENT 'Identifies legacy thick-section specimens prepared before modern microtomy practices. These slides frequently require z-stacking to maintain focus through specimen depth. Populated through expert review and historical collection knowledge. TRUE=confirmed legacy thick section; FALSE=not identified as a legacy thick section.',
   PRIMARY KEY (`slide_id`),
   CONSTRAINT `fk_slide_metadata_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Curated organ/species/stain/description metadata and generated thumbnail paths for a slide - one row per slide_id, distinct from the raw crawler-derived data in slide_technical_metadata.';
 
 DROP TABLE IF EXISTS `slide_technical_metadata`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -412,7 +414,7 @@ CREATE TABLE `slide_tissue_annotations` (
   `review_status` varchar(50) DEFAULT NULL COMMENT 'Curation status of this slide-tissue assignment',
   `confidence` varchar(20) DEFAULT NULL COMMENT 'Confidence in this slide-tissue assignment',
   `notes` text DEFAULT NULL COMMENT 'Additional curator notes',
-  `created_date` timestamp NULL DEFAULT current_timestamp(),
+  `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this slide-tissue assignment was created.',
   PRIMARY KEY (`slide_id`,`tissue_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Permanent curated table linking slides to canonical tissues or histological structures.';
 
@@ -420,21 +422,21 @@ DROP TABLE IF EXISTS `slides`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `slides` (
-  `slide_id` bigint(20) NOT NULL AUTO_INCREMENT,
-  `inventory_id` bigint(20) DEFAULT NULL,
-  `filename` text NOT NULL,
-  `physical_path` text NOT NULL,
-  `archive_relative_path` text DEFAULT NULL,
-  `slide_format` varchar(20) DEFAULT NULL,
-  `file_size_bytes` bigint(20) DEFAULT NULL,
-  `width_pixels` int(11) DEFAULT NULL,
-  `height_pixels` int(11) DEFAULT NULL,
-  `metadata_status` enum('MATCHED_METADATA','NO_METADATA') NOT NULL,
+  `slide_id` bigint(20) NOT NULL AUTO_INCREMENT COMMENT 'Primary key, referenced by nearly every other slide-scoped table.',
+  `inventory_id` bigint(20) DEFAULT NULL COMMENT 'Legacy identifier from the pre-catalogue crawler inventory, kept for provenance/cross-referencing with older exports.',
+  `filename` text NOT NULL COMMENT 'The slide''s own filename as found on disk (not necessarily unique across the archive).',
+  `physical_path` text NOT NULL COMMENT 'Full server-side filesystem path used by the application to open the slide file directly.',
+  `archive_relative_path` text DEFAULT NULL COMMENT 'Path relative to the archive share root (e.g. "Archive/..."), used to build share links for different OS mount points.',
+  `slide_format` varchar(20) DEFAULT NULL COMMENT 'File extension/format of the slide (e.g. NDPI, SCN, SVS).',
+  `file_size_bytes` bigint(20) DEFAULT NULL COMMENT 'Size of the slide file on disk, in bytes.',
+  `width_pixels` int(11) DEFAULT NULL COMMENT 'Full-resolution (level 0) pixel width of the slide image.',
+  `height_pixels` int(11) DEFAULT NULL COMMENT 'Full-resolution (level 0) pixel height of the slide image.',
+  `metadata_status` enum('MATCHED_METADATA','NO_METADATA') NOT NULL COMMENT 'Whether this slide has been matched to curated metadata (MATCHED_METADATA) or still needs it (NO_METADATA).',
   `asset_status` enum('ACTIVE','SCN_MULTIIMAGE','CORRUPT_FILE','UNUSABLE_SCAN','DUPLICATE_SLIDE') NOT NULL DEFAULT 'ACTIVE' COMMENT 'Asset disposition. ACTIVE=normal catalogue slide; SCN_MULTIIMAGE=multi-image SCN reconciled via SQLite metadata; CORRUPT_FILE=known unreadable slide; UNUSABLE_SCAN=valid file unsuitable for teaching use; DUPLICATE_SLIDE=superseded by another slide.',
-  `created_date` timestamp NULL DEFAULT current_timestamp(),
+  `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this slide record was first inserted into the catalogue.',
   `objective_magnifications` varchar(20) DEFAULT NULL COMMENT 'Objective magnifications identified for the slide from crawler-derived metadata and manual validation where required. Single-view slides typically contain a single value (e.g. 20x or 40x). Some multiview slides contain image views acquired at different objective magnifications. In these cases multiple values are stored (e.g. 20x;40x). This reflects historical scanning practice where selected regions of interest were occasionally scanned at higher magnification than other areas of the same slide.',
   PRIMARY KEY (`slide_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Core catalogue record for one virtual slide file - one row per slide, joined by slide_id to slide_metadata, slide_technical_metadata, slide_annotations, and the various correction/feedback tables.';
 
 DROP TABLE IF EXISTS `slides_to_be_deleted_review`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -461,17 +463,17 @@ DROP TABLE IF EXISTS `species_dictionary`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `species_dictionary` (
-  `species_id` int(11) NOT NULL AUTO_INCREMENT,
-  `species_name` varchar(255) NOT NULL,
-  `scientific_name` varchar(255) DEFAULT NULL,
-  `active` tinyint(1) DEFAULT 1,
-  `notes` text DEFAULT NULL,
-  `canonical_species` varchar(255) DEFAULT NULL,
-  `species_group` varchar(255) DEFAULT NULL,
-  `normalisation_status` varchar(50) DEFAULT NULL,
-  `also_known_as` text DEFAULT NULL,
-  `review_status` varchar(50) DEFAULT NULL,
-  `confidence` varchar(20) DEFAULT NULL,
+  `species_id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `species_name` varchar(255) NOT NULL COMMENT 'Raw/original species name as it appears in source data before normalisation.',
+  `scientific_name` varchar(255) DEFAULT NULL COMMENT 'Latin binomial/scientific name for this species.',
+  `active` tinyint(1) DEFAULT 1 COMMENT 'Whether this dictionary entry is currently in active use (0 = retired/superseded).',
+  `notes` text DEFAULT NULL COMMENT 'Free-text curator notes.',
+  `canonical_species` varchar(255) DEFAULT NULL COMMENT 'Preferred canonical species name.',
+  `species_group` varchar(255) DEFAULT NULL COMMENT 'Broad grouping used for search and reconciliation (e.g. mammal, avian).',
+  `normalisation_status` varchar(50) DEFAULT NULL COMMENT 'Status of dictionary normalisation, e.g. NORMALISED, REVIEW, EXCLUDED.',
+  `also_known_as` text DEFAULT NULL COMMENT 'Comma-separated aliases, abbreviations, spelling variants, or legacy labels.',
+  `review_status` varchar(50) DEFAULT NULL COMMENT 'Dictionary curation status, e.g. APPROVED, PENDING, REVIEW.',
+  `confidence` varchar(20) DEFAULT NULL COMMENT 'Confidence in the canonical mapping, e.g. HIGH, MEDIUM, LOW.',
   PRIMARY KEY (`species_id`),
   UNIQUE KEY `uq_species_name` (`species_name`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Controlled vocabulary for species associated with slides, annotations and reconciliation workflows.';
@@ -497,22 +499,22 @@ DROP TABLE IF EXISTS `system_settings`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `system_settings` (
-  `setting_name` varchar(100) NOT NULL,
-  `setting_value` text NOT NULL,
-  `updated_by` varchar(100) DEFAULT NULL,
-  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp(),
+  `setting_name` varchar(100) NOT NULL COMMENT 'Primary key - the setting''s identifier.',
+  `setting_value` text NOT NULL COMMENT 'The setting''s current value, stored as text.',
+  `updated_by` varchar(100) DEFAULT NULL COMMENT 'Username of the admin who last changed this setting.',
+  `updated_at` timestamp NOT NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'When this setting was last changed.',
   PRIMARY KEY (`setting_name`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Simple key-value store for admin-configurable application settings.';
 
 DROP TABLE IF EXISTS `tissue_dictionary`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `tissue_dictionary` (
-  `tissue_id` int(11) NOT NULL AUTO_INCREMENT,
-  `tissue_name` varchar(255) NOT NULL,
-  `tissue_category` varchar(255) DEFAULT NULL,
-  `active` tinyint(1) DEFAULT 1,
-  `notes` text DEFAULT NULL,
+  `tissue_id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `tissue_name` varchar(255) NOT NULL COMMENT 'Raw/original tissue name as it appears in source data before normalisation.',
+  `tissue_category` varchar(255) DEFAULT NULL COMMENT 'Broader histological category this tissue belongs to.',
+  `active` tinyint(1) DEFAULT 1 COMMENT 'Whether this dictionary entry is currently in active use (0 = retired/superseded).',
+  `notes` text DEFAULT NULL COMMENT 'Free-text curator notes.',
   `canonical_tissue` varchar(255) DEFAULT NULL COMMENT 'Preferred canonical tissue or histological structure name',
   `tissue_group` varchar(255) DEFAULT NULL COMMENT 'Broad tissue class or histological grouping',
   `normalisation_status` varchar(50) DEFAULT NULL COMMENT 'Status of dictionary normalisation, e.g. NORMALISED, REVIEW, EXCLUDED',
@@ -527,42 +529,41 @@ DROP TABLE IF EXISTS `user_activation_tokens`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `user_activation_tokens` (
-  `token_id` int(11) NOT NULL AUTO_INCREMENT,
-  `user_id` int(11) NOT NULL,
-  `activation_token` char(36) NOT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
-  `expires_at` timestamp NULL DEFAULT NULL,
-  `used_at` timestamp NULL DEFAULT NULL,
+  `token_id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `user_id` int(11) NOT NULL COMMENT 'The users.user_id this token was issued for.',
+  `activation_token` char(36) NOT NULL COMMENT 'The single-use token value emailed to the user.',
+  `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When the token was issued.',
+  `expires_at` timestamp NULL DEFAULT NULL COMMENT 'When the token stops being valid.',
+  `used_at` timestamp NULL DEFAULT NULL COMMENT 'When the token was redeemed; NULL if not yet used.',
   PRIMARY KEY (`token_id`),
   UNIQUE KEY `activation_token` (`activation_token`),
   KEY `fk_activation_user` (`user_id`),
   CONSTRAINT `fk_activation_user` FOREIGN KEY (`user_id`) REFERENCES `users` (`user_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Single-use, time-limited tokens issued to newly-approved accounts to set their initial password and activate.';
 
 DROP TABLE IF EXISTS `users`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `users` (
-  `user_id` int(11) NOT NULL AUTO_INCREMENT,
-  `username` varchar(255) NOT NULL,
-  `email` varchar(255) NOT NULL,
-  `full_name` varchar(255) NOT NULL,
-  `institution` varchar(255) DEFAULT NULL,
-  `guid` varchar(64) DEFAULT NULL,
-  `role` enum('user','admin','system_admin') NOT NULL DEFAULT 'user',
-  `authentication_method` enum('LOCAL','LDAP') NOT NULL DEFAULT 'LOCAL',
-  `account_status` enum('PENDING_ACTIVATION','ACTIVE','DISABLED') NOT NULL DEFAULT 'PENDING_ACTIVATION',
-  `contributions_count` int(11) NOT NULL DEFAULT 0,
-  `contributions_accepted_count` int(11) NOT NULL DEFAULT 0,
-  `password_hash` text DEFAULT NULL,
-  `approved_by` varchar(100) DEFAULT NULL,
-  `approved_at` timestamp NULL DEFAULT NULL,
-  `created_at` timestamp NULL DEFAULT current_timestamp(),
-  `last_login_at` datetime DEFAULT NULL,
+  `user_id` int(11) NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
+  `username` varchar(255) NOT NULL COMMENT 'Unique login identifier.',
+  `email` varchar(255) NOT NULL COMMENT 'Unique email address, used for notifications and password reset.',
+  `full_name` varchar(255) NOT NULL COMMENT 'Display name.',
+  `institution` varchar(255) DEFAULT NULL COMMENT 'Self-reported institution/affiliation.',
+  `guid` varchar(64) DEFAULT NULL COMMENT 'External identity provider GUID, for LDAP-authenticated accounts.',
+  `role` enum('user','admin','system_admin','reviewer','expert') NOT NULL DEFAULT 'user' COMMENT 'Access level - user, admin, system_admin (full access, DB-assignable only), reviewer (corrections.view/review permissions), or expert (expert_notes.write permission). See role_permissions.',
+  `authentication_method` enum('LOCAL','LDAP') NOT NULL DEFAULT 'LOCAL' COMMENT 'Whether this account logs in with a local password (LOCAL) or an institutional LDAP account (LDAP).',
+  `account_status` enum('PENDING_ACTIVATION','ACTIVE','DISABLED') NOT NULL DEFAULT 'PENDING_ACTIVATION' COMMENT 'PENDING_ACTIVATION (approved but not yet activated), ACTIVE, or DISABLED.',
+  `contributions_count` int(11) NOT NULL DEFAULT 0 COMMENT 'Total number of feedback/correction submissions made by this user.',
+  `contributions_accepted_count` int(11) NOT NULL DEFAULT 0 COMMENT 'Number of this user''s submissions that were acted on (resolved).',
+  `password_hash` text DEFAULT NULL COMMENT 'Argon2 hash of the account''s local password; NULL for LDAP-authenticated accounts.',
+  `approved_by` varchar(100) DEFAULT NULL COMMENT 'Username of the admin who approved this account''s access request.',
+  `approved_at` timestamp NULL DEFAULT NULL COMMENT 'When this account''s access request was approved.',
+  `created_at` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this user record was created.',
+  `last_login_at` datetime DEFAULT NULL COMMENT 'Timestamp of this user''s most recent successful login.',
   PRIMARY KEY (`user_id`),
   UNIQUE KEY `username` (`username`),
   UNIQUE KEY `email` (`email`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci;
-
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Catalogue user accounts - local or LDAP-authenticated, with a role controlling what they can see and do (see role_permissions for reviewer/expert capabilities).';
 
 SET FOREIGN_KEY_CHECKS=1;
