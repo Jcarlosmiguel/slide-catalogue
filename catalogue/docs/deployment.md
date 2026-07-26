@@ -149,6 +149,18 @@ docker exec -it catalogue_backend python3 /app/app/seed_example_data.py
 
 Safe to re-run - skips anything that already exists.
 
+## Migrating in a legacy archive
+
+If you have an existing slide archive with a legacy metadata database to
+migrate in (rather than starting from the example data above),
+[dih-slide-reconciler](https://github.com/Jcarlosmiguel/dih-slide-reconciler)
+crawls a real folder of slide files, reconciles it against a legacy
+Slidepath DIH database, and emits a `.sql` file that imports directly into
+this schema (`slides`/`slide_metadata`/`slide_technical_metadata`/
+`slide_annotations`) - append-only, safe to run against a catalogue that
+already has data in it. See that project's own README for usage and its
+"Compatibility with slide-catalogue" section for the exact guarantees.
+
 ---
 
 # Database Backup and Restore
