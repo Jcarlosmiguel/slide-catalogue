@@ -1,8 +1,10 @@
 #!/usr/bin/env python3
 """Seeds a freshly-created, empty catalogue database with one example admin
 user and three example slides (real teaching histology images, non-human
-specimens only, checked-in thumbnails), so a fresh clone has something to
-log in with and look at.
+specimens only). Only the large (2048) image is checked into git per
+slide (example_data/images/{1,2,3}.jpg) - the 1024/512 thumbnails are
+generated from it here, so a fresh clone has something to log in with
+and look at.
 
 Safe to re-run - skips anything that already exists by username/filename.
 
@@ -18,6 +20,7 @@ import sys
 
 import pymysql
 from argon2 import PasswordHasher
+from PIL import Image
 
 EXAMPLE_USERNAME = "admin"
 EXAMPLE_PASSWORD = "ChangeMe123!"
@@ -26,7 +29,6 @@ EXAMPLE_FULL_NAME = "Example Administrator"
 
 THUMBNAIL_DIR = "/srv/thumbnails"
 EXAMPLE_DATA_DIR = os.path.join(os.path.dirname(__file__), "example_data")
-THUMBNAIL_SIZES = (512, 1024, 2048)
 
 # Three real teaching-histology slides (non-human specimens only), with
 # real slide/technical metadata but sanitized share paths. Thumbnail
@@ -262,18 +264,29 @@ def seed_slide(cur, slide):
 
 
 def seed_thumbnails(slide_id, source_key):
-    copied = []
-    for size in THUMBNAIL_SIZES:
+    generated = []
+
+    master_dest = os.path.join(THUMBNAIL_DIR, "2048", f"{slide_id}.jpg")
+    if not os.path.exists(master_dest):
+        source = os.path.join(EXAMPLE_DATA_DIR, "images", f"{source_key}.jpg")
+        os.makedirs(os.path.dirname(master_dest), exist_ok=True)
+        shutil.copy2(source, master_dest)
+        generated.append(2048)
+
+    for size in (1024, 512):
         dest = os.path.join(THUMBNAIL_DIR, str(size), f"{slide_id}.jpg")
         if os.path.exists(dest):
             continue
-        source = os.path.join(EXAMPLE_DATA_DIR, "images", str(size), f"{source_key}.jpg")
         os.makedirs(os.path.dirname(dest), exist_ok=True)
-        shutil.copy2(source, dest)
-        copied.append(size)
+        with Image.open(master_dest) as img:
+            if img.mode != "RGB":
+                img = img.convert("RGB")
+            img.thumbnail((size, size), Image.Resampling.LANCZOS)
+            img.save(dest, format="JPEG", quality=90, optimize=True)
+        generated.append(size)
 
-    if copied:
-        print(f"Placed thumbnails for slide_id={slide_id} at {copied}.")
+    if generated:
+        print(f"Generated thumbnails for slide_id={slide_id} at {generated}.")
     else:
         print(f"Thumbnails for slide_id={slide_id} already exist - skipping.")
 
