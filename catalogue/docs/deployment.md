@@ -151,21 +151,53 @@ Safe to re-run - skips anything that already exists.
 
 ---
 
-# Database Backup
+# Database Backup and Restore
 
-Create a backup:
+Run from the repository root (where `compose.yaml`/`.env` live):
 
 ```bash
-set -a
-source .env
-set +a
-
-docker exec catalogue_mariadb mariadb-dump \
--u root \
--p"$MARIADB_ROOT_PASSWORD" \
-"$MARIADB_DATABASE" \
-> backup.sql
+./backup_mariadb.sh
 ```
+
+Creates a timestamped, permission-locked (`chmod 600`) dump under
+`catalogue/backups/database/full/` - contains real user data including
+password hashes, never committed to git.
+
+```bash
+./restore_mariadb.sh
+```
+
+Lists available backups, prompts you to pick one and confirm, then
+restores it. Doesn't stop `catalogue_backend` first - do that yourself
+if you want to guarantee no writes race the restore:
+
+```bash
+docker compose stop catalogue_backend
+./restore_mariadb.sh
+docker compose start catalogue_backend
+```
+
+# Thumbnail Backup and Restore
+
+```bash
+./backup_thumbnails.sh
+```
+
+Archives the whole `catalogue/thumbnails/` folder to a timestamped
+`.tar.gz` under `catalogue/backups/thumbnails/`.
+
+```bash
+./restore_thumbnails.sh
+```
+
+Lists available thumbnail archives, prompts you to pick one and
+confirm, then extracts it back into `catalogue/thumbnails/`, overwriting
+what's there.
+
+Neither of these covers per-file thumbnail replacement history during
+normal manual-thumbnail maintenance - see
+`docs/thumbnail-maintenance.md`'s own `thumbnail_backups/` mechanism for
+that.
 
 ---
 

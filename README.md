@@ -51,7 +51,9 @@ anywhere beyond local testing.
 |---|---|
 | `catalogue/` | The application itself - see `catalogue/README.md`. |
 | `compose.yaml` | Docker Compose stack (MariaDB, backend, nginx, optional mail relay and Adminer). |
-| `backup_mariadb.sh` | Database backup script. |
+| `backup_mariadb.sh` / `restore_mariadb.sh` | Database backup/restore scripts. |
+| `backup_thumbnails.sh` / `restore_thumbnails.sh` | Thumbnail backup/restore scripts. |
 
 For architecture, database schema, deployment, and maintenance docs, see
-`catalogue/docs/`.
+`catalogue/docs/` (`docs/deployment.md` covers all four backup/restore
+scripts above).
