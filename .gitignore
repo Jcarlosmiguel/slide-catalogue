@@ -44,3 +44,9 @@ thumbnail_backups/
 
 # Generated documentation
 slide-catalogue_tree.txt
+
+# Self-signed/real certificates - see
+# catalogue/docs/standalone/generate_selfsigned_cert.sh. Keep a
+# placeholder README so the expected location is still visible in git.
+certs/*
+!certs/README.md
