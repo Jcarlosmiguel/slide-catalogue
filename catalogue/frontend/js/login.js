@@ -25,7 +25,8 @@ document.getElementById("login-form").addEventListener("submit", async function 
     });
 
     if (!response.ok) {
-      status.textContent = "Invalid username or password.";
+      const body = await response.json().catch(() => ({}));
+      status.textContent = body.detail || "Invalid username or password.";
       return;
     }
 

@@ -139,7 +139,8 @@ def require_system_admin(user: dict = Depends(require_user)):
 def login(response: Response, payload: dict = Body(...)):
     """Authenticate by username, email, or GUID + password. Rejects
     non-ACTIVE accounts. Sets a signed session cookie and updates
-    last_login_at on success."""
+    last_login_at on success. A wrong password when matched by GUID gets
+    a more specific message - see the comment further down."""
     username = str(payload.get("username", "")).strip()
     password = str(payload.get("password", ""))
 
@@ -197,6 +198,28 @@ def login(response: Response, payload: dict = Body(...)):
             )
 
         except Exception:
+
+            # A wrong password on an account matched by its GUID is worth a
+            # more specific message: this catalogue has no live LDAP
+            # integration yet (authentication_method is always LOCAL today,
+            # see request-access.html), so someone typing their real
+            # institutional/LDAP password here - a reasonable assumption
+            # when the username IS their institution ID - will always fail,
+            # and a plain "invalid username or password" gives no hint why.
+            if user["guid"] and user["guid"] == username:
+
+                institution_id_label = os.getenv("INSTITUTION_ID_LABEL", "Institution ID")
+
+                raise HTTPException(
+                    status_code=401,
+                    detail=(
+                        f"Invalid password. Note: currently logging in with your "
+                        f"{institution_id_label} does not check your institutional/LDAP "
+                        "password - Please, use the password you set when you "
+                        "activated your catalogue account, or use 'Forgot "
+                        "your password?' if you don't remember it."
+                    )
+                )
 
             raise HTTPException(
                 status_code=401,
@@ -577,6 +600,19 @@ def health():
     return {
         "status": "ok",
         "service": "catalogue-backend"
+    }
+
+
+@app.get("/api/public-config")
+def public_config():
+    """Unauthenticated, deployment-wide display config - safe to fetch
+    before login. Currently just the label a deploying institution wants
+    used for their external identity number (e.g. "University ID", "UID",
+    "Student/Staff Number") in place of this repo's generic default -
+    the underlying field itself is always called guid in the database and
+    API regardless of what it's labelled here."""
+    return {
+        "institution_id_label": os.getenv("INSTITUTION_ID_LABEL", "Institution ID"),
     }
 
 
@@ -1070,10 +1106,13 @@ def approve_access_request(
     user: dict = Depends(require_admin),
 ):
     """Approve a pending access request. Creates a new PENDING_ACTIVATION
-    user with an auto-generated username (first-initial.surname.user_id),
-    a 7-day activation token, and emails the activation link. If a user
-    with this email already exists (e.g. a duplicate request), just marks
-    the request APPROVED without creating a second account."""
+    user, a 7-day activation token, and emails the activation link. The
+    username is the request's GUID when one was supplied (matching the
+    "username must equal the GUID" rule /api/me/profile already enforces
+    on updates - falling back to a collision-safe first-initial.surname.
+    user_id when there's no GUID, or the GUID is somehow already taken).
+    If a user with this email already exists (e.g. a duplicate request),
+    just marks the request APPROVED without creating a second account."""
 
     conn = get_db_connection()
 
@@ -1199,22 +1238,37 @@ def approve_access_request(
                 )
             )
 
-            name_parts = (
-                request_row["full_name"]
-                .strip()
-                .lower()
-                .split()
-            )
+            username = None
 
-            first_initial = name_parts[0][0]
+            if request_row["guid"]:
+                cur.execute(
+                    """
+                    SELECT user_id
+                    FROM users
+                    WHERE username = %s AND user_id != %s
+                    """,
+                    (request_row["guid"], user_id)
+                )
+                if not cur.fetchone():
+                    username = request_row["guid"]
 
-            surname = name_parts[-1]
+            if username is None:
+                name_parts = (
+                    request_row["full_name"]
+                    .strip()
+                    .lower()
+                    .split()
+                )
 
-            username = (
-                f"{first_initial}."
-                f"{surname}."
-                f"{user_id}"
-            )
+                first_initial = name_parts[0][0]
+
+                surname = name_parts[-1]
+
+                username = (
+                    f"{first_initial}."
+                    f"{surname}."
+                    f"{user_id}"
+                )
 
             cur.execute(
                 """
