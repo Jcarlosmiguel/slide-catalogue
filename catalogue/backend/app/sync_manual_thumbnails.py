@@ -62,27 +62,26 @@ def process_png(png_file):
         return
 
     master_jpg = THUMB_DIR / "2048" / f"{slide_id}.jpg"
-
-    if not master_jpg.exists():
-        log(f"ERROR {slide_id} missing 2048 thumbnail")
-        return
+    is_new = not master_jpg.exists()
 
     today = datetime.now().strftime("%Y-%m-%d")
     backup_dir = BACKUP_ROOT / today / slide_id
 
     try:
 
-        for size in SIZES:
-            source = THUMB_DIR / str(size) / f"{slide_id}.jpg"
-            backup_file(source, backup_dir)
+        if not is_new:
+            for size in SIZES:
+                source = THUMB_DIR / str(size) / f"{slide_id}.jpg"
+                backup_file(source, backup_dir)
 
         for size in SIZES:
             target = THUMB_DIR / str(size) / f"{slide_id}.jpg"
+            target.parent.mkdir(parents=True, exist_ok=True)
             create_thumbnail(png_file, target, size)
 
         png_file.unlink()
 
-        log(f"OK {slide_id}")
+        log(f"{'CREATED' if is_new else 'OK'} {slide_id}")
 
     except Exception as exc:
         log(f"ERROR {slide_id} {exc}")

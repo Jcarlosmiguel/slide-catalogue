@@ -31,6 +31,50 @@ thumbnails/512/
 
 ---
 
+# New Slides - First-Time Thumbnails (e.g. after a dih-slide-reconciler import)
+
+Script:
+
+```text
+catalogue/tools/populate_new_slide_thumbnails.py
+```
+
+Purpose:
+
+- Query the catalogue database directly for every `ACTIVE` slide.
+- Skip any slide that already has a `thumbnails/2048/{slide_id}.jpg`.
+- For everything else, open the slide (OpenSlide first, TiffSlide fallback,
+  same whitespace-crop approach as `generate_2048_png_thumbnails.py`) and
+  write all three sizes straight into `thumbnails/2048/`, `thumbnails/1024/`,
+  `thumbnails/512/`, keyed by the real `slide_id` - no `manual_thumbnails/`
+  staging needed for the slides this succeeds on.
+- Write a report of slides where automated generation failed - commonly
+  multi-scene/multiview files where OpenSlide can't reliably pick which
+  image represents the slide.
+
+This is distinct from `sync_manual_thumbnails.py` below: that script expects
+an *existing* thumbnail to back up and replace (or, as of the fix
+described in Stage 3, is fine either way) - this one is specifically for
+slides that have never had a thumbnail at all. Safe to re-run any time -
+already-thumbnailed slides are always skipped.
+
+Example:
+
+```bash
+python3 catalogue/tools/populate_new_slide_thumbnails.py \
+  --db-host 127.0.0.1 --db-user catalogue_app --db-password '...' \
+  --db-database catalogue \
+  --thumbnails-root catalogue/thumbnails \
+  --failed-report failed_thumbnails.txt
+```
+
+For every slide in the failed report: open it in QuPath, export a thumbnail
+PNG, save it as `manual_thumbnails/{slide_id}.png`, then run
+`sync_manual_thumbnails.py` (Stage 3 below) to pick it up - it now handles
+both "replace an existing thumbnail" and "create a first one" the same way.
+
+---
+
 # Stage 1 - Generate PNG Thumbnails from Slides
 
 Script:
@@ -177,8 +221,9 @@ Note: this script needs to run inside docker compose
 manual_thumbnails/
 ```
 
-- Verify the corresponding slide already exists.
-- Back up existing thumbnails.
+- If a thumbnail already exists for that slide ID, back it up first;
+  otherwise (a slide with no thumbnail at all yet) skip straight to
+  creating one - no existing file is required.
 - Create the standard catalogue thumbnail hierarchy.
 
 ---
@@ -317,7 +362,8 @@ This allows previous thumbnail sets to be restored if required.
 Version Controlled:
 
 ```text
-backend/tools/generate_2048_png_thumbnails.py
+tools/generate_2048_png_thumbnails.py
+tools/populate_new_slide_thumbnails.py
 backend/app/sync_manual_thumbnails.py
 docs/thumbnail-maintenance.md
 ```
