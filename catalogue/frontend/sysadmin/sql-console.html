@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>SQL Console · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>SQL Console</h1>
+      <p>
+        Runs one SQL statement directly against the catalogue database -
+        useful for one-off fixes (e.g. correcting a provenance field) that
+        don't need a full page built for them. SELECT/UPDATE/DELETE/INSERT/
+        ALTER/CREATE etc. are allowed; <code>DROP</code> and
+        <code>TRUNCATE</code> are blocked, and only one statement may be run
+        at a time. Every statement that changes data is written to the
+        <a href="/sysadmin/audit-log.html">Audit Log</a>; plain
+        <code>SELECT</code> queries are not. Visible to system administrators
+        only.
+      </p>
+      <p class="vmc-muted">
+        <a href="/sysadmin/users.html">Users</a>
+        ·
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
+        ·
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
+        ·
+        <a href="/sysadmin/backup.html">Backup</a>
+        ·
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
+        ·
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
+        ·
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <textarea id="sql-query" style="width: 100%; height: 8rem; font-family: monospace;" placeholder="SELECT * FROM slides WHERE slide_id = 1234"></textarea>
+      <button id="run-query" class="vmc-button" style="margin-top: 0.75rem;">Run</button>
+
+      <div id="query-status" style="margin-top: 1rem;"></div>
+      <div id="query-result" style="margin-top: 1rem; overflow-x: auto;"></div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const CELL_STYLE = "padding: 0.5rem; border-bottom: 1px solid var(--vmc-border); vertical-align: top;";
+    const HEAD_STYLE = "text-align: left; padding: 0.5rem; border-bottom: 2px solid var(--vmc-border);";
+
+    const queryBox = document.getElementById("sql-query");
+    const runButton = document.getElementById("run-query");
+    const status = document.getElementById("query-status");
+    const result = document.getElementById("query-result");
+
+    function renderRows(rows) {
+      if (!rows.length) {
+        return "0 row(s) returned.";
+      }
+
+      const columns = Object.keys(rows[0]);
+
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+
+      const thead = document.createElement("thead");
+      const headRow = document.createElement("tr");
+      for (const col of columns) {
+        const th = document.createElement("th");
+        th.style.cssText = HEAD_STYLE;
+        th.textContent = col;
+        headRow.appendChild(th);
+      }
+      thead.appendChild(headRow);
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        for (const col of columns) {
+          const td = document.createElement("td");
+          td.style.cssText = CELL_STYLE;
+          const value = row[col];
+          td.textContent = value === null || value === undefined ? "NULL" : String(value);
+          tr.appendChild(td);
+        }
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      return table;
+    }
+
+    runButton.addEventListener("click", async function () {
+      const query = queryBox.value.trim();
+
+      if (!query) {
+        return;
+      }
+
+      if (!confirm("Run this statement against the live catalogue database?\n\n" + query)) {
+        return;
+      }
+
+      runButton.disabled = true;
+      status.textContent = "Running...";
+      result.innerHTML = "";
+
+      const response = await fetch("/api/admin/sql", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query })
+      });
+
+      runButton.disabled = false;
+
+      if (response.status === 403) {
+        status.textContent = "System administrator access required.";
+        return;
+      }
+
+      const body = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        status.textContent = "Error: " + (body.detail || response.statusText);
+        return;
+      }
+
+      if (body.rows) {
+        status.textContent = `${body.row_count} row(s) returned.`;
+        const rendered = renderRows(body.rows);
+        if (typeof rendered === "string") {
+          result.textContent = rendered;
+        } else {
+          result.appendChild(rendered);
+        }
+      } else {
+        status.textContent = `${body.affected_rows} row(s) affected.`;
+      }
+    });
+  </script>
+</body>
+</html>

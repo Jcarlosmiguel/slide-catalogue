@@ -22,6 +22,9 @@ import pymysql
 from fastapi import FastAPI, HTTPException, Query, Request, Response, Body, Depends
 from fastapi.responses import StreamingResponse
 
+from app.admin_audit import log_admin_action
+from app.admin_sql import validate_statement
+from app.backup_catalogue import create_backup
 from app.mailer import send_email
 from app.permissions import require_permission
 from app.qupath_script import generate_script as generate_qupath_script
@@ -3549,6 +3552,122 @@ def admin_apply_metadata_correction(
 
     finally:
         conn.close()
+
+@app.post("/api/admin/backup")
+def admin_create_backup(
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Creates a new full database backup under catalogue/backups/database/full -
+    the webpage-triggerable counterpart to backup_mariadb.sh (host CLI only).
+    Only ever creates a new file: there is no list/read/delete endpoint here,
+    and deliberately no restore endpoint at all - restore stays command-line
+    only via restore_mariadb.sh."""
+
+    try:
+        backup_file = create_backup()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Backup failed: {exc}")
+
+    conn = get_db_connection()
+    try:
+        log_admin_action(conn, admin_user, "backup", backup_file.name)
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {
+        "filename": backup_file.name,
+        "size_bytes": backup_file.stat().st_size,
+    }
+
+
+@app.post("/api/admin/sql")
+def admin_run_sql(
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Sysadmin-only raw SQL console. SELECT/UPDATE/DELETE/INSERT/ALTER/CREATE
+    etc. are allowed - DROP and TRUNCATE are blocked by name, and only one
+    statement may be submitted per call (see admin_sql.py). There is no
+    restore endpoint anywhere in this API - undoing a mistake made here goes
+    through a backup taken via POST /api/admin/backup and
+    restore_mariadb.sh on the host, same as any other restore."""
+
+    query = (payload or {}).get("query", "")
+
+    try:
+        validate_statement(query)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(query)
+
+            if cur.description is not None:
+                rows = clean_rows(cur.fetchall())
+                conn.commit()
+                return {"rows": rows, "row_count": len(rows)}
+
+            affected = cur.rowcount
+            # SELECTs aren't logged (nothing changed) - anything else that
+            # reaches this branch is a mutation, so it always is.
+            log_admin_action(conn, admin_user, "sql", query)
+            conn.commit()
+            return {"affected_rows": affected}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=400, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/audit-log")
+def admin_list_audit_log(
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Every mutating action taken through POST /api/admin/backup or
+    POST /api/admin/sql, newest first. Read-only actions (a SELECT, viewing
+    this list itself) are never logged."""
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT audit_id, user_id, username, action, detail, created_at "
+                "FROM admin_audit_log ORDER BY created_at DESC, audit_id DESC"
+            )
+            return clean_rows(cur.fetchall())
+    finally:
+        conn.close()
+
+
+@app.delete("/api/admin/audit-log")
+def admin_clear_audit_log(
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Clears the audit log, then writes a single marker row noting who
+    cleared it and when - not a way around the clear (a genuine clear is
+    the point), just a breadcrumb so an empty log isn't indistinguishable
+    from one nothing was ever logged to."""
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM admin_audit_log")
+        log_admin_action(conn, admin_user, "audit_log_cleared")
+        conn.commit()
+        return {"status": "cleared"}
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
 
 @app.get("/api/admin/users")
 def admin_list_users(

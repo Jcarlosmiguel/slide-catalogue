@@ -51,6 +51,7 @@ services:
       - ./catalogue/manual_thumbnails:/srv/manual_thumbnails
       - ./catalogue/thumbnail_backups:/srv/thumbnail_backups
       - ./catalogue/thumbnails:/srv/thumbnails
+      - ./catalogue/backups/database/full:/srv/backups
 
     depends_on:
       catalogue_mariadb:

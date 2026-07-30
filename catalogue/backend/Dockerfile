@@ -5,6 +5,12 @@ ENV PYTHONUNBUFFERED=1
 
 WORKDIR /app
 
+# mariadb-client provides mariadb-dump, used by backup_catalogue.py to create
+# on-demand backups from inside this container.
+RUN apt-get update && \
+    apt-get install -y --no-install-recommends mariadb-client && \
+    rm -rf /var/lib/apt/lists/*
+
 COPY requirements.txt /app/requirements.txt
 
 RUN pip install --no-cache-dir -r /app/requirements.txt

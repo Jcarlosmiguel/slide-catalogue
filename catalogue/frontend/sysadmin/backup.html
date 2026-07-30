@@ -1,0 +1,124 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Backup · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Backup</h1>
+      <p>
+        Creates a new full database backup, written to
+        catalogue/backups/database/full/ on the server. Only ever creates a
+        new file - existing backups are never listed, read, or deleted from
+        here. There is no restore facility on this page or anywhere in the
+        web app: restoring a backup is a deliberate, command-line-only
+        operation on the host. Visible to system administrators only.
+      </p>
+      <p class="vmc-muted">
+        <a href="/sysadmin/users.html">Users</a>
+        ·
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
+        ·
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
+        ·
+        <a href="/sysadmin/backup.html">Backup</a>
+        ·
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
+        ·
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
+        ·
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <button id="create-backup" class="vmc-button">Create backup now</button>
+      <div id="backup-status" style="margin-top: 1rem;"></div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const button = document.getElementById("create-backup");
+    const status = document.getElementById("backup-status");
+
+    function formatBytes(bytes) {
+      if (bytes >= 1024 * 1024) {
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+      }
+      if (bytes >= 1024) {
+        return (bytes / 1024).toFixed(1) + " KB";
+      }
+      return bytes + " bytes";
+    }
+
+    button.addEventListener("click", async function () {
+      button.disabled = true;
+      status.textContent = "Creating backup - this can take a little while for a large database...";
+
+      const response = await fetch("/api/admin/backup", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      button.disabled = false;
+
+      if (response.status === 403) {
+        status.textContent = "System administrator access required.";
+        return;
+      }
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        status.textContent = "Backup failed: " + (body.detail || response.statusText);
+        return;
+      }
+
+      const result = await response.json();
+      status.textContent = `Backup created: ${result.filename} (${formatBytes(result.size_bytes)})`;
+    });
+  </script>
+</body>
+</html>

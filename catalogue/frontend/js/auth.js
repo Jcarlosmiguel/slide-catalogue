@@ -20,10 +20,12 @@ function vmcUpdateAdminVisibility(user) {
   const adminLinks = document.querySelectorAll(".vmc-admin-nav");
 
   for (const link of adminLinks) {
-    if (
-      user &&
-      (user.role === "admin" || user.role === "system_admin")
-    ) {
+    // system_admin is deliberately excluded here, not just admin-or-above:
+    // they see the separate "Sysadmin" link instead (below), which links
+    // back to /admin/ itself via a breadcrumb, so nothing is unreachable -
+    // showing both "Admin" and "Sysadmin" side by side for the same user
+    // was redundant and confusing.
+    if (user && user.role === "admin") {
       link.style.display = "inline-block";
     } else {
       link.style.display = "none";

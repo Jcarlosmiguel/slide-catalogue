@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Password Reset Log · Virtual Microscopy Catalogue</title>
+  <title>Blocked Access Requests · Virtual Microscopy Catalogue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/css/catalogue.css">
   <script src="/js/auth.js"></script>
@@ -28,37 +28,38 @@
         <a href="/documents/contact.html">Contact</a>
         <a href="/documents/help.html">Help</a>
         <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
       </nav>
     </div>
   </header>
 
   <main class="vmc-page">
     <section class="vmc-card">
-      <h1>Password Reset Log</h1>
+      <h1>Blocked Access Requests</h1>
       <p>
-        Audit trail of "Forgot your password?" activity: requests, completed
-        resets, and attempts against unknown emails or inactive accounts.
-        Visible to system administrators only.
+        Access requests rejected automatically because the email address was
+        already registered or already had a pending request. Visible to
+        system administrators only.
       </p>
       <p class="vmc-muted">
-        <a href="/admin/corrections-management.html">Corrections</a>
+        <a href="/sysadmin/users.html">Users</a>
         ·
-        <a href="/admin/site-feedback.html">Site Feedback</a>
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
         ·
-        <a href="/admin/access-requests.html">Access Requests</a>
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
         ·
-        <a href="/admin/admin-settings.html">System Settings</a>
+        <a href="/sysadmin/backup.html">Backup</a>
         ·
-        <a href="/admin/users.html" class="vmc-system-admin-nav">Users</a>
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
         ·
-        <a href="/admin/blocked-access-requests.html" class="vmc-system-admin-nav">Blocked Requests</a>
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
         ·
-        <a href="/admin/password-reset-log.html" class="vmc-system-admin-nav">Password Reset Log</a>
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
       </p>
 
       <hr class="vmc-divider">
 
-      <div id="log-container">Loading password reset log...</div>
+      <div id="log-container">Loading blocked requests...</div>
     </section>
   </main>
 
@@ -79,18 +80,9 @@
     const CELL_STYLE = "padding: 0.5rem; border-bottom: 1px solid var(--vmc-border); vertical-align: top;";
     const HEAD_STYLE = "text-align: left; padding: 0.5rem; border-bottom: 2px solid var(--vmc-border);";
 
-    const EVENT_LABELS = {
-      requested: "Requested",
-      completed: "Completed",
-      invalid_email: "Unknown email",
-      inactive_account: "Inactive account"
-    };
-
-    const EVENT_COLORS = {
-      requested: "#00284a",
-      completed: "#1f7a3f",
-      invalid_email: "#8a1f11",
-      inactive_account: "#8a1f11"
+    const REASON_LABELS = {
+      email_already_registered: "Email already registered",
+      duplicate_pending_request: "Duplicate pending request"
     };
 
     function textOrDash(value) {
@@ -100,10 +92,10 @@
       return value;
     }
 
-    async function loadPasswordResetLog() {
+    async function loadBlockedRequests() {
       const container = document.getElementById("log-container");
 
-      const response = await fetch("/api/admin/password-reset-log", {
+      const response = await fetch("/api/admin/blocked-access-requests", {
         credentials: "include"
       });
 
@@ -113,14 +105,14 @@
       }
 
       if (!response.ok) {
-        container.textContent = "Unable to load password reset log.";
+        container.textContent = "Unable to load blocked access requests.";
         return;
       }
 
       const rows = await response.json();
 
       if (!rows.length) {
-        container.textContent = "No password reset activity recorded.";
+        container.textContent = "No blocked access request attempts recorded.";
         return;
       }
 
@@ -131,9 +123,9 @@
       const thead = document.createElement("thead");
       thead.innerHTML = `
         <tr>
-          <th style="${HEAD_STYLE}">Event</th>
-          <th style="${HEAD_STYLE}">Email</th>
-          <th style="${HEAD_STYLE}">User</th>
+          <th style="${HEAD_STYLE}">Attempted email</th>
+          <th style="${HEAD_STYLE}">Attempted name</th>
+          <th style="${HEAD_STYLE}">Reason</th>
           <th style="${HEAD_STYLE}">IP address</th>
           <th style="${HEAD_STYLE}">User agent</th>
           <th style="${HEAD_STYLE}">Date</th>
@@ -145,18 +137,10 @@
 
       for (const row of rows) {
         const tr = document.createElement("tr");
-
-        const eventLabel = EVENT_LABELS[row.event_type] || row.event_type;
-        const eventColor = EVENT_COLORS[row.event_type] || "inherit";
-
-        const user = row.username
-          ? `${row.full_name || row.username} (${row.username})`
-          : "—";
-
         tr.innerHTML = `
-          <td style="${CELL_STYLE} color: ${eventColor}; font-weight: bold;">${eventLabel}</td>
-          <td style="${CELL_STYLE}">${row.email_provided}</td>
-          <td style="${CELL_STYLE}">${user}</td>
+          <td style="${CELL_STYLE}">${row.attempted_email}</td>
+          <td style="${CELL_STYLE}">${textOrDash(row.attempted_full_name)}</td>
+          <td style="${CELL_STYLE}">${REASON_LABELS[row.reason] || row.reason}</td>
           <td style="${CELL_STYLE}">${textOrDash(row.remote_addr)}</td>
           <td style="${CELL_STYLE}">${textOrDash(row.user_agent)}</td>
           <td style="${CELL_STYLE}">${textOrDash(row.created_at)}</td>
@@ -170,7 +154,7 @@
       container.appendChild(table);
     }
 
-    loadPasswordResetLog();
+    loadBlockedRequests();
   </script>
 </body>
 </html>
