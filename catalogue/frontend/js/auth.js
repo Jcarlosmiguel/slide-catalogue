@@ -11,6 +11,33 @@ async function vmcGetCurrentUser() {
   return data.user;
 }
 
+let vmcInstitutionIdLabelCache = null;
+
+// The underlying field is always "guid" in the database/API - this is just
+// what a deploying institution wants it called on screen (set via the
+// INSTITUTION_ID_LABEL env var, see /api/public-config).
+async function vmcGetInstitutionIdLabel() {
+  if (vmcInstitutionIdLabelCache) {
+    return vmcInstitutionIdLabelCache;
+  }
+
+  try {
+    const response = await fetch("/api/public-config");
+    const data = await response.json();
+    vmcInstitutionIdLabelCache = data.institution_id_label || "Institution ID";
+  } catch (err) {
+    vmcInstitutionIdLabelCache = "Institution ID";
+  }
+
+  return vmcInstitutionIdLabelCache;
+}
+
+function vmcApplyInstitutionIdLabel(label) {
+  document.querySelectorAll(".vmc-institution-id-label").forEach(function (el) {
+    el.textContent = label;
+  });
+}
+
 function vmcLoginUrl() {
   const next = encodeURIComponent(window.location.pathname + window.location.search);
   return "/login.html?next=" + next;
@@ -155,10 +182,14 @@ async function vmcLogout() {
 window.vmcGetCurrentUser = vmcGetCurrentUser;
 window.vmcRequireLogin = vmcRequireLogin;
 window.vmcLogout = vmcLogout;
+window.vmcGetInstitutionIdLabel = vmcGetInstitutionIdLabel;
 
 document.addEventListener("DOMContentLoaded", async function () {
   const user = await vmcGetCurrentUser();
 
   vmcUpdateAdminVisibility(user);
   vmcRenderAuthArea(user);
+
+  const institutionIdLabel = await vmcGetInstitutionIdLabel();
+  vmcApplyInstitutionIdLabel(institutionIdLabel);
 });

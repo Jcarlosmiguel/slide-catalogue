@@ -36,7 +36,8 @@ async function saveProfile(event) {
   const email = document.getElementById("email").value.trim();
 
   if (guid && username !== guid) {
-    status.textContent = "When a GUID is present, the username must match the GUID.";
+    const institutionIdLabel = await vmcGetInstitutionIdLabel();
+    status.textContent = `When a ${institutionIdLabel} is present, the username must match it.`;
     return;
   }
 

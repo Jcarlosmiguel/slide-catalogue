@@ -100,6 +100,7 @@
 
       const requests = sortRequests(await response.json());
       const container = document.getElementById("requests-container");
+      const institutionIdLabel = await vmcGetInstitutionIdLabel();
 
       container.innerHTML = "";
 
@@ -122,7 +123,7 @@
         details.innerHTML = `
           <p><strong>Email:</strong> ${r.email}</p>
           <p><strong>Institution:</strong> ${r.institution}</p>
-          <p><strong>GUID:</strong> ${r.guid || ""}</p>
+          <p><strong>${institutionIdLabel}:</strong> ${r.guid || ""}</p>
           <p><strong>Status:</strong> ${r.status}</p>
           <p><strong>Reason:</strong><br>${r.request_reason}</p>
         `;

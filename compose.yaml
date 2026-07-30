@@ -47,6 +47,8 @@ services:
 
       APP_BASE_URL: ${APP_BASE_URL}
 
+      INSTITUTION_ID_LABEL: ${INSTITUTION_ID_LABEL}
+
     volumes:
       - ./catalogue/manual_thumbnails:/srv/manual_thumbnails
       - ./catalogue/thumbnail_backups:/srv/thumbnail_backups
