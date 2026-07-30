@@ -66,7 +66,13 @@
       <hr class="vmc-divider">
 
       <textarea id="sql-query" style="width: 100%; height: 8rem; font-family: monospace;" placeholder="SELECT * FROM slides WHERE slide_id = 1234"></textarea>
-      <button id="run-query" class="vmc-button" style="margin-top: 0.75rem;">Run</button>
+      <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.75rem;">
+        <button id="run-query" class="vmc-button">Run</button>
+        <div style="display: flex; gap: 0.5rem;">
+          <button id="show-tables" type="button" style="cursor: pointer; border: 0; border-radius: 8px; padding: 0.75rem 1rem; font-weight: bold; background: #2ecc71; color: #ffffff;">Show all tables</button>
+          <button id="show-users" type="button" style="cursor: pointer; border: 0; border-radius: 8px; padding: 0.75rem 1rem; font-weight: bold; background: #2ecc71; color: #ffffff;">Show all users</button>
+        </div>
+      </div>
 
       <div id="query-status" style="margin-top: 1rem;"></div>
       <div id="query-result" style="margin-top: 1rem; overflow-x: auto;"></div>
@@ -133,17 +139,12 @@
       return table;
     }
 
-    runButton.addEventListener("click", async function () {
-      const query = queryBox.value.trim();
-
+    async function runQuery(query) {
       if (!query) {
         return;
       }
 
-      if (!confirm("Run this statement against the live catalogue database?\n\n" + query)) {
-        return;
-      }
-
+      queryBox.value = query;
       runButton.disabled = true;
       status.textContent = "Running...";
       result.innerHTML = "";
@@ -180,6 +181,18 @@
       } else {
         status.textContent = `${body.affected_rows} row(s) affected.`;
       }
+    }
+
+    runButton.addEventListener("click", function () {
+      runQuery(queryBox.value.trim());
+    });
+
+    document.getElementById("show-tables").addEventListener("click", function () {
+      runQuery("SHOW TABLES");
+    });
+
+    document.getElementById("show-users").addEventListener("click", function () {
+      runQuery("SELECT * FROM users");
     });
   </script>
 </body>
