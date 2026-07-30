@@ -240,6 +240,23 @@
                 })
               );
             }
+
+            actionsRow.appendChild(
+              makeActionButton("Delete", function (event) {
+                const typed = prompt(
+                  `This permanently deletes ${u.full_name} and cannot be undone.\n\n` +
+                  `Type the username "${u.username}" to confirm:`
+                );
+                if (typed === null) {
+                  return;
+                }
+                if (typed !== u.username) {
+                  alert("Username did not match - deletion cancelled.");
+                  return;
+                }
+                postUserAction(u.user_id, "delete", event.target);
+              })
+            );
           }
 
           const roleSelect = document.createElement("select");

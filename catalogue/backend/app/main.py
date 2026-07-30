@@ -3971,6 +3971,57 @@ def admin_set_user_role(
         conn.close()
 
 
+@app.post("/api/admin/users/{user_id}/delete")
+def admin_delete_user(
+    user_id: int,
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Permanently deletes a role='user' account, same DB-only restriction
+    on other roles as deactivate/promote/demote/set-role above. Also clears
+    the rows that carry a real foreign key to this user_id
+    (password_reset_tokens, user_activation_tokens, password_reset_log) -
+    everything else that references a user (site_feedback, slide_corrections,
+    admin_audit_log, etc.) only stores a denormalized username/user_id with
+    no FK, by design, so that history keeps reading correctly after the
+    account is gone. Logged to admin_audit_log since, unlike deactivate,
+    this can't be undone."""
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT username, role FROM users WHERE user_id = %s", (user_id,))
+            target = cur.fetchone()
+
+            if not target:
+                raise HTTPException(status_code=404, detail="User not found")
+
+            if target["role"] != "user":
+                raise HTTPException(
+                    status_code=400,
+                    detail="Only regular users can be deleted here. "
+                           "Administrator accounts are managed directly in the database.",
+                )
+
+            cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM user_activation_tokens WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM password_reset_log WHERE user_id = %s", (user_id,))
+            cur.execute("DELETE FROM users WHERE user_id = %s", (user_id,))
+
+            log_admin_action(conn, admin_user, "delete_user", target["username"])
+            conn.commit()
+
+            return {"status": "success"}
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
 @app.get("/api/admin/settings")
 def admin_get_settings(
     admin_user: dict = Depends(require_admin),
