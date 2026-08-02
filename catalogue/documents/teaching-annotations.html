@@ -35,7 +35,63 @@
     <section class="vmc-card">
       <h1>Teaching Annotations</h1>
       <p>
-        Replace this text with the purpose of the page.
+        There are two ways to get teaching annotations onto a slide once
+        it's imported into OMERO: bring in annotations that already
+        exist (e.g. recovered from a legacy source), or draw new ones
+        directly in OMERO.
+      </p>
+
+      <h2>Transferring existing OME-XML annotations</h2>
+      <p>
+        If the slide's annotations already exist as an OME-XML file
+        (for example, recovered alongside the original image from a
+        legacy system), use the <strong>ROI Importer</strong> OMERO.web
+        plugin rather than recreating them by hand:
+      </p>
+      <ol>
+        <li>Open the target Image in OMERO.web, then choose
+          "Open with ROI Importer" (or open the ROI Importer plugin
+          directly and enter the Image ID).</li>
+        <li>Upload the OME-XML file. Optionally also upload the original
+          source slide file alongside it - if provided, its hash is
+          compared against the Image's own stored file hash to confirm
+          you've got the right Image before anything is written.</li>
+        <li><strong>Preview</strong> parses the file and shows every ROI
+          found in an editable table - shape type, geometry, description,
+          an editable label, and an Include checkbox per row. Untick
+          anything you don't want, edit labels as needed.</li>
+        <li><strong>Commit</strong> creates the still-included rows as
+          real ROIs on the Image, all in one batch.</li>
+      </ol>
+      <p class="vmc-muted">
+        Tested end-to-end against a real OMERO server and
+        security-reviewed - safe against malicious XML (entity-expansion
+        attacks are rejected before parsing), and runs on your own OMERO
+        permissions rather than an administrator connection.
+      </p>
+
+      <h2>Creating new annotations directly in OMERO</h2>
+      <p>
+        Recommended workflow, based on experience with both tools:
+      </p>
+      <ul>
+        <li><strong>Create the ROIs in OMERO.insight</strong> - rectangles,
+          ellipses, points, polygons, arrows, and other shapes are
+          easier to draw accurately in the desktop client than in the
+          browser.</li>
+        <li><strong>Adjust and label them in OMERO.web</strong> -
+          repositioning, resizing, and adding text labels is easier
+          afterwards in the browser-based viewer's drawing tools (OMERO
+          calls this the "Measurement Tool", but creating and labelling
+          ROIs is exactly what it's used for here, not just measuring
+          existing ones). See the official documentation:
+          <a href="https://help.glencoesoftware.com/omero-plus/5.2/measurement-tool.html"
+             target="_blank" rel="noopener">OMERO Measurement Tool</a>.</li>
+      </ul>
+      <p>
+        Once annotations are in place, continue to
+        <a href="/documents/publish-slides.html">Prepare the Slide for
+        View on the VLE</a>.
       </p>
     </section>
   </main>

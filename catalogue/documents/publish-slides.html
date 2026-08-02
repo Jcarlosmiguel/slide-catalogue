@@ -33,9 +33,69 @@
   </header>
   <main class="vmc-page">
     <section class="vmc-card">
-      <h1>Publish Slides</h1>
+      <h1>Prepare the Slide for View on the VLE</h1>
       <p>
-        Replace this text with the purpose of the page.
+        Once a slide is imported and (if needed) annotated in your own
+        OMERO account, it needs to be handed over to a course-specific
+        account before it can be served on your VLE. This is done
+        entirely in OMERO.web - no image data is re-uploaded or
+        re-exported, just duplicated and reassigned.
+      </p>
+
+      <h2>Step 1 – Start from your own account</h2>
+      <p>
+        Make sure the slide (imported and annotated per the previous
+        steps) is visible under your own OMERO account.
+      </p>
+
+      <h2>Step 2 – Duplicate the slide</h2>
+      <p>
+        Use the <a href="https://github.com/Jcarlosmiguel/omero-duplicator" target="_blank" rel="noopener">omero-duplicator</a>
+        plugin to create an independent copy of the image. Work on the
+        duplicate from here on, not the original - this keeps your own
+        original copy untouched regardless of what happens to the
+        course-facing one later.
+      </p>
+
+      <h2>Step 3 – Annotate the duplicate, if needed</h2>
+      <p>
+        If the slide needs teaching annotations and they aren't already
+        in place, add them now - see
+        <a href="/documents/teaching-annotations.html">Add Teaching
+        Annotations</a>.
+      </p>
+
+      <h2>Step 4 – Move the slide to the shared group</h2>
+      <p>
+        Course-specific OMERO accounts live in the same OMERO
+        <strong>group</strong> as the relevant staff (e.g. a group
+        shared by a department's staff and its course accounts alike).
+        The slide first needs to move into that group before it can
+        change owner - a slide can only be reassigned to a user within
+        its own group.
+      </p>
+      <p>
+        Right-click the duplicated image and choose
+        <strong>Move to Group...</strong>, then select the group you and
+        the target course account both belong to.
+      </p>
+
+      <h2>Step 5 – Change the owner to the course account</h2>
+      <p>
+        Now right-click the slide again and choose
+        <strong>Change Owner...</strong>, and select the course-specific
+        account - a dedicated OMERO account per course/module, not a
+        real person's account.
+      </p>
+      <p>
+        Use the <strong>Switch Group/User</strong> selector at the top
+        of the page to check the slide now appears under the correct
+        group and owner.
+      </p>
+      <p>
+        Once the slide is under the course account, continue to
+        <a href="/documents/publish-vlm.html">Add Slides to Virtual
+        Learning Materials</a>.
       </p>
     </section>
   </main>
