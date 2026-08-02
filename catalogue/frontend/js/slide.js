@@ -837,64 +837,92 @@ function renderMetadataSection(root, slide) {
   root.appendChild(section);
 }
 
-function buildQupathScriptToolbar(slideId) {
-  const toolbar = createEl("div", "vmc-qupath-toolbar");
+function buildAnnotationsExportToolbar(slideId, hasArrow) {
+  const toolbar = createEl("div", "vmc-annotations-export-toolbar");
 
-  const link = createEl("a", "vmc-button vmc-button-secondary", "Download QuPath script");
-  link.id = "qupath-script-link";
+  const link = createEl("a", "vmc-button vmc-button-secondary", "Download annotations (OME-XML)");
+  link.id = "annotations-ome-xml-link";
 
-  const optionsWrap = createEl("div", "vmc-qupath-options");
+  const optionsWrap = createEl("div", "vmc-annotations-export-options");
 
-  const optionsToggle = createEl("button", "vmc-button vmc-button-secondary vmc-qupath-options-toggle", "Options ▾");
+  const optionsToggle = createEl("button", "vmc-button vmc-button-secondary vmc-annotations-export-options-toggle", "Options ▾");
   optionsToggle.type = "button";
   optionsToggle.setAttribute("aria-haspopup", "true");
   optionsToggle.setAttribute("aria-expanded", "false");
 
-  const popup = createEl("div", "vmc-qupath-popup");
+  const popup = createEl("div", "vmc-annotations-export-popup");
   popup.hidden = true;
 
   const zoomCheckbox = document.createElement("input");
   zoomCheckbox.type = "checkbox";
-  zoomCheckbox.id = "qupath-apply-zoom";
+  zoomCheckbox.id = "annotations-apply-zoom";
   zoomCheckbox.checked = true;
 
   const colorPicker = document.createElement("input");
   colorPicker.type = "color";
-  colorPicker.id = "qupath-annotation-color";
-  colorPicker.value = "#ffff00";
-  colorPicker.title = "Annotation colour in the generated script";
+  colorPicker.id = "annotations-color";
+  colorPicker.value = "#00ff00";
+  colorPicker.title = "Annotation colour in the generated file";
+
+  const arrowStyleSelect = document.createElement("select");
+  arrowStyleSelect.id = "annotations-arrow-style";
+  [
+    ["<", "Single, head at start"],
+    [">", "Single, head at end"],
+    ["<>", "Double-headed"],
+  ].forEach(function (pair) {
+    const opt = document.createElement("option");
+    opt.value = pair[0];
+    opt.textContent = pair[1];
+    arrowStyleSelect.appendChild(opt);
+  });
 
   function updateLink() {
     const applyZoom = zoomCheckbox.checked ? "true" : "false";
     const color = colorPicker.value.replace("#", "");
-    link.href = "/api/slides/" + slideId + "/qupath-script?apply_zoom=" + applyZoom + "&color=" + color;
+    let href = "/api/slides/" + slideId + "/annotations-ome-xml?apply_zoom=" + applyZoom + "&color=" + color;
+    if (hasArrow) {
+      href += "&arrow_style=" + encodeURIComponent(arrowStyleSelect.value);
+    }
+    link.href = href;
   }
 
   zoomCheckbox.addEventListener("change", updateLink);
   colorPicker.addEventListener("change", updateLink);
+  if (hasArrow) {
+    arrowStyleSelect.addEventListener("change", updateLink);
+  }
   updateLink();
 
-  const zoomLabel = createEl("label", "vmc-qupath-popup-row");
+  const zoomLabel = createEl("label", "vmc-annotations-export-popup-row");
   zoomLabel.appendChild(zoomCheckbox);
   zoomLabel.appendChild(document.createTextNode(
-    " Apply zoom scaling (experimental - untick and try again if annotations look misplaced in QuPath)"
+    " Apply zoom scaling (confirmed correct for real slides tested so far - untick only if annotations look misplaced on a new one)"
   ));
 
-  const colorLabel = createEl("label", "vmc-qupath-popup-row");
+  const colorLabel = createEl("label", "vmc-annotations-export-popup-row");
   colorLabel.appendChild(colorPicker);
   colorLabel.appendChild(document.createTextNode(" Annotation colour"));
 
-  const helpLink = createEl("a", "vmc-qupath-popup-row vmc-qupath-help-link", "How to apply this in QuPath");
+  const helpLink = createEl("a", "vmc-annotations-export-popup-row vmc-annotations-export-help-link", "How to use this file");
   helpLink.href = "/documents/script_annotation.html";
   helpLink.target = "_blank";
   helpLink.rel = "noopener";
 
-  const reportLink = createEl("a", "vmc-qupath-popup-row vmc-qupath-help-link", "Report annotation error");
+  const reportLink = createEl("a", "vmc-annotations-export-popup-row vmc-annotations-export-help-link", "Report annotation error");
   reportLink.href = "/annotation-review.html?id=" + slideId;
 
   popup.appendChild(zoomLabel);
   popup.appendChild(colorLabel);
-  popup.appendChild(createEl("hr", "vmc-qupath-popup-divider"));
+  if (hasArrow) {
+    const arrowStyleLabel = createEl("label", "vmc-annotations-export-popup-row");
+    arrowStyleLabel.appendChild(arrowStyleSelect);
+    arrowStyleLabel.appendChild(document.createTextNode(
+      " Arrow style (the original recording did not store the arrowhead end, so this is a chosen default applied to every arrow)"
+    ));
+    popup.appendChild(arrowStyleLabel);
+  }
+  popup.appendChild(createEl("hr", "vmc-annotations-export-popup-divider"));
   popup.appendChild(helpLink);
   popup.appendChild(reportLink);
 
@@ -937,7 +965,8 @@ function renderAnnotations(root, slide) {
     return;
   }
 
-  section.appendChild(buildQupathScriptToolbar(slide.slide_id));
+  const hasArrow = annotations.some(function (a) { return a.annotation_type === "arrow"; });
+  section.appendChild(buildAnnotationsExportToolbar(slide.slide_id, hasArrow));
 
   annotations.forEach(function (ann, index) {
     if (index > 0) {

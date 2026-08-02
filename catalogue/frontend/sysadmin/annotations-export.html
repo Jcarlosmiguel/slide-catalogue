@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
   <meta charset="utf-8">
-  <title>Backup · Virtual Microscopy Catalogue</title>
+  <title>Annotations export · Virtual Microscopy Catalogue</title>
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <link rel="stylesheet" href="/css/catalogue.css">
   <script src="/js/auth.js"></script>
@@ -35,14 +35,16 @@
 
   <main class="vmc-page">
     <section class="vmc-card">
-      <h1>Backup</h1>
+      <h1>Annotations export</h1>
       <p>
-        Creates a new full database backup, written to
-        catalogue/backups/database/full/ on the server. Only ever creates a
-        new file - existing backups are never listed, read, or deleted from
-        here. There is no restore facility on this page or anywhere in the
-        web app: restoring a backup is a deliberate, command-line-only
-        operation on the host. Visible to system administrators only.
+        Downloads one OME-XML file per slide that has at least one
+        non-flagged annotation, bundled into a single zip - the same
+        per-slide OME-XML a slide's own page can generate individually
+        (see <a href="/documents/script_annotation.html">applying a
+        slide's annotations</a>), just all of them in one archival run.
+        Uses fixed defaults for every slide: bright green, arrowhead at
+        the start for "arrow"-type annotations. Visible to system
+        administrators only.
       </p>
       <p class="vmc-muted">
         <a href="/sysadmin/users.html">Users</a>
@@ -64,8 +66,7 @@
 
       <hr class="vmc-divider">
 
-      <button id="create-backup" class="vmc-button">Create backup now</button>
-      <div id="backup-status" style="margin-top: 1rem;"></div>
+      <a id="download-all" class="vmc-button" href="/api/admin/slides/annotations-ome-xml-bulk">Download all annotations (zip)</a>
     </section>
   </main>
 
@@ -81,46 +82,5 @@
       </div>
     </div>
   </footer>
-
-  <script>
-    const button = document.getElementById("create-backup");
-    const status = document.getElementById("backup-status");
-
-    function formatBytes(bytes) {
-      if (bytes >= 1024 * 1024) {
-        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
-      }
-      if (bytes >= 1024) {
-        return (bytes / 1024).toFixed(1) + " KB";
-      }
-      return bytes + " bytes";
-    }
-
-    button.addEventListener("click", async function () {
-      button.disabled = true;
-      status.textContent = "Creating backup - this can take a little while for a large database...";
-
-      const response = await fetch("/api/admin/backup", {
-        method: "POST",
-        credentials: "include"
-      });
-
-      button.disabled = false;
-
-      if (response.status === 403) {
-        status.textContent = "System administrator access required.";
-        return;
-      }
-
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        status.textContent = "Backup failed: " + (body.detail || response.statusText);
-        return;
-      }
-
-      const result = await response.json();
-      status.textContent = `Backup created: ${result.filename} (${formatBytes(result.size_bytes)})`;
-    });
-  </script>
 </body>
 </html>

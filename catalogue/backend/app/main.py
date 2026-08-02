@@ -7,6 +7,7 @@ import hmac
 import time
 import base64
 import uuid
+import zipfile
 
 import hashlib
 from datetime import (
@@ -27,8 +28,13 @@ from app.admin_sql import validate_statement
 from app.backup_catalogue import create_backup
 from app.mailer import send_email
 from app.permissions import require_permission
-from app.qupath_script import generate_script as generate_qupath_script
-from app.qupath_script import parse_color as parse_qupath_color
+from app.annotation_ome_xml import build_ome_xml
+from app.annotation_ome_xml import parse_color as parse_annotation_color
+from app.annotation_ome_xml import parse_arrow_style as parse_annotation_arrow_style
+from app.annotation_ome_xml import slugify_filename_hint
+from app.annotation_ome_xml import arrow_style_filename_label
+from app.annotation_ome_xml import DEFAULT_COLOR_RGB as DEFAULT_ANNOTATION_COLOR
+from app.annotation_ome_xml import DEFAULT_ARROW_STYLE as DEFAULT_ANNOTATION_ARROW_STYLE
 
 
 app = FastAPI(
@@ -2896,22 +2902,53 @@ def update_legacy_note(
         conn.close()
 
 
-@app.get("/api/slides/{slide_id}/qupath-script")
-def get_slide_qupath_script(
+_ANNOTATION_COLUMNS = """
+    annotation_id,
+    annotation_type,
+    rect_x,
+    rect_y,
+    rect_w,
+    rect_h,
+    arrow_start_x,
+    arrow_start_y,
+    arrow_end_x,
+    arrow_end_y,
+    zoom,
+    title,
+    description,
+    drawing,
+    invisible
+"""
+
+
+def _ome_xml_filename(slide_id, filename, arrow_style, has_arrow):
+    name_hint = slugify_filename_hint(filename)
+    parts = [f"slide_{slide_id}"]
+    if name_hint:
+        parts.append(name_hint)
+    if has_arrow:
+        parts.append(arrow_style_filename_label(arrow_style))
+    parts.append("annotations")
+    return "_".join(parts) + ".ome.xml"
+
+
+@app.get("/api/slides/{slide_id}/annotations-ome-xml")
+def get_slide_annotations_ome_xml(
     slide_id: int,
-    apply_zoom: bool = Query(True, description="Multiply rect/point coordinates by each annotation's own 'zoom' field - still being verified against real data, see the comment at the top of qupath_script.py"),
-    color: str = Query("FFFF00", description="Annotation colour as a hex triplet (with or without a leading '#') - defaults to yellow, applied to every annotation in the script"),
+    apply_zoom: bool = Query(True, description="Multiply rect/point coordinates by each annotation's own 'zoom' field - still being verified against real data, see the comment at the top of annotation_ome_xml.py"),
+    color: str = Query("00FF00", description="Annotation colour as a hex triplet (with or without a leading '#') - defaults to bright green, applied to every shape"),
+    arrow_style: str = Query("<", description="Arrowhead placement for 'arrow'-type annotations: '<' (head at start), '>' (head at end), or '<>' (both ends). Original recording never stored which end originally had the arrowhead, so this is a chosen default, not recovered source data."),
     user: dict = Depends(require_user),
 ):
-    """Generate a downloadable QuPath Groovy script that recreates this
-    slide's stored annotations (rect/arrow/point etc.) as real QuPath
-    annotation objects when run inside QuPath against the matching image.
-    404s if the slide has no non-flagged annotations."""
+    """Generate a downloadable OME-XML file recreating this slide's stored
+    annotations (rect/arrow/point etc.) as real ROIs, ready to import
+    directly into OMERO via omero-roi-importer - no QuPath round-trip
+    required. 404s if the slide has no non-flagged annotations."""
     conn = get_db_connection()
     try:
         with conn.cursor() as cur:
             cur.execute(
-                "SELECT slide_id, filename FROM slides WHERE slide_id = %s",
+                "SELECT slide_id, filename, physical_path FROM slides WHERE slide_id = %s",
                 (slide_id,),
             )
             slide = cur.fetchone()
@@ -2920,23 +2957,8 @@ def get_slide_qupath_script(
                 raise HTTPException(status_code=404, detail="Slide not found")
 
             cur.execute(
-                """
-                SELECT
-                    annotation_id,
-                    annotation_type,
-                    rect_x,
-                    rect_y,
-                    rect_w,
-                    rect_h,
-                    arrow_start_x,
-                    arrow_start_y,
-                    arrow_end_x,
-                    arrow_end_y,
-                    zoom,
-                    title,
-                    description,
-                    drawing,
-                    invisible
+                f"""
+                SELECT {_ANNOTATION_COLUMNS}
                 FROM slide_annotations
                 WHERE slide_id = %s AND flagged_incorrect = 0
                 ORDER BY annotation_id
@@ -2953,16 +2975,84 @@ def get_slide_qupath_script(
     if not annotations:
         raise HTTPException(status_code=404, detail="This slide has no stored annotations")
 
-    script = generate_qupath_script(
-        slide, annotations, apply_zoom=apply_zoom, color=parse_qupath_color(color),
+    xml, _marked_invisible, _skipped = build_ome_xml(
+        slide, annotations, physical_path=slide.get("physical_path"),
+        apply_zoom=apply_zoom, color=parse_annotation_color(color),
+        arrow_style=parse_annotation_arrow_style(arrow_style),
     )
 
-    filename = f"slide_{slide_id}_annotations.groovy"
+    has_arrow = any((a.get("annotation_type") or "").lower() == "arrow" for a in annotations)
+    filename = _ome_xml_filename(slide_id, slide.get("filename"), arrow_style, has_arrow)
 
     return Response(
-        content=script,
-        media_type="text/plain",
+        content=xml,
+        media_type="application/xml",
         headers={"Content-Disposition": f'attachment; filename="{filename}"'},
+    )
+
+
+@app.get("/api/admin/slides/annotations-ome-xml-bulk")
+def get_all_slides_annotations_ome_xml_bulk(
+    apply_zoom: bool = Query(True),
+    user: dict = Depends(require_system_admin),
+):
+    """Sysadmin-only bulk export: one OME-XML file per slide that has at
+    least one non-flagged annotation, bundled into a single zip. Uses fixed
+    defaults (bright green, arrowhead at the start) since there's no
+    reasonable way to prompt per-slide in a bulk run."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                SELECT DISTINCT s.slide_id, s.filename, s.physical_path
+                FROM slides s
+                JOIN slide_annotations sa ON sa.slide_id = s.slide_id
+                WHERE sa.flagged_incorrect = 0
+                ORDER BY s.slide_id
+                """
+            )
+            slides = cur.fetchall()
+
+            buffer = io.BytesIO()
+            with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                for slide_row in slides:
+                    slide_id = slide_row["slide_id"]
+                    with conn.cursor() as ann_cur:
+                        ann_cur.execute(
+                            f"""
+                            SELECT {_ANNOTATION_COLUMNS}
+                            FROM slide_annotations
+                            WHERE slide_id = %s AND flagged_incorrect = 0
+                            ORDER BY annotation_id
+                            """,
+                            (slide_id,),
+                        )
+                        annotations = ann_cur.fetchall()
+
+                    slide = clean_row(slide_row)
+                    annotations = clean_rows(annotations)
+                    if not annotations:
+                        continue
+
+                    xml, _marked_invisible, _skipped = build_ome_xml(
+                        slide, annotations, physical_path=slide.get("physical_path"),
+                        apply_zoom=apply_zoom,
+                        color=DEFAULT_ANNOTATION_COLOR, arrow_style=DEFAULT_ANNOTATION_ARROW_STYLE,
+                    )
+                    has_arrow = any((a.get("annotation_type") or "").lower() == "arrow" for a in annotations)
+                    filename = _ome_xml_filename(
+                        slide_id, slide.get("filename"), DEFAULT_ANNOTATION_ARROW_STYLE, has_arrow,
+                    )
+                    zf.writestr(filename, xml)
+    finally:
+        conn.close()
+
+    buffer.seek(0)
+    return Response(
+        content=buffer.getvalue(),
+        media_type="application/zip",
+        headers={"Content-Disposition": 'attachment; filename="all_slide_annotations_ome_xml.zip"'},
     )
 
 

@@ -33,20 +33,21 @@
   </header>
   <main class="vmc-page">
     <section class="vmc-card">
-      <h1>Applying a slide's annotations in QuPath</h1>
+      <h1>Applying a slide's annotations in OMERO</h1>
       <p>
         Any slide with annotations on its detail page has a
-        <strong>Download QuPath script</strong> button in the
-        "Slide annotations" section. This generates a Groovy script that
-        recreates that slide's stored annotations - rectangles, ellipses,
+        <strong>Download annotations (OME-XML)</strong> button in the
+        "Slide annotations" section. This generates an OME-XML file
+        recreating that slide's stored annotations - rectangles, ellipses,
         arrows, measurements, pins, and freehand/polygon shapes - as real
-        QuPath annotation objects on the matching image.
+        ROIs, ready to import straight into OMERO. If this slide isn't
+        being cropped, QuPath isn't needed anywhere in this process at all.
       </p>
 
-      <h2>Downloading the script</h2>
+      <h2>Downloading the file</h2>
       <p>
-        Next to the download button you can set two options before
-        generating the script:
+        Next to the download button you can set some options before
+        generating the file:
       </p>
       <ul>
         <li>
@@ -56,51 +57,116 @@
           per-annotation zoom factor to land in the right place. If the
           annotations come in badly offset, wrongly sized, or sitting in
           blank slide background, untick this box, download again, and try
-          the other mode on a fresh copy of the image.
+          the other mode.
         </li>
         <li>
-          <strong>Annotation colour</strong> (yellow by default) - pick any
-          colour; it's applied to every annotation the script creates.
+          <strong>Annotation colour</strong> (bright green by default) - pick any
+          colour; it's applied to every shape in the file.
+        </li>
+        <li>
+          <strong>Arrow style</strong> (only shown if the slide has any arrow
+          annotations; head at start by default) - OME-XML has no separate
+          "arrow" shape; an arrow becomes a <code>Line</code> shape with a
+          <code>MarkerStart</code>/<code>MarkerEnd="Arrow"</code> attribute,
+          chosen from <code>&lt;</code> (head at start), <code>&gt;</code>
+          (head at end), or <code>&lt;&gt;</code> (double-headed). The
+          original recording only ever stored a start and end point, not
+          which end had the arrowhead, so this is a default you choose per
+          download, not something recovered from the source data.
         </li>
       </ul>
-
-      <h2>Running it in QuPath</h2>
-      <ol>
-        <li>
-          Open the exact slide file the script was generated for in QuPath.
-          The script only adds annotations to whatever image is currently
-          open, so the wrong file open means the coordinates land on the
-          wrong tissue entirely.
-        </li>
-        <li>
-          Open the script editor: <strong>Automate</strong> &rarr;
-          <strong>Show script editor</strong>.
-        </li>
-        <li>
-          Load the script: <strong>File</strong> &rarr; <strong>Open...</strong>
-          inside the script editor and select the downloaded
-          <code>.groovy</code> file, or paste its contents into a new tab.
-        </li>
-        <li>
-          Run it (the &#9654; button, or <code>Ctrl+R</code> /
-          <code>Cmd+R</code>).
-        </li>
-        <li>
-          Check the result: annotations appear immediately in the viewer and
-          in the <strong>Annotations</strong> tab, named from their original
-          title (or "Annotation &lt;id&gt;" if untitled), with any recorded
-          description attached.
-        </li>
-      </ol>
       <p>
-        The script editor's log panel prints a summary line once it
-        finishes, e.g. <code>Added 46 annotation(s) (12 marked invisible in
-        dih (still added), 0 unsupported skipped) from the
-        catalogue.</code> - a quick way to confirm nothing silently failed.
-        Annotations dih itself flagged as "invisible" are still added, just
-        labelled <code>(marked invisible in dih)</code> in their name, since
-        that flag turns out to be genuine per-annotation source data rather
-        than something safe to drop.
+        The downloaded filename includes a short, cleaned-up hint from the
+        slide's own filename, and - if the slide has any arrows - the chosen
+        arrow style, e.g.
+        <code>slide_7_Slide_41_Skin_Human_HE_..._arrow-end_annotations.ome.xml</code>.
+        The slide ID alone doesn't make it obvious which slide, or which
+        arrow style, a given file matches.
+      </p>
+      <p>
+        A sysadmin-only bulk export of every slide's annotations in one zip
+        is also available on the <strong>Annotations Export</strong>
+        sysadmin page, and as a standalone
+        <code>export_annotations_ome_xml.py</code> script for offline/archival
+        runs against the database directly.
+      </p>
+
+      <h2>Importing directly into OMERO</h2>
+      <p>
+        In OMERO.web, right-click the matching image and choose
+        <strong>Open with</strong> &rarr; <strong>ROI Importer</strong>.
+        Upload the downloaded file there, review the preview it shows
+        against the image, and commit - this creates the ROIs directly,
+        with no QuPath step in between.
+      </p>
+
+      <h2 id="slide-annotations-crop">If you're also cropping this slide</h2>
+      <p>
+        Stored annotations are recorded as coordinates on the <strong>original, full-size
+        image</strong>. A cropped export has its own coordinate system starting at (0, 0) in
+        the crop's top-left, so annotations need repositioning to line up with the crop before
+        they're imported into OMERO. If this slide has no annotations, this section doesn't
+        apply - skip straight to <a href="/documents/prepare-slides.html">exporting</a>.
+      </p>
+      <p>
+        <strong>Tip.</strong> Select the <strong>Annotations</strong> tab in QuPath's left-hand
+        panel for this whole process - it lists every annotation on the image (the crop mask
+        included, shown in red), making it much easier to select, check, and delete the right
+        one at each step.
+      </p>
+      <p>
+        <strong>Draw the crop</strong> as usual
+        (<a href="/documents/prepare-slides.html">Steps 3 and 4</a>) - it appears in the
+        Annotations list as its own annotation. With it still selected, export the crop's
+        pixels next: <strong>File</strong> &rarr; <strong>Export Images</strong> &rarr;
+        <strong>OME-TIFF</strong>. Use the default settings unless instructed otherwise, save
+        using the slide ID where possible, and note the destination folder - large exports may
+        take several minutes. Once it completes, verify the file was created successfully;
+        it's now ready for import into OMERO using OMERO.insight.
+      </p>
+      <p>
+        <strong>Now import this slide's annotations</strong> from the file downloaded above.
+        Open the script editor (<strong>Automate</strong> &rarr; <strong>Show script
+        editor</strong>), load
+        <a href="/assets/scripts/import-annotations-from-ome-xml.groovy">import-annotations-from-ome-xml.groovy</a>,
+        run it, and select the downloaded <code>.ome.xml</code> file. This rebuilds every
+        annotation directly from the file's own coordinates on the same local image the crop
+        mask is on - it doesn't use QuPath's drag-and-drop GeoJSON import, which was found to
+        sometimes silently reorder a line's two endpoints and flip which end an arrow's head
+        was on. The crop mask stays on the image alongside them, unaffected.
+      </p>
+      <p>
+        <strong>Note.</strong> The imported annotation colour is applied via QuPath's own
+        <code>setColor()</code>, which is confirmed to colour each annotation's entry in the
+        <strong>Annotations</strong> list - whether it also changes the shape's colour as drawn
+        on the slide itself can vary, and hasn't been confirmed against every QuPath version. If
+        the on-slide colour doesn't match, this is a QuPath display setting to check locally
+        (e.g. a display/classification override), not something wrong with the imported file.
+      </p>
+      <p>
+        <strong>With the crop mask selected</strong>, run
+        <a href="/assets/scripts/reposition-annotations-for-crop.groovy">reposition-annotations-for-crop.groovy</a>.
+        This shifts every other annotation on the image to line up with the crop mask's own
+        (0, 0) origin, updating each annotation in place (its name, colour, and description are
+        all preserved).
+      </p>
+      <p>
+        <strong>Still with the crop mask selected</strong>, run
+        <a href="/assets/scripts/export-annotations-as-ome-xml.groovy">export-annotations-as-ome-xml.groovy</a>
+        from the script editor and choose where to save the file. It exports every other
+        annotation's now-repositioned coordinates as a standalone OME-XML file - the same
+        standard format OMERO itself uses for ROIs, including a real arrowhead marker on
+        arrows, not something bolted on afterwards. These scripts are reused for every slide,
+        so it's worth keeping all three in QuPath's own scripts folder (<strong>Automate</strong>
+        &rarr; <strong>Shared scripts...</strong> &rarr; <strong>Open Script directory</strong>)
+        rather than downloading them again each time.
+      </p>
+      <p>
+        <strong>Import the crop into OMERO</strong>
+        (<a href="/documents/omero-import.html">OMERO import</a>). Once it exists there,
+        right-click that image in OMERO.web and choose <strong>Open with</strong> &rarr;
+        <strong>ROI Importer</strong>, then upload the file you just saved - the same direct
+        import described above, just against the crop instead of the full image.
       </p>
     </section>
   </main>
