@@ -45,6 +45,17 @@ Safe to re-run - it skips anything that already exists. Prints the example
 login (`admin` / `ChangeMe123!`) - change that password before using this
 anywhere beyond local testing.
 
+Separately, seed the Organ/Tissue/Species/Stain dictionaries with a real,
+curated starting vocabulary (77 organs, 39 tissues, 50 species, 257
+stains, 49 organ-tissue relationships) instead of leaving them empty -
+worth running on a real deployment too, not just for local testing:
+
+```bash
+docker exec -it catalogue_backend python3 /app/app/seed_dictionaries.py
+```
+
+Also safe to re-run - skips anything that already exists by name.
+
 ## Where to look
 
 | Folder | What's there |

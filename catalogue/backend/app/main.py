@@ -3158,6 +3158,55 @@ def admin_dictionary_values(
     }
 
 
+@app.get("/api/admin/dictionaries-export")
+def admin_export_dictionaries(admin_user: dict = Depends(require_admin)):
+    """Full export of all five controlled-vocabulary tables, as JSON -
+    for backup, sharing between deployments, or seeding a brand-new
+    installation's dictionaries instead of starting empty (see
+    seed_dictionaries.py, which loads exactly this shape). Uses natural
+    keys (organ_name/tissue_name, not the auto-increment organ_id/
+    tissue_id) for organ_tissue so the file is portable across databases
+    - re-importing it doesn't depend on matching surrogate IDs.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM organ_dictionary ORDER BY organ_name")
+            organ = clean_rows(cur.fetchall())
+
+            cur.execute("SELECT * FROM tissue_dictionary ORDER BY tissue_name")
+            tissue = clean_rows(cur.fetchall())
+
+            cur.execute("SELECT * FROM species_dictionary ORDER BY species_name")
+            species = clean_rows(cur.fetchall())
+
+            cur.execute("SELECT * FROM stain_dictionary ORDER BY original_stain")
+            stain = clean_rows(cur.fetchall())
+
+            cur.execute(
+                """
+                SELECT o.organ_name, t.tissue_name, ot.relationship_type,
+                       ot.notes, ot.review_status, ot.confidence
+                FROM organ_tissue_dictionary ot
+                JOIN organ_dictionary o ON o.organ_id = ot.organ_id
+                JOIN tissue_dictionary t ON t.tissue_id = ot.tissue_id
+                ORDER BY o.organ_name, t.tissue_name
+                """
+            )
+            organ_tissue = clean_rows(cur.fetchall())
+    finally:
+        conn.close()
+
+    return {
+        "exported_at": datetime.utcnow().isoformat() + "Z",
+        "organ": organ,
+        "tissue": tissue,
+        "species": species,
+        "stain": stain,
+        "organ_tissue": organ_tissue,
+    }
+
+
 @app.post("/api/admin/dictionaries/{dictionary_name}")
 def admin_add_dictionary_value(
     dictionary_name: str,
