@@ -114,6 +114,19 @@ def require_user(request: Request):
     return payload
 
 
+def get_optional_user(request: Request):
+    """Like require_user, but returns None instead of raising when there's
+    no valid session - for endpoints usable by anonymous visitors that
+    still want to attribute a submission to a logged-in user when one
+    exists (e.g. site feedback)."""
+    token = request.cookies.get(SESSION_COOKIE_NAME)
+
+    if not token:
+        return None
+
+    return verify_token(token)
+
+
 
 def require_admin(user: dict = Depends(require_user)):
 
@@ -671,6 +684,11 @@ class AccessRequestCreate(BaseModel):
     guid: Optional[str] = None
     authentication_method: str = "LOCAL"
     request_reason: str
+
+class ContactMessageCreate(BaseModel):
+    name: str
+    email: str
+    message: str
 
 class ActivationRequest(BaseModel):
     token: str
@@ -4674,17 +4692,82 @@ def filter_tissues(user: dict = Depends(require_user)):
     return {"tissues": [row["tissue"] for row in rows]}
 
 
+@app.get("/api/contact-info")
+def get_contact_info():
+    """Public - just the one setting a visitor is meant to see (the real,
+    purpose-specific contact_email, unlike CONTACT_NOTIFICATION_EMAIL/
+    MAIL_FROM_CONTACT which stay server-side only). Lets the admin change
+    the displayed address via the admin settings page without a redeploy.
+    """
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT setting_value FROM system_settings WHERE setting_name = 'contact_email'"
+            )
+            row = cur.fetchone()
+    finally:
+        conn.close()
+
+    return {"contact_email": (row["setting_value"] if row else None) or None}
+
+
+@app.post("/api/contact")
+def create_contact_message(payload: ContactMessageCreate, request: Request):
+    """Public contact-form submission (no login required, unlike
+    site-feedback below) - emails the message straight to
+    CONTACT_NOTIFICATION_EMAIL, never storing or exposing that address to
+    the browser. Best-effort: a broken mail server shouldn't surface as a
+    confusing error to a visitor filling in a contact form, so this
+    always reports success once the message is validated, same rationale
+    as the registration/activation emails elsewhere in this file.
+    """
+    name = payload.name.strip()
+    email = payload.email.strip()
+    message_text = payload.message.strip()
+
+    if not name or not email or not message_text:
+        raise HTTPException(status_code=400, detail="Name, email, and message are all required")
+
+    to_address = os.getenv("CONTACT_NOTIFICATION_EMAIL")
+    if to_address:
+        remote_addr = request.client.host if request.client else "unknown"
+        body = (
+            f"New contact form submission from the slide catalogue.\n\n"
+            f"Name: {name}\n"
+            f"Email: {email}\n"
+            f"Remote address: {remote_addr}\n\n"
+            f"Message:\n{message_text}"
+        )
+        try:
+            send_email(
+                to_address,
+                f"Catalogue contact form: {name}",
+                body,
+                from_override=os.getenv("MAIL_FROM_CONTACT"),
+                reply_to=email,
+            )
+        except Exception as exc:
+            print("Failed to send contact form email:", exc)
+
+    return {"status": "ok", "message": "Thank you - your message has been sent."}
+
+
 @app.post("/api/site-feedback")
 def create_site_feedback(
     request: Request,
     payload: dict = Body(...),
-    user: dict = Depends(require_user),
+    user: dict | None = Depends(get_optional_user),
 ):
     """General feedback about the site itself - not tied to any slide.
 
     Separate from slide_corrections (metadata corrections), which always
     needs a slide_id - this is for things like "the search filters are
     confusing" or "please add X feature" from anywhere on the site.
+
+    Open to anonymous visitors as well as logged-in users (see
+    get_optional_user) - submitter_username/email/etc. are just NULL for
+    an anonymous submission, not required.
     """
 
     feedback_text = str(payload.get("feedback_text", "")).strip()
@@ -4720,10 +4803,10 @@ def create_site_feedback(
                 (
                     feedback_text,
                     page_url,
-                    user.get("username"),
-                    user.get("email"),
-                    user.get("display_name"),
-                    user.get("role"),
+                    user.get("username") if user else None,
+                    user.get("email") if user else None,
+                    user.get("display_name") if user else None,
+                    user.get("role") if user else None,
                     remote_addr,
                     user_agent[:500] if user_agent else None,
                 ),

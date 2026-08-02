@@ -1,10 +1,8 @@
 document.addEventListener("DOMContentLoaded", async function () {
-  const user = await window.vmcRequireLogin();
-
-  if (!user) {
-    return;
-  }
-
+  // Open to anonymous visitors as well as logged-in users - credentials:
+  // "include" below still sends a session cookie when one exists, so a
+  // logged-in submission is still attributed; an anonymous one just has
+  // no submitter recorded (see get_optional_user() in app/main.py).
   const form = document.getElementById("site-feedback-form");
   const textarea = document.getElementById("site-feedback-text");
   const status = document.getElementById("site-feedback-status");

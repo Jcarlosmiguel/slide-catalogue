@@ -89,7 +89,7 @@ function createSiteFeedbackCard(row) {
     "vmc-annotation-meta",
     row.status +
       " · submitted by " +
-      row.submitter_username +
+      (row.submitter_username || "Anonymous") +
       " · " +
       row.created_at
   ));

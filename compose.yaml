@@ -45,6 +45,22 @@ services:
       SMTP_PASSWORD: ${SMTP_PASSWORD}
       SMTP_FROM: ${SMTP_FROM}
 
+      # Per-purpose "From" display name, all relayed through the one
+      # SMTP_* account above - until real dedicated mailboxes exist per
+      # purpose, this just varies the display name a recipient sees, e.g.
+      # "Catalogue Contact" <SMTP_FROM's real address>. Point it at a
+      # real address instead once one exists - no code change needed
+      # (app/mailer.py's send_email() just uses whatever's given).
+      MAIL_FROM_CONTACT: ${MAIL_FROM_CONTACT}
+
+      # Where the public contact form (catalogue/documents/contact.html)
+      # actually delivers messages. Kept server-side only, never sent to
+      # the browser (see app/main.py's create_contact_message()). Distinct
+      # from the 'contact_email' system_settings row (admin-editable,
+      # served by GET /api/contact-info), which IS meant to be shown on
+      # the page as a direct mailto: alternative to the form.
+      CONTACT_NOTIFICATION_EMAIL: ${CONTACT_NOTIFICATION_EMAIL}
+
       APP_BASE_URL: ${APP_BASE_URL}
 
       INSTITUTION_ID_LABEL: ${INSTITUTION_ID_LABEL}
