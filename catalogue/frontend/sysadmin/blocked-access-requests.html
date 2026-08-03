@@ -1,0 +1,162 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Blocked Access Requests · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Blocked Access Requests</h1>
+      <p>
+        Access requests rejected automatically because the email address was
+        already registered or already had a pending request. Visible to
+        system administrators only.
+      </p>
+      <p class="vmc-muted">
+        <a href="/sysadmin/users.html">Users</a>
+        ·
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
+        ·
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
+        ·
+        <a href="/sysadmin/backup.html">Backup</a>
+        ·
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
+        ·
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
+        ·
+        <a href="/sysadmin/annotations-export.html">Annotations Export</a>
+        ·
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <div id="log-container">Loading blocked requests...</div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const CELL_STYLE = "padding: 0.5rem; border-bottom: 1px solid var(--vmc-border); vertical-align: top;";
+    const HEAD_STYLE = "text-align: left; padding: 0.5rem; border-bottom: 2px solid var(--vmc-border);";
+
+    const REASON_LABELS = {
+      email_already_registered: "Email already registered",
+      duplicate_pending_request: "Duplicate pending request"
+    };
+
+    function textOrDash(value) {
+      if (value === null || value === undefined || value === "") {
+        return "—";
+      }
+      return value;
+    }
+
+    async function loadBlockedRequests() {
+      const container = document.getElementById("log-container");
+
+      const response = await fetch("/api/admin/blocked-access-requests", {
+        credentials: "include"
+      });
+
+      if (response.status === 403) {
+        container.textContent = "System administrator access required.";
+        return;
+      }
+
+      if (!response.ok) {
+        container.textContent = "Unable to load blocked access requests.";
+        return;
+      }
+
+      const rows = await response.json();
+
+      if (!rows.length) {
+        container.textContent = "No blocked access request attempts recorded.";
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+
+      const thead = document.createElement("thead");
+      thead.innerHTML = `
+        <tr>
+          <th style="${HEAD_STYLE}">Attempted email</th>
+          <th style="${HEAD_STYLE}">Attempted name</th>
+          <th style="${HEAD_STYLE}">Reason</th>
+          <th style="${HEAD_STYLE}">IP address</th>
+          <th style="${HEAD_STYLE}">User agent</th>
+          <th style="${HEAD_STYLE}">Date</th>
+        </tr>
+      `;
+      table.appendChild(thead);
+
+      const tbody = document.createElement("tbody");
+
+      for (const row of rows) {
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="${CELL_STYLE}">${row.attempted_email}</td>
+          <td style="${CELL_STYLE}">${textOrDash(row.attempted_full_name)}</td>
+          <td style="${CELL_STYLE}">${REASON_LABELS[row.reason] || row.reason}</td>
+          <td style="${CELL_STYLE}">${textOrDash(row.remote_addr)}</td>
+          <td style="${CELL_STYLE}">${textOrDash(row.user_agent)}</td>
+          <td style="${CELL_STYLE}">${textOrDash(row.created_at)}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+
+      table.appendChild(tbody);
+
+      container.innerHTML = "";
+      container.appendChild(table);
+    }
+
+    loadBlockedRequests();
+  </script>
+</body>
+</html>

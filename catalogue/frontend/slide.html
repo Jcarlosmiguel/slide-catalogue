@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Slide Detail · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  
+  <script src="/js/auth.js"></script>
+  <script src="/js/glossary.js"></script>
+</head>
+
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Slide detail</p>
+        </div>
+      </div>
+
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/reviewer-dashboard.html" class="vmc-reviewer-nav">Reviewer dashboard</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <div class="vmc-return-bar">
+      <button id="back-to-results" class="vmc-button vmc-button-secondary" type="button">← Back to Results</button>
+    </div>
+
+    <section id="slide-detail" class="vmc-slide-detail-shell">
+      <p class="vmc-muted">Loading slide details...</p>
+    </section>
+  </main>
+
+  <div id="image-modal" class="vmc-modal" aria-hidden="true">
+    <div class="vmc-modal-content">
+      <button id="modal-close" class="vmc-modal-close" type="button" aria-label="Close large preview">×</button>
+      <img id="modal-image" src="" alt="Large slide preview">
+    </div>
+  </div>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/slide.js?v=expert-notes-autosize-1"></script>
+</body>
+</html>

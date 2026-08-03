@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>My Account · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">Your Institution · Virtual Microscopy Catalogue</div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Manage your account details and credentials.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card" style="max-width: 760px; margin: 0 auto;">
+      <h1>My account</h1>
+      <p class="vmc-muted">Update your profile details and change your password securely.</p>
+
+      <form id="profile-form">
+        <div class="vmc-field">
+          <label for="username">Username</label>
+          <input id="username" name="username" type="text" required>
+        </div>
+
+        <div class="vmc-field">
+          <label for="full_name">Full name</label>
+          <input id="full_name" name="full_name" type="text" required>
+        </div>
+
+        <div class="vmc-field">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" required>
+        </div>
+
+        <div class="vmc-field">
+          <label for="institution">Institution</label>
+          <input id="institution" name="institution" type="text">
+        </div>
+
+        <div class="vmc-field">
+          <label for="guid"><span class="vmc-institution-id-label">Institution ID</span></label>
+          <input id="guid" name="guid" type="text" placeholder="Optional">
+        </div>
+
+        <div class="vmc-field">
+          <label for="authentication_method">Preferred login method</label>
+          <div style="display:flex; align-items:center; gap:0.5rem;">
+            <input id="authentication_method" name="authentication_method" type="checkbox" disabled title="LDAP login is not implemented yet">
+            <span class="vmc-muted">Use LDAP when available</span>
+          </div>
+          <p class="vmc-muted" style="margin-top:0.35rem; font-size:0.9rem;">This option is disabled for now because LDAP authentication is not implemented yet.</p>
+        </div>
+
+        <hr class="vmc-divider">
+
+        <div class="vmc-field">
+          <label for="current_password">Current password</label>
+          <input id="current_password" name="current_password" type="password" autocomplete="current-password">
+        </div>
+
+        <div class="vmc-field">
+          <label for="new_password">New password</label>
+          <input id="new_password" name="new_password" type="password" autocomplete="new-password">
+          <p class="vmc-muted" style="margin:0.25rem 0 0; font-size:0.9rem;">
+            Password must be at least 8 characters and include letters in different cases plus at least one number.
+          </p>
+        </div>
+
+        <div class="vmc-actions">
+          <button class="vmc-button" type="submit">Save changes</button>
+          <span id="profile-status" class="vmc-muted"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/my-account.js"></script>
+</body>
+</html>

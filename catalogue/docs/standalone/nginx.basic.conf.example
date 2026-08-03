@@ -1,0 +1,85 @@
+################################################################
+# nginx.basic.conf.example
+#
+# Tier 1 of 3 - see README.md in this folder for the full picture.
+#
+# The simplest possible standalone deployment: catalogue_nginx serves
+# plain HTTP on a real public domain, no certificates involved at all.
+# This is almost exactly catalogue/nginx/catalogue.dev.conf (the config
+# the repo actually ships and runs by default) - the only change is
+# server_name, swapped from the dev catch-all ("_") to a real domain.
+#
+# Good enough for: trying the app out, an internal-only deployment
+# behind something else that already terminates TLS (a VPN, an internal
+# load balancer), or as the starting point before adding HTTPS via
+# nginx.selfsigned.conf.example (Tier 2).
+#
+# Not good enough for: anything with real user accounts on the public
+# internet - session cookies and passwords would travel in plain text.
+#
+# To use: copy this over catalogue/nginx/catalogue.dev.conf (or point
+# compose.yaml's catalogue_nginx volume mount at this file instead),
+# replace yourdomain.com below with your real domain, and make sure
+# that domain's DNS A/AAAA record actually points at this server.
+################################################################
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    # The dev config uses "_" (matches any Host header) since it's never
+    # meant to face the real internet under a real name. A standalone
+    # deployment should bind to its actual domain instead - this alone
+    # doesn't add any security, it just means nginx won't answer for
+    # domains it's not supposed to.
+    server_name yourdomain.com;
+
+    # Slide thumbnails can be a few hundred KB; the default 1M client
+    # body limit is fine for normal browsing but too tight for some
+    # admin upload/import flows - matches catalogue.dev.conf's own value.
+    client_max_body_size 100M;
+
+    # The frontend is a static single-page app - nginx serves the files
+    # directly (no proxying needed for HTML/CSS/JS), falling back to
+    # index.html for any path so the frontend's own client-side routing
+    # (e.g. /slide.html?id=123) still works on a hard refresh/direct link.
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    # Thumbnails are generated files, not part of the frontend bundle -
+    # served from their own volume mount, cached aggressively since a
+    # given slide_id's thumbnail never changes without also changing
+    # its filename/path.
+    location /thumbnails/ {
+        alias /srv/thumbnails/;
+        access_log off;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    # Static help/about/contact pages and similar - autoindex is fine
+    # here since this directory is meant to be browsable, unlike
+    # thumbnails/ or the API.
+    location /documents/ {
+        alias /srv/documents/;
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+    }
+
+    # Everything else (search, auth, admin, corrections, ...) is the
+    # FastAPI backend - proxied straight through, no rewriting needed
+    # since the backend already expects the /api/ prefix.
+    location /api/ {
+        proxy_pass http://catalogue_backend:8000/api/;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

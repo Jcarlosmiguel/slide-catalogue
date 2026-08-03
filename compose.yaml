@@ -1,0 +1,150 @@
+services:
+  catalogue_mariadb:
+    image: mariadb:11
+    container_name: catalogue_mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    volumes:
+      - catalogue_mariadb_data:/var/lib/mysql
+    networks:
+      - catalogue_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  catalogue_backend:
+    build:
+      context: ./catalogue/backend
+    container_name: catalogue_backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV}
+      APP_ROOT_PATH: ${APP_ROOT_PATH}
+      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE}
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET}
+
+      DB_HOST: catalogue_mariadb
+      DB_PORT: 3306
+      DB_NAME: ${MARIADB_DATABASE}
+      DB_USER: ${MARIADB_USER}
+      DB_PASSWORD: ${MARIADB_PASSWORD}
+
+      SHARE_ROOT_WINDOWS: ${SHARE_ROOT_WINDOWS}
+      SHARE_ROOT_MACOS: ${SHARE_ROOT_MACOS}
+      SHARE_ROOT_LINUX: ${SHARE_ROOT_LINUX}
+
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+
+      # Per-purpose "From" display name, all relayed through the one
+      # SMTP_* account above - until real dedicated mailboxes exist per
+      # purpose, this just varies the display name a recipient sees, e.g.
+      # "Catalogue Contact" <SMTP_FROM's real address>. Point it at a
+      # real address instead once one exists - no code change needed
+      # (app/mailer.py's send_email() just uses whatever's given).
+      MAIL_FROM_CONTACT: ${MAIL_FROM_CONTACT}
+
+      # Where the public contact form (catalogue/documents/contact.html)
+      # actually delivers messages. Kept server-side only, never sent to
+      # the browser (see app/main.py's create_contact_message()). Distinct
+      # from the 'contact_email' system_settings row (admin-editable,
+      # served by GET /api/contact-info), which IS meant to be shown on
+      # the page as a direct mailto: alternative to the form.
+      CONTACT_NOTIFICATION_EMAIL: ${CONTACT_NOTIFICATION_EMAIL}
+
+      APP_BASE_URL: ${APP_BASE_URL}
+
+      INSTITUTION_ID_LABEL: ${INSTITUTION_ID_LABEL}
+
+    volumes:
+      - ./catalogue/manual_thumbnails:/srv/manual_thumbnails
+      - ./catalogue/thumbnail_backups:/srv/thumbnail_backups
+      - ./catalogue/thumbnails:/srv/thumbnails
+      - ./catalogue/backups/database/full:/srv/backups
+
+    depends_on:
+      catalogue_mariadb:
+        condition: service_healthy
+    networks:
+      - catalogue_net
+
+  catalogue_nginx:
+    image: nginx:1.28
+    container_name: catalogue_nginx
+    restart: unless-stopped
+    ports:
+      - "${HTTP_PORT}:80"
+    volumes:
+      - ./catalogue/frontend:/usr/share/nginx/html:ro
+      - ./catalogue/thumbnails:/srv/thumbnails:ro
+      - ./catalogue/documents:/srv/documents:ro
+      - ./catalogue/nginx/catalogue.dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - catalogue_backend
+    networks:
+      - catalogue_net
+
+  # Not started by default - see `profiles` below.
+  #
+  # Planned in-docker mail relay for deployment. Today the backend talks
+  # directly to the O365 SMTP relay using SMTP_HOST/SMTP_USERNAME/
+  # SMTP_PASSWORD from .env (see catalogue/backend/app/mailer.py). Once
+  # this is enabled instead, the O365 credentials live only here, and
+  # catalogue_backend sends unauthenticated to this container over the
+  # internal network - no code changes needed, only .env:
+  #   SMTP_HOST=catalogue_mail
+  #   SMTP_PORT=25
+  #   SMTP_USERNAME=        (leave blank)
+  #   SMTP_PASSWORD=        (leave blank)
+  #   SMTP_FROM=<unchanged>
+  #
+  # wader/postfix-relay is a Postfix "smart host" image built for exactly
+  # this: accept local mail, relay it out through an authenticated
+  # upstream (still O365 here - your institution's SPF record almost certainly
+  # only authorises Microsoft's servers, so this isn't a way to stop
+  # using O365, just a way to stop every app container holding its
+  # password). Double-check the image's current env var names against
+  # its docs before enabling; not verified against a running instance.
+  catalogue_mail:
+    image: wader/postfix-relay:latest
+    container_name: catalogue_mail
+    restart: unless-stopped
+    environment:
+      SMTP_SERVER: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SERVER_HOSTNAME: catalogue-mail.local
+    networks:
+      - catalogue_net
+    profiles:
+      - mail
+
+  adminer:
+    image: adminer:latest
+    container_name: catalogue_adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT}:8080"
+    depends_on:
+      catalogue_mariadb:
+        condition: service_healthy
+    networks:
+      - catalogue_net
+    profiles:
+      - dev
+
+volumes:
+  catalogue_mariadb_data:
+
+networks:
+  catalogue_net:

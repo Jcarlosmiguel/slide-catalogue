@@ -1,0 +1,296 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  
+  <script src="/js/auth.js"></script>
+</head>
+
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+
+        <div class="vmc-brand-text">
+
+
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+
+        </div>
+
+      </div>
+
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/reviewer-dashboard.html" class="vmc-reviewer-nav">Reviewer dashboard</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-hero vmc-hero-image-only" aria-label="Catalogue visual placeholder"></section>
+    <section class="vmc-layout">
+      <div>
+        <section class="vmc-card">
+          <h2>Search the Collection</h2>
+		<form id="home-search-form">
+		  <div class="vmc-search-grid">
+
+		    <div class="vmc-field">
+		      <label for="organ">Organ</label>
+		      <input id="organ"
+		             name="organ"
+		             type="text"
+		             placeholder="e.g. Kidney, Heart, Cortex">
+		    </div>
+
+		    <div class="vmc-field">
+		      <label for="species">Species</label>
+		      <input id="species"
+		             name="species"
+		             type="text"
+		             placeholder="e.g. Human, Rat, Guinea pig">
+		    </div>
+
+		    <div class="vmc-field">
+		      <label for="stain">Stain</label>
+		      <input id="stain"
+		             name="stain"
+		             type="text"
+		             placeholder="e.g. H&E, Silver, Masson">
+		    </div>
+
+		    <div class="vmc-field">
+		      <label for="q">Keyword</label>
+		      <input id="q"
+		             name="q"
+		             type="search"
+		             placeholder="e.g. glomeruli, hair follicle, Pacinian">
+		      <small class="vmc-field-hint vmc-muted">Also matches metadata, expert contributor notes, and filenames.</small>
+		    </div>
+
+		    <div class="vmc-field">
+		      <label for="slide_id">Slide ID</label>
+		      <input id="slide_id"
+		             name="slide_id"
+		             type="number"
+		             min="1"
+		             placeholder="e.g. 17, 644, 1387">
+		    </div>
+
+		    <div class="vmc-field">
+		      <label for="filename">Filename</label>
+		      <input id="filename"
+		             name="filename"
+		             type="text"
+		             placeholder="e.g. part of a slide's filename">
+		    </div>
+
+		  </div>
+
+		  <div class="vmc-actions">
+		    <button class="vmc-button" type="submit">Search slides</button>
+		    <div class="vmc-quick-filters" role="group" aria-label="Show only slides that have">
+		      <button type="button" class="vmc-badge vmc-quick-filter" data-filter="has_slide_annotations" title="Show only slides with annotations" aria-pressed="false">ANN</button>
+		      <button type="button" class="vmc-badge vmc-badge-gold vmc-quick-filter" data-filter="has_legacy_notes" title="Show only slides with expert contributor notes" aria-pressed="false">EXP</button>
+		      <button type="button" class="vmc-badge vmc-badge-green vmc-quick-filter" data-filter="is_z_stack" title="Show only z-stack slides" aria-pressed="false">ZST</button>
+		      <button type="button" class="vmc-badge vmc-badge-purple vmc-quick-filter" data-filter="is_multiview" title="Show only multiview slides" aria-pressed="false">MVI</button>
+		      <button type="button" class="vmc-badge vmc-badge-maroon vmc-quick-filter" data-filter="is_comparison_slide" title="Show only comparison slides" aria-pressed="false">CMP</button>
+		      <button type="button" class="vmc-badge vmc-badge-slate vmc-quick-filter" data-filter="legacy_thick_section" title="Show only thick-section slides" aria-pressed="false">TSL</button>
+		    </div>
+		  </div>
+		</form>
+        </section>
+
+        <section class="vmc-card" style="margin-top: 1.25rem;">
+          <h2>Featured teaching slides</h2>
+
+          <div id="featured-slides" class="vmc-featured-grid">
+          </div>
+
+        </section>
+      </div>
+
+      
+            
+           <aside class="vmc-workflow-panel">
+             <h2>Workflow: Using a Slide</h2>
+             <ol>
+               <li><a href="/documents/search-catalogue.html">Search the Catalogue</a></li>
+               <li><a href="/documents/review-metadata.html">Review the Metadata</a></li>
+               <li><a href="/documents/prepare-slides.html">Clean Artefacts and Prepare Slides</a></li>
+               <li><a href="/documents/export-ome-tiff.html">Export as OME-TIFF</a></li>
+               <li><a href="/documents/omero-import.html">Import using OMERO.insight</a></li>
+               <li><a href="/documents/teaching-annotations.html">Add Teaching Annotations</a></li>
+               <li><a href="/documents/publish-slides.html">Prepare the Slide for View on the VLE</a></li>
+               <li><a href="/documents/publish-vlm.html">Add Slides to Virtual Learning Materials</a></li>
+             </ol>
+             <p class="vmc-muted">
+                Follow the recommended workflow from catalogue discovery through slide preparation.
+             </p>
+
+           </aside>
+
+
+
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <div id="contribution-ticker" class="vmc-ticker" hidden>
+    <div class="vmc-ticker-track">
+    </div>
+  </div>
+
+  <script>
+
+    for (const filterButton of document.querySelectorAll(".vmc-quick-filter")) {
+      filterButton.addEventListener("click", function () {
+        const isPressed = filterButton.getAttribute("aria-pressed") === "true";
+        filterButton.setAttribute("aria-pressed", isPressed ? "false" : "true");
+      });
+    }
+
+    document.getElementById("home-search-form").addEventListener("submit", async function (event) {
+      event.preventDefault();
+
+      const user = await vmcGetCurrentUser();
+      if (!user) {
+        window.location.href = "/login-required.html";
+        return;
+      }
+
+      const params = new URLSearchParams(new FormData(event.target));
+      const cleaned = new URLSearchParams();
+
+      for (const [key, value] of params.entries()) {
+        if (value.trim()) {
+          cleaned.set(key, value.trim());
+        }
+      }
+
+      for (const filterButton of document.querySelectorAll(".vmc-quick-filter")) {
+        if (filterButton.getAttribute("aria-pressed") === "true") {
+          cleaned.set(filterButton.dataset.filter, "true");
+        }
+      }
+
+      const queryString = cleaned.toString();
+      window.location.href = queryString ? "/results.html?" + queryString : "/results.html";
+    });
+async function loadFeaturedSlides() {
+
+  const response = await fetch("/api/featured-slides");
+
+  if (!response.ok) {
+    return;
+  }
+
+  const slides = await response.json();
+
+  const container = document.getElementById("featured-slides");
+
+  container.innerHTML = "";
+
+  for (const slide of slides) {
+
+    const card = document.createElement("article");
+    card.className = "vmc-feature-card";
+
+    const link = document.createElement("a");
+    link.href = "/slide.html?id=" + slide.slide_id;
+    link.addEventListener("click", async function (event) {
+      event.preventDefault();
+
+      const user = await vmcGetCurrentUser();
+      window.location.href = user ? link.href : "/login-required.html";
+    });
+
+    const img = document.createElement("img");
+    img.src = "/thumbnails/512/" + slide.slide_id + ".jpg";
+    img.alt = "Featured slide " + slide.slide_id;
+
+    link.appendChild(img);
+
+    const body = document.createElement("div");
+    body.className = "vmc-feature-card-body";
+
+    const title = document.createElement("strong");
+    title.textContent = "Slide " + slide.slide_id;
+
+    body.appendChild(title);
+    card.appendChild(link);
+    card.appendChild(body);
+
+    container.appendChild(card);
+  }
+}
+
+loadFeaturedSlides();
+
+async function loadContributionTicker() {
+
+  const response = await fetch("/api/contribution-ticker");
+
+  if (!response.ok) {
+    return;
+  }
+
+  const data = await response.json();
+
+  if (!data.enabled || !data.messages || !data.messages.length) {
+    return;
+  }
+
+  const ticker = document.getElementById("contribution-ticker");
+  const track = ticker.querySelector(".vmc-ticker-track");
+
+  track.innerHTML = "";
+
+  // Render the message list twice back-to-back so the marquee
+  // animation (translateX 0 -> -50%) loops seamlessly.
+  for (let copy = 0; copy < 2; copy++) {
+    for (const message of data.messages) {
+      const span = document.createElement("span");
+      span.textContent = message;
+      track.appendChild(span);
+    }
+  }
+
+  ticker.hidden = false;
+  document.body.classList.add("vmc-has-ticker");
+}
+
+loadContributionTicker();
+  </script>
+</body>
+</html>

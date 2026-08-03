@@ -1,0 +1,104 @@
+################################################################
+# nginx.selfsigned.conf.example
+#
+# Tier 2 of 3 - see README.md in this folder for the full picture.
+#
+# Same app as nginx.basic.conf.example, now served over HTTPS with a
+# self-signed certificate (generate one first with
+# generate_selfsigned_cert.sh in this same folder). Plain HTTP still
+# listens, but only to redirect to HTTPS - nothing is served over it.
+#
+# Good enough for: real user accounts/passwords/session cookies over an
+# encrypted connection, testing the HTTPS-only app behaviour
+# (APP_COOKIE_SECURE=true - see README.md) before a real certificate is
+# available, or a deployment where users can be told in advance to
+# click through a one-time browser warning (e.g. an internal tool).
+#
+# Not good enough for: a public deployment where random visitors are
+# expected to trust the site on sight - a self-signed cert always shows
+# a "not secure"/trust-warning page first. Swap ssl_certificate/
+# ssl_certificate_key below for a real certificate (e.g. Let's Encrypt)
+# when you're ready - everything else in this file stays the same.
+#
+# To use: run generate_selfsigned_cert.sh first (creates the two files
+# referenced below), then point compose.yaml's catalogue_nginx at this
+# file instead of catalogue.dev.conf - see the compose snippet in
+# README.md for the port/volume additions this needs. Replace
+# yourdomain.com below with your real domain.
+################################################################
+
+server {
+    listen 80;
+    listen [::]:80;
+
+    server_name yourdomain.com;
+
+    # Nothing served here except the redirect itself - every real
+    # request goes to the HTTPS block below.
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen 443 ssl;
+    listen [::]:443 ssl;
+    http2 on;
+
+    server_name yourdomain.com;
+
+    # Paths match where generate_selfsigned_cert.sh writes its output -
+    # see that script's own comments for the exact layout. Swap these
+    # two lines for a real certificate's paths later; nothing else in
+    # this file needs to change.
+    # generate_selfsigned_cert.sh names the key file after the domain it
+    # derives from APP_BASE_URL - if you replace yourdomain.com below
+    # with a different real domain, replace it here too so this matches
+    # the file the script actually produced (e.g. catalogue.yourdomain.com.key).
+    ssl_certificate     /etc/nginx/ssl/fullchain.pem;
+    ssl_certificate_key /etc/nginx/ssl/yourdomain.com.key;
+
+    # Diffie-Hellman parameters for perfect forward secrecy on the
+    # ciphers that use it - generate_selfsigned_cert.sh creates this
+    # once and reuses it on every future run (slow to generate, not
+    # tied to any specific certificate/key pair, safe to keep across
+    # renewals).
+    ssl_dhparam /etc/nginx/ssl/ffdhe2048.pem;
+
+    ssl_protocols TLSv1.2 TLSv1.3;
+    ssl_ciphers HIGH:!aNULL:!MD5;
+    ssl_prefer_server_ciphers on;
+
+    client_max_body_size 100M;
+
+    location / {
+        root /usr/share/nginx/html;
+        index index.html;
+        try_files $uri $uri/ /index.html;
+    }
+
+    location /thumbnails/ {
+        alias /srv/thumbnails/;
+        access_log off;
+        expires 7d;
+        add_header Cache-Control "public";
+    }
+
+    location /documents/ {
+        alias /srv/documents/;
+        autoindex on;
+        autoindex_exact_size off;
+        autoindex_localtime on;
+    }
+
+    location /api/ {
+        proxy_pass http://catalogue_backend:8000/api/;
+        proxy_http_version 1.1;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        # Real scheme is https here, unlike the plain-HTTP block above -
+        # the backend uses this to build correct absolute links (e.g. in
+        # outgoing emails) and to know the connection is actually secure.
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+}

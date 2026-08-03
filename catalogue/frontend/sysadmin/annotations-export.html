@@ -1,0 +1,86 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Annotations export · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Annotations export</h1>
+      <p>
+        Downloads one OME-XML file per slide that has at least one
+        non-flagged annotation, bundled into a single zip - the same
+        per-slide OME-XML a slide's own page can generate individually
+        (see <a href="/documents/script_annotation.html">applying a
+        slide's annotations</a>), just all of them in one archival run.
+        Uses fixed defaults for every slide: bright green, arrowhead at
+        the start for "arrow"-type annotations. Visible to system
+        administrators only.
+      </p>
+      <p class="vmc-muted">
+        <a href="/sysadmin/users.html">Users</a>
+        ·
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
+        ·
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
+        ·
+        <a href="/sysadmin/backup.html">Backup</a>
+        ·
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
+        ·
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
+        ·
+        <a href="/sysadmin/annotations-export.html">Annotations Export</a>
+        ·
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <a id="download-all" class="vmc-button" href="/api/admin/slides/annotations-ome-xml-bulk">Download all annotations (zip)</a>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>

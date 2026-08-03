@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+	</div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+
+    
+<section class="vmc-card">
+
+  <h1>Activate Account</h1>
+
+  <p>
+    Complete activation of your Virtual
+    Microscopy Catalogue account.
+  </p>
+
+  <hr class="vmc-divider">
+
+  <div id="activation-user-details">
+
+    Loading account information...
+
+  </div>
+
+  <form id="activation-form">
+
+    <div class="vmc-field">
+
+      <label for="password">
+        Password
+      </label>
+
+      <input
+        type="password"
+        id="password"
+        required>
+
+    </div>
+
+    <div class="vmc-field">
+
+      <label for="password_confirm">
+        Confirm Password
+      </label>
+
+      <input
+        type="password"
+        id="password_confirm"
+        required>
+
+    </div>
+
+    <div class="vmc-actions">
+
+      <button
+        class="vmc-button"
+        type="submit">
+
+        Activate Account
+
+      </button>
+
+      <span
+        id="activation-status"
+        class="vmc-muted"></span>
+
+    </div>
+
+  </form>
+
+</section>
+
+<script>
+
+const params =
+  new URLSearchParams(
+    window.location.search
+  );
+
+const token =
+  params.get("token");
+
+async function loadUserDetails() {
+
+  if (!token) {
+
+    document.getElementById(
+      "activation-user-details"
+    ).textContent =
+      "No activation token supplied.";
+
+    return;
+  }
+
+  const response =
+    await fetch(
+      "/api/activation-token/" + token
+    );
+
+  if (!response.ok) {
+
+    document.getElementById(
+      "activation-user-details"
+    ).textContent =
+      "Activation token invalid.";
+
+    return;
+  }
+
+  const user =
+    await response.json();
+
+  const institutionIdLabel =
+    await vmcGetInstitutionIdLabel();
+
+  document.getElementById(
+    "activation-user-details"
+  ).innerHTML = `
+    <p>
+      <strong>Username:</strong>
+      ${user.username}
+    </p>
+
+    <p>
+      <strong>Email:</strong>
+      ${user.email}
+    </p>
+
+    <p>
+      <strong>${institutionIdLabel}:</strong>
+      ${user.guid || ""}
+    </p>
+  `;
+}
+
+document.getElementById(
+  "activation-form"
+).addEventListener(
+  "submit",
+  async function(event) {
+
+    event.preventDefault();
+
+    const password =
+      document.getElementById(
+        "password"
+      ).value;
+
+    const confirm =
+      document.getElementById(
+        "password_confirm"
+      ).value;
+
+    if (password !== confirm) {
+
+      document.getElementById(
+        "activation-status"
+      ).textContent =
+        "Passwords do not match.";
+
+      return;
+    }
+
+    const response =
+      await fetch(
+        "/api/activate-account",
+        {
+          method: "POST",
+          headers: {
+            "Content-Type":
+              "application/json"
+          },
+          body: JSON.stringify({
+            token: token,
+            password: password
+          })
+        }
+      );
+
+    const status =
+      document.getElementById(
+        "activation-status"
+      );
+
+    if (response.ok) {
+
+      status.textContent =
+        "Account activated successfully.";
+
+      setTimeout(function () {
+        window.location.href = "/";
+      }, 1500);
+
+    } else {
+
+      status.textContent =
+        "Activation failed.";
+    }
+  }
+);
+
+loadUserDetails();
+
+</script>
+
+
+  </main>
+
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+	<a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+</body>
+</html>
+

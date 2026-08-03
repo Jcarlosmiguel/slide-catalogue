@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Login · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+</head>
+
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Sign in to search the catalogue</p>
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card" style="max-width: 520px; margin: 2rem auto;">
+      <h2>Sign in</h2>
+
+      <p class="vmc-muted">
+        Please sign in before searching or viewing slide details.
+      </p>
+
+      <form id="login-form">
+
+        <div class="vmc-field">
+          <label for="username">Username</label>
+          <input
+            id="username"
+            name="username"
+            type="text"
+            autocomplete="username"
+            required>
+        </div>
+
+        <div class="vmc-field" style="margin-top: 0.85rem;">
+          <label for="password">Password</label>
+          <input
+            id="password"
+            name="password"
+            type="password"
+            autocomplete="current-password"
+            required>
+        </div>
+
+        <div class="vmc-actions">
+          <button class="vmc-button" type="submit">Sign in</button>
+          <span id="login-status" class="vmc-muted"></span>
+        </div>
+
+      </form>
+
+      <p class="vmc-muted" style="margin-top: 1rem;">
+        <a href="/forgot-password.html">Forgot your password?</a>
+      </p>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/login.js"></script>
+</body>
+</html>

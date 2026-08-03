@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+	</div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Review Metadata</h1>
+      <p>
+        Once you've found a slide, check its detail page carefully before
+        relying on it for teaching - the catalogue is built from a large,
+        historical archive, and not every slide's metadata has been
+        curated yet.
+      </p>
+      <p>A slide's detail page has several sections:</p>
+      <ul>
+        <li><strong>Metadata</strong> - organ, species, stain, and other
+          descriptive information.</li>
+        <li><strong>Technical metadata</strong> - image dimensions,
+          scanner information, and other file-level technical details.</li>
+        <li><strong>Expert contributor notes</strong> - commentary added
+          by expert contributors (see <a href="/documents/about.html">About</a>).</li>
+        <li><strong>Slide annotations</strong> - teacher and workflow
+          annotations already attached to the slide, if any.</li>
+      </ul>
+      <p>
+        If something looks wrong - the wrong organ, an unclear stain, a
+        missing description - use the <strong>Metadata corrections</strong>
+        button on the slide's page. Pick the metadata area the issue
+        relates to (Organ, Tissue, Species, Stain, Description, Notes, or
+        a general comment), suggest a correction, and submit. If the
+        correct term isn't in the list, you can describe a new one for an
+        administrator to review and add to the dictionary.
+      </p>
+      <h2>Controlled vocabularies (dictionaries)</h2>
+      <p>
+        Organ, Tissue, Species, and Stain are all drawn from a fixed,
+        curated list rather than free text - this is what keeps search
+        working well: everyone using "Kidney" instead of a mix of
+        "kidney" / "Kidneys" / "renal" means a search for one of them
+        finds all of them. This is also why the correction form asks you
+        to pick from the list rather than type anything - if the right
+        term genuinely isn't there yet, describe it and an administrator
+        will review and add it, rather than the catalogue quietly
+        accumulating near-duplicate terms.
+      </p>
+      <div id="dictionary-browser">
+        <details>
+          <summary>Organ (<span data-dict-count="organ">loading…</span>)</summary>
+          <p class="vmc-muted" data-dict-list="organ">Loading…</p>
+        </details>
+        <details>
+          <summary>Tissue (<span data-dict-count="tissue">loading…</span>)</summary>
+          <p class="vmc-muted" data-dict-list="tissue">Loading…</p>
+        </details>
+        <details>
+          <summary>Species (<span data-dict-count="species">loading…</span>)</summary>
+          <p class="vmc-muted" data-dict-list="species">Loading…</p>
+        </details>
+        <details>
+          <summary>Stain (<span data-dict-count="stain">loading…</span>)</summary>
+          <p class="vmc-muted" data-dict-list="stain">Loading…</p>
+        </details>
+      </div>
+      <p>
+        Organ and Tissue aren't just two independent lists - the
+        database also records which tissues are recognised as belonging
+        to which organ (e.g. Cortex and Medulla under Kidney), so this
+        relationship can be used to sanity-check metadata rather than
+        treating the two fields as unrelated. This relationship data
+        isn't shown in the browser above; administrators can see it via
+        the dictionary export on the
+        <a href="/admin/dictionaries.html">Dictionaries</a> admin page.
+      </p>
+      <h2>Roles in the review workflow</h2>
+      <p>
+        Reviewing and improving metadata is a shared effort across three
+        roles:
+      </p>
+      <ul>
+        <li><strong>User</strong> - the default account role. Can search,
+          review any slide's metadata, and submit a correction when
+          something looks wrong, as described above. A user's own
+          submissions go into a queue for a reviewer to check - a user
+          can't approve their own or anyone else's corrections.</li>
+        <li><strong>Reviewer</strong> - can see every submitted
+          correction and work through them: mark one as under review,
+          then <strong>Approve</strong> or <strong>Reject</strong> it. Once
+          an approved correction has actually been applied to the
+          slide's metadata, the reviewer marks it "resolved" (thanking
+          the contributor) to close the loop.</li>
+        <li><strong>Expert</strong> - can add
+          <strong>Expert contributor notes</strong> directly to a slide's
+          detail page. This is separate from the correction workflow
+          above - it's additive commentary from someone with subject-matter
+          authority, not a proposed fix to existing metadata.</li>
+      </ul>
+      <p class="vmc-muted">
+        Corrections move through a simple lifecycle: submitted →
+        (optionally) marked under review → approved or rejected → resolved.
+      </p>
+      <p>
+        Once you're satisfied the metadata is accurate (or you've
+        submitted a correction and are continuing anyway), move on to
+        <a href="/documents/prepare-slides.html">Clean Artefacts and
+        Prepare Slides</a>.
+      </p>
+    </section>
+  </main>
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+	<a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+<script>
+
+document.addEventListener(
+  "DOMContentLoaded",
+  async function () {
+
+    const user =
+      await vmcGetCurrentUser();
+
+    if (!user) {
+
+      window.location.href =
+        "/login-required.html";
+
+      return;
+    }
+
+    for (const dictName of ["organ", "tissue", "species", "stain"]) {
+      fetch("/api/dictionaries/" + dictName, { credentials: "include" })
+        .then(function (response) { return response.json(); })
+        .then(function (data) {
+          const countEl = document.querySelector('[data-dict-count="' + dictName + '"]');
+          const listEl = document.querySelector('[data-dict-list="' + dictName + '"]');
+          const labels = data.values.map(function (item) { return item.label; }).sort();
+          countEl.textContent = labels.length + (labels.length === 1 ? " term" : " terms");
+          listEl.textContent = labels.join(", ");
+        })
+        .catch(function (error) {
+          console.error("Failed to load " + dictName + " dictionary:", error);
+        });
+    }
+  }
+);
+
+</script>
+</body>
+</html>
+

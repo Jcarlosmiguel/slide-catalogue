@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Search Results · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  
+  <script src="/js/auth.js"></script>
+  <script src="/js/glossary.js"></script>
+</head>
+
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Clean search results list</p>
+        </div>
+      </div>
+
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/reviewer-dashboard.html" class="vmc-reviewer-nav">Reviewer dashboard</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <div class="vmc-return-bar">
+      <a class="vmc-button vmc-button-secondary" href="/">← Return to Search</a>
+    </div>
+
+    <section class="vmc-result-shell">
+      <h2>Search results</h2>
+      <p id="results-summary" class="vmc-results-count">Loading results...</p>
+
+      <div class="vmc-results-toolbar">
+        <div class="vmc-field">
+          <label for="order-by">Order by</label>
+          <select id="order-by">
+            <option value="slide_id">Slide ID</option>
+            <option value="organ">Organ</option>
+            <option value="species">Species</option>
+            <option value="stain">Stain</option>
+            <option value="magnification">Magnification</option>
+            <option value="format">Format</option>
+            <option value="random">Random</option>
+          </select>
+        </div>
+
+        <div class="vmc-field">
+          <label for="order-dir">Direction</label>
+          <select id="order-dir">
+            <option value="asc">Ascending</option>
+            <option value="desc">Descending</option>
+          </select>
+        </div>
+
+        <div class="vmc-field">
+          <label for="view-mode">View mode</label>
+          <select id="view-mode">
+            <option value="paged">Paged results</option>
+            <option value="all">Single scroll page</option>
+          </select>
+        </div>
+
+        <div class="vmc-field">
+          <label for="page-size">Results per page</label>
+          <select id="page-size">
+            <option value="25">25</option>
+            <option value="50" selected>50</option>
+            <option value="100">100</option>
+          </select>
+        </div>
+
+        <button id="apply-results-options" class="vmc-button" type="button">Apply</button>
+      </div>
+
+      <div id="results-list" class="vmc-results-list">
+      </div>
+
+      <div class="vmc-pagination">
+        <button id="prev-page" class="vmc-button vmc-button-secondary" type="button">Previous</button>
+        <span id="pagination-status" class="vmc-pagination-status">[/span]
+        <button id="next-page" class="vmc-button vmc-button-secondary" type="button">Next</button>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/results.js"></script>
+</body>
+</html>

@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+	</div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Search Catalogue</h1>
+      <p>
+        The first step in the workflow: finding a slide to work with. The
+        search form on the <a href="/">home page</a> lets you combine any
+        of the following:
+      </p>
+      <ul>
+        <li><strong>Organ</strong> - e.g. Kidney, Heart, Cortex</li>
+        <li><strong>Species</strong> - e.g. Human, Rat, Guinea pig</li>
+        <li><strong>Stain</strong> - e.g. H&amp;E, Silver, Masson</li>
+        <li><strong>Keyword</strong> - matches metadata, expert
+          contributor notes, and filenames (e.g. "glomeruli", "hair
+          follicle")</li>
+        <li><strong>Slide ID</strong> - if you already know the exact
+          slide</li>
+        <li><strong>Filename</strong> - matches part of a slide's
+          filename</li>
+      </ul>
+      <p>
+        All fields you fill in are combined together (a slide has to
+        match every one you've set, not just any one of them).
+      </p>
+      <p>
+        The quick-filter badges next to the Search button narrow results
+        further to slides that have a particular property. Click a badge
+        to toggle it on or off - any number can be active at once.
+      </p>
+      <dl class="vmc-glossary-list">
+        <dt class="vmc-badge">ANN</dt>
+        <dd>Has annotations.</dd>
+
+        <dt class="vmc-badge vmc-badge-gold">EXP</dt>
+        <dd>Has expert contributor notes.</dd>
+
+        <dt class="vmc-badge vmc-badge-green">ZST</dt>
+        <dd>Z-stack - the slide has more than one focal plane.</dd>
+
+        <dt class="vmc-badge vmc-badge-purple">MVI</dt>
+        <dd>
+          Multiview - more than one scan was taken from the same
+          physical slide, e.g. two separate scan regions on one
+          specimen. This is about multiple views of the <em>same</em>
+          specimen, not different specimens.
+        </dd>
+
+        <dt class="vmc-badge vmc-badge-maroon">CMP</dt>
+        <dd>
+          Comparison slide - more than one slice of the specimen is
+          present, typically stained with different techniques so they
+          can be viewed side by side (e.g. H&amp;E alongside a special
+          stain of an adjacent section).
+        </dd>
+
+        <dt class="vmc-badge vmc-badge-slate">TSL</dt>
+        <dd>
+          Thick-section - a much thicker cut than a modern slide, from an
+          era before microtomes were available to cut the thin, even
+          sections routine today. These are historical remnants of that
+          earlier era of preparation, kept in the collection for their
+          historical value rather than as an example of a typical
+          section.
+        </dd>
+      </dl>
+      <p>
+        Once you've found a slide, continue to
+        <a href="/documents/review-metadata.html">Review the Metadata</a>.
+      </p>
+    </section>
+  </main>
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+	<a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+<script>
+
+document.addEventListener(
+  "DOMContentLoaded",
+  async function () {
+
+    const user =
+      await vmcGetCurrentUser();
+
+    if (!user) {
+
+      window.location.href =
+        "/login-required.html";
+
+      return;
+    }
+  }
+);
+
+</script>
+</body>
+</html>
+

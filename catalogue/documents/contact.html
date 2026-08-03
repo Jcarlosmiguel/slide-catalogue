@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+	</div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Contact</h1>
+      <p class="vmc-muted">
+        For general questions about this catalogue - not related to a
+        specific slide. If your question is about a specific slide (e.g.
+        reporting an error or suggesting a correction), please use the
+        "Metadata corrections" button on that slide's own page instead.
+      </p>
+      <p id="contact-direct-email" style="display: none;">
+        You can also email us directly at
+        <a id="contact-direct-email-link" href="#"></a>.
+      </p>
+
+      <form id="contact-form">
+        <div class="vmc-field">
+          <label for="contact-name">Your name</label>
+          <input id="contact-name" type="text" required>
+        </div>
+        <div class="vmc-field">
+          <label for="contact-email">Your email</label>
+          <input id="contact-email" type="email" required>
+        </div>
+        <div class="vmc-field">
+          <label for="contact-message">Message</label>
+          <textarea id="contact-message" style="width: 100%; height: 10rem;" required></textarea>
+        </div>
+
+        <div class="vmc-feedback-modal-actions" style="margin-top: 0.85rem;">
+          <button id="contact-submit" class="vmc-button" type="submit">Send message</button>
+          <span id="contact-status" class="vmc-feedback-status"></span>
+        </div>
+      </form>
+    </section>
+  </main>
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+  <script src="/js/contact-form.js"></script>
+</body>
+</html>
+

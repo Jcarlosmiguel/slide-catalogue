@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Reviewer Dashboard · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Reviewer dashboard</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Reviewer dashboard</h1>
+      <p class="vmc-muted">
+        Review metadata corrections and reported annotation errors. Experts can also
+        add notes directly to a slide's "Expert contributor notes" section here.
+      </p>
+
+      <hr class="vmc-divider">
+
+      <div class="vmc-tab-bar" role="tablist">
+        <button class="vmc-tab-button" data-tab="metadata" type="button">Metadata corrections</button>
+        <button class="vmc-tab-button" data-tab="annotations" type="button">Annotation reports</button>
+        <button class="vmc-tab-button vmc-expert-only" data-tab="expert-notes" type="button" hidden>Expert notes</button>
+      </div>
+
+      <div id="tab-metadata" class="vmc-tab-panel">
+        <div id="metadata-summary" class="vmc-card" style="margin: 1rem 0;">Loading summary...</div>
+        <div id="metadata-list" class="vmc-results-list"></div>
+      </div>
+
+      <div id="tab-annotations" class="vmc-tab-panel" hidden>
+        <div id="annotations-summary" class="vmc-card" style="margin: 1rem 0;">Loading summary...</div>
+        <div id="annotations-list" class="vmc-results-list"></div>
+      </div>
+
+      <div id="tab-expert-notes" class="vmc-tab-panel" hidden>
+        <article class="vmc-annotation-card">
+          <h3>Add an expert note</h3>
+          <div class="vmc-field">
+            <label for="expert-note-slide-id">Slide ID</label>
+            <input id="expert-note-slide-id" type="number" min="1" placeholder="e.g. 249">
+          </div>
+          <div class="vmc-field">
+            <label for="expert-note-title">Title (optional)</label>
+            <input id="expert-note-title" type="text">
+          </div>
+          <div class="vmc-field">
+            <label for="expert-note-text">Note</label>
+            <textarea id="expert-note-text" style="min-height: 90px;"></textarea>
+          </div>
+          <div class="vmc-actions">
+            <button id="expert-note-submit" class="vmc-button" type="button">Add note</button>
+            <span id="expert-note-status" class="vmc-muted"></span>
+          </div>
+        </article>
+
+        <div id="expert-notes-list" class="vmc-results-list"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script src="/js/reviewer-dashboard.js"></script>
+</body>
+</html>

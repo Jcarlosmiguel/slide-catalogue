@@ -1,0 +1,197 @@
+##############################################################################
+# compose.example.yaml
+#
+# Shows how to add this catalogue app to an EXISTING OMERO Docker Compose
+# deployment, so both sit behind the same nginx / same public IP, routed
+# by domain. This file is not meant to be used as-is - it's an annotated
+# reference showing which services to add and how they connect to
+# services OMERO's own compose.yaml already defines.
+#
+# This repo does not include or manage OMERO itself. The `database`,
+# `omeroserver`, and `omeroweb` services below are a minimal sketch of
+# what a typical OMERO deployment already has - copy the catalogue_*
+# services into YOUR existing compose.yaml instead of using this file
+# directly, and adjust names/networks to match what you already have.
+#
+# See README.md in this folder for the full walkthrough, and
+# nginx.conf.example for the matching domain-routing config.
+##############################################################################
+
+services:
+
+  ############################################################################
+  # Your existing OMERO services (sketch only - not managed by this repo).
+  # Whatever your real OMERO compose.yaml already has stays as-is; shown
+  # here only so the "networks:" wiring below makes sense.
+  ############################################################################
+
+  database:
+    image: "postgres:${POSTGRES_IMAGEVERSION}"
+    environment:
+      POSTGRES_USER: ${OMEROPGUSER}
+      POSTGRES_DB: ${OMEROPGDB}
+      POSTGRES_PASSWORD: ${OMEROPGPASSWORD}
+    networks:
+      - omero
+    volumes:
+      - "database:/var/lib/postgresql/data"
+
+  omeroserver:
+    image: "openmicroscopy/omero-server:${OMEROSERVER_IMAGEVERSION}"
+    environment:
+      CONFIG_omero_db_host: database
+      CONFIG_omero_db_user: ${OMEROPGUSER}
+      CONFIG_omero_db_pass: ${OMEROPGPASSWORD}
+      CONFIG_omero_db_name: ${OMEROPGDB}
+      ROOTPASS: ${OMEROROOTPASSWORD}
+    networks:
+      - omero
+    volumes:
+      - "${OMEROFILESEXTERNALPATH}:/OMERO:rw"
+
+  omeroweb:
+    image: "openmicroscopy/omero-web-standalone:${OMEROWEB_IMAGEVERSION}"
+    environment:
+      OMEROHOST: omeroserver
+    networks:
+      - omero
+
+  # The nginx service is the actual integration point: it's the ONE
+  # container that needs to know about both OMERO and the catalogue, so
+  # it can route by domain. Everything else stays fully independent.
+  nginx:
+    image: "library/nginx:${NGINX_IMAGEVERSION}"
+    networks:
+      - omero
+      # >>> CATALOGUE INTEGRATION >>>
+      # Added so this nginx can reach catalogue_nginx by container name
+      # below - the only network change needed on the OMERO side.
+      - catalogue_net
+      # <<< CATALOGUE INTEGRATION <<<
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - "${NGINXCONFFILE}:/etc/nginx/nginx.conf:ro"
+      - "${NGINXCERTIFICATEFOLDER}:/etc/nginx/ssl:ro"
+
+  ############################################################################
+  # >>>>>>>>>>>>>>>>>>>> CATALOGUE INTEGRATION START >>>>>>>>>>>>>>>>>>>>
+  #
+  # Everything below is copied, unmodified, from this repo's own top-level
+  # compose.yaml - only the surrounding context changes (these services
+  # now live in the same compose project as OMERO, sharing its nginx).
+  # Assumes this repo's `catalogue/` folder sits alongside wherever your
+  # OMERO compose.yaml lives, e.g. ./catalogue/backend, ./catalogue/frontend.
+  ############################################################################
+
+  catalogue_mariadb:
+    image: mariadb:${MARIADB_IMAGEVERSION}
+    container_name: catalogue_mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: ${MARIADB_ROOT_PASSWORD}
+      MARIADB_DATABASE: ${MARIADB_DATABASE}
+      MARIADB_USER: ${MARIADB_USER}
+      MARIADB_PASSWORD: ${MARIADB_PASSWORD}
+    volumes:
+      - catalogue_mariadb_data:/var/lib/mysql
+    networks:
+      - catalogue_net
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  catalogue_backend:
+    build:
+      context: ./catalogue/backend
+    container_name: catalogue_backend
+    restart: unless-stopped
+    environment:
+      APP_ENV: ${APP_ENV}
+      APP_ROOT_PATH: ${APP_ROOT_PATH}
+      APP_COOKIE_SECURE: ${APP_COOKIE_SECURE}
+      APP_SESSION_SECRET: ${APP_SESSION_SECRET}
+
+      DB_HOST: catalogue_mariadb
+      DB_PORT: 3306
+      DB_NAME: ${MARIADB_DATABASE}
+      DB_USER: ${MARIADB_USER}
+      DB_PASSWORD: ${MARIADB_PASSWORD}
+
+      SHARE_ROOT_WINDOWS: ${SHARE_ROOT_WINDOWS}
+      SHARE_ROOT_MACOS: ${SHARE_ROOT_MACOS}
+      SHARE_ROOT_LINUX: ${SHARE_ROOT_LINUX}
+
+      SMTP_HOST: ${SMTP_HOST}
+      SMTP_PORT: ${SMTP_PORT}
+      SMTP_USERNAME: ${SMTP_USERNAME}
+      SMTP_PASSWORD: ${SMTP_PASSWORD}
+      SMTP_FROM: ${SMTP_FROM}
+
+      APP_BASE_URL: ${APP_BASE_URL}
+
+      INSTITUTION_ID_LABEL: ${INSTITUTION_ID_LABEL}
+    volumes:
+      - ./catalogue/manual_thumbnails:/srv/manual_thumbnails
+      - ./catalogue/thumbnail_backups:/srv/thumbnail_backups
+      - ./catalogue/thumbnails:/srv/thumbnails
+    depends_on:
+      catalogue_mariadb:
+        condition: service_healthy
+    networks:
+      - catalogue_net
+
+  catalogue_nginx:
+    image: nginx:${CATALOGUE_NGINX_IMAGEVERSION}
+    container_name: catalogue_nginx
+    restart: unless-stopped
+    ports:
+      # Kept published directly on the host for sanity-checking
+      # (http://<server-ip>:8080) independent of the domain-routing nginx
+      # service above. Harmless to leave in place long-term.
+      - "${HTTP_PORT}:80"
+    volumes:
+      - ./catalogue/frontend:/usr/share/nginx/html:ro
+      - ./catalogue/thumbnails:/srv/thumbnails:ro
+      - ./catalogue/documents:/srv/documents:ro
+      - ./catalogue/nginx/catalogue.dev.conf:/etc/nginx/conf.d/default.conf:ro
+    depends_on:
+      - catalogue_backend
+    networks:
+      # Reachable BY NAME from the OMERO-side nginx service above, which
+      # is why that service also has catalogue_net added to its networks.
+      - catalogue_net
+
+  # Not started by default (profiles: dev). Enable with:
+  #   docker compose --profile dev up -d
+  adminer:
+    image: adminer:${ADMINER_IMAGEVERSION}
+    container_name: catalogue_adminer
+    restart: unless-stopped
+    ports:
+      - "${ADMINER_PORT}:8080"
+    depends_on:
+      catalogue_mariadb:
+        condition: service_healthy
+    networks:
+      - catalogue_net
+    profiles:
+      - dev
+
+  # <<<<<<<<<<<<<<<<<<<<<< CATALOGUE INTEGRATION END <<<<<<<<<<<<<<<<<<<<<<
+  ############################################################################
+
+networks:
+  omero:
+  # >>> CATALOGUE INTEGRATION >>>
+  catalogue_net:
+  # <<< CATALOGUE INTEGRATION <<<
+
+volumes:
+  database:
+  # >>> CATALOGUE INTEGRATION >>>
+  catalogue_mariadb_data:
+  # <<< CATALOGUE INTEGRATION <<<

@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+	</div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Add Slides to Virtual Learning Materials</h1>
+      <p>
+        The final step - embedding the slide into a course in your
+        institution's VLE (Moodle, Canvas, Blackboard, or similar). This
+        page describes the general pattern; the exact steps depend on
+        which VLE integration your institution has set up.
+      </p>
+
+      <h2>The general pattern</h2>
+      <p>
+        A slide embedded in a VLE typically works through a gated proxy,
+        not a direct link to OMERO:
+      </p>
+      <ul>
+        <li>The VLE integration is configured with one or more
+          <strong>subject/course accounts</strong> in OMERO - the same
+          course-specific accounts set up in the previous step (see
+          <a href="/documents/publish-slides.html">Prepare the Slide for
+          View on the VLE</a>).</li>
+        <li>A member of course staff embeds a slide by its OMERO Image
+          ID into a page, label, or similar content item in the VLE,
+          picking the subject account that matches the course.</li>
+        <li>When a student views that page, the VLE checks they're
+          enrolled on the course, then serves the slide through a proxy
+          using the shared subject account - the student never needs
+          (or gets) their own OMERO login or credentials, and the real
+          OMERO server address never appears in what they see.</li>
+      </ul>
+      <p>
+        Some integrations also support annotating specific views of the
+        slide with linked commentary text, or setting which part of the
+        slide the embed opens on by default - check your specific
+        integration's own documentation for what it supports.
+      </p>
+      <p class="vmc-muted">
+        If your institution doesn't have a VLE integration like this yet,
+        the underlying pattern (an enrolment-gated reverse proxy in front
+        of OMERO, using a shared per-course service account) is a
+        reasonable starting point for building one.
+      </p>
+    </section>
+  </main>
+ <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+	<a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+<script>
+
+document.addEventListener(
+  "DOMContentLoaded",
+  async function () {
+
+    const user =
+      await vmcGetCurrentUser();
+
+    if (!user) {
+
+      window.location.href =
+        "/login-required.html";
+
+      return;
+    }
+  }
+);
+
+</script>
+</body>
+</html>
+

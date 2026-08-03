@@ -1,0 +1,104 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Request Access - Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+
+<body>
+
+<div class="vmc-top-strip">
+  Your Institution · Virtual Microscopy Catalogue
+</div>
+
+<header class="vmc-header">
+  <div class="vmc-header-inner">
+    <div class="vmc-brand-block">
+      <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+      <div class="vmc-brand-text">
+        <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+        <p class="vmc-subtitle">Request access to the catalogue</p>
+      </div>
+    </div>
+  </div>
+</header>
+
+<main class="vmc-page">
+  <section class="vmc-card" style="max-width: 800px; margin: 2rem auto;">
+
+    <h2>Request Access</h2>
+
+    <p>
+      Access to the catalogue requires administrator approval.
+    </p>
+
+    <form>
+
+      <div class="vmc-field">
+        <label>Full Name</label>
+        <input type="text">
+      </div>
+
+      <div class="vmc-field">
+        <label>Email Address</label>
+        <input type="email">
+      </div>
+
+      <div class="vmc-field">
+        <label>Institution</label>
+        <input type="text">
+      </div>
+
+      <div class="vmc-field">
+        <label><span class="vmc-institution-id-label">Institution ID</span> (optional)</label>
+        <input type="text">
+      </div>
+
+      <div class="vmc-field">
+        <label>Reason for Access</label>
+        <textarea rows="6"></textarea>
+      </div>
+
+      <div class="vmc-field">
+        <label>Authentication Method</label>
+
+        <div>
+          <input type="radio" checked>
+          Catalogue Password
+        </div>
+
+        <div>
+          <input type="radio" disabled>
+          <span class="vmc-institution-id-label">Institution ID</span> / LDAP (Future Implementation)
+        </div>
+      </div>
+
+      <div class="vmc-actions">
+        <button class="vmc-button" type="button">
+          Submit Access Request
+        </button>
+      </div>
+
+    </form>
+
+  </section>
+</main>
+
+<footer class="vmc-footer">
+  <div class="vmc-footer-inner">
+    <div>Virtual Microscopy Catalogue</div>
+    <div>
+      <a href="/documents/about.html">About</a>
+      ·
+      <a href="/documents/contact.html">Contact</a>
+      ·
+      <a href="/documents/feedback.html">Feedback</a>
+    </div>
+  </div>
+</footer>
+
+</body>
+</html>

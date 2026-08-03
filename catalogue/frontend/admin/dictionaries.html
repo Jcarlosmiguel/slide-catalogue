@@ -1,0 +1,114 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Dictionaries · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Dictionaries</h1>
+      <p class="vmc-muted">
+        The controlled vocabularies (Organ, Tissue, Species, Stain, and
+        the Organ/Tissue relationships between them) used across search
+        and metadata corrections. Admin-only.
+      </p>
+      <p class="vmc-muted">
+        <a href="/admin/corrections-management.html">Corrections</a>
+        ·
+        <a href="/admin/site-feedback.html">Site Feedback</a>
+        ·
+        <a href="/admin/access-requests.html">Access Requests</a>
+        ·
+        <a href="/admin/admin-settings.html">System Settings</a>
+        ·
+        <a href="/admin/dictionaries.html">Dictionaries</a>
+        ·
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin &rarr;</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <button id="download-dictionaries" class="vmc-button">Download dictionaries (JSON)</button>
+      <div id="download-status" style="margin-top: 1rem;"></div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const button = document.getElementById("download-dictionaries");
+    const status = document.getElementById("download-status");
+
+    button.addEventListener("click", async function () {
+      button.disabled = true;
+      status.textContent = "Preparing download...";
+
+      const response = await fetch("/api/admin/dictionaries-export", {
+        credentials: "include"
+      });
+
+      button.disabled = false;
+
+      if (response.status === 403) {
+        status.textContent = "Admin access required.";
+        return;
+      }
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        status.textContent = "Export failed: " + (body.detail || response.statusText);
+        return;
+      }
+
+      const data = await response.json();
+      const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = "catalogue-dictionaries.json";
+      link.click();
+      URL.revokeObjectURL(url);
+
+      status.textContent = "Downloaded.";
+    });
+  </script>
+</body>
+</html>

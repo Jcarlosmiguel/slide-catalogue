@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 160 50" role="img" aria-label="Placeholder institution logo">
+  <g fill="none" stroke="#2563eb" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="18" cy="30" r="11"/>
+    <path d="M18 19 L18 8 M12 8 L24 8"/>
+    <path d="M9 41 L27 41"/>
+  </g>
+  <text x="38" y="24" font-family="Arial, Helvetica, sans-serif" font-size="13" font-weight="bold" fill="#2563eb">YOUR LOGO</text>
+  <text x="38" y="38" font-family="Arial, Helvetica, sans-serif" font-size="9" fill="#6b7280">replace this placeholder</text>
+</svg>

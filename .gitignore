@@ -1,0 +1,52 @@
+# Secrets
+.env
+dotenv
+
+# Python
+__pycache__/
+*.pyc
+
+# Database dumps
+*.sql
+!catalogue/backend/migrations/*.sql
+
+# Archives
+*.tar.gz
+
+# Logs
+*.log
+
+# Backups
+backups/
+
+# Generated thumbnails
+thumbnail_backups/
+
+# Temporary development files
+*.working
+*.bak
+
+# Misc
+.DS_Store
+
+# Generated thumbnails
+
+# Generated thumbnails.
+# These are recreated from slide data and should not be version controlled.
+thumbnails/
+
+# Administrator-curated thumbnail staging area.
+# Stored outside Git because contents can be regenerated or replaced.
+manual_thumbnails/
+
+# Historical thumbnail backups.
+thumbnail_backups/
+
+# Generated documentation
+slide-catalogue_tree.txt
+
+# Self-signed/real certificates - see
+# catalogue/docs/standalone/generate_selfsigned_cert.sh. Keep a
+# placeholder README so the expected location is still visible in git.
+certs/*
+!certs/README.md
