@@ -18,7 +18,7 @@ from datetime import (
 from argon2 import PasswordHasher
 from decimal import Decimal
 from typing import Any, Optional
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import pymysql
 from fastapi import FastAPI, HTTPException, Query, Request, Response, Body, Depends
 from fastapi.responses import StreamingResponse
@@ -59,8 +59,29 @@ def _b64url_decode(value: str) -> bytes:
     return base64.urlsafe_b64decode(value + padding)
 
 
+_KNOWN_PLACEHOLDER_SESSION_SECRETS = {
+    "replace-this-with-a-long-random-secret",
+    "change-me-to-a-long-random-string",
+}
+
+
 def get_session_secret() -> str:
-    return os.getenv("APP_SESSION_SECRET", "replace-this-with-a-long-random-secret")
+    """Fails closed rather than falling back to a hardcoded default - this
+    is a public template repo, so a hardcoded fallback secret here would
+    let anyone who's read the source code forge a valid session (including
+    role: system_admin) against any deployment that forgot to set this.
+    Also rejects known placeholder values outright (e.g. .env.example's own
+    "change-me-..." text) even though they're long enough to pass the
+    length check - a shared, publicly-known placeholder is exactly as
+    guessable as no secret at all if someone copies it verbatim."""
+    secret = os.getenv("APP_SESSION_SECRET")
+    if not secret or len(secret) < 32 or secret in _KNOWN_PLACEHOLDER_SESSION_SECRETS:
+        raise RuntimeError(
+            "APP_SESSION_SECRET must be set to a real, random string of at "
+            "least 32 characters - e.g. `openssl rand -hex 32` - refusing "
+            "to start with no secret or a known placeholder value."
+        )
+    return secret
 
 
 def sign_payload(payload: dict) -> str:
@@ -193,14 +214,29 @@ def login(response: Response, payload: dict = Body(...)):
                 )
             )
 
-            user = cur.fetchone()
+            candidates = cur.fetchall()
 
-        if not user:
+        if not candidates:
 
             raise HTTPException(
                 status_code=401,
                 detail="Invalid username or password"
             )
+
+        if len(candidates) > 1:
+            # username/email/guid aren't enforced as one shared unique
+            # namespace at the DB level - if user A's username happens to
+            # equal user B's email or guid (e.g. after a profile edit via
+            # PUT /api/me/profile, which lets a user pick their own
+            # username/guid), which row authenticates would otherwise be
+            # whatever order MariaDB happens to return them in. Refuse
+            # rather than pick one arbitrarily.
+            raise HTTPException(
+                status_code=401,
+                detail="Invalid username or password"
+            )
+
+        user = candidates[0]
 
         if user["account_status"] != "ACTIVE":
 
@@ -636,9 +672,14 @@ def public_config():
 
 
 @app.get("/api/db-health")
-def db_health():
-    """Unauthenticated database connectivity check - returns the connected
-    database name and current slide count, or an error detail."""
+def db_health(user: dict = Depends(require_user)):
+    """Logged-in database connectivity check - returns the connected
+    database name and current slide count, or a generic error. Requires
+    login (unlike /api/health, which is the real unauthenticated liveness
+    probe) since the database name and raw exception text (which can
+    include the DB username and internal network details, e.g. a real
+    "Access denied for user '...'@'10.x.x.x'" message) shouldn't be
+    exposed to an anonymous caller."""
     try:
         conn = get_db_connection()
         with conn.cursor() as cur:
@@ -657,9 +698,9 @@ def db_health():
         }
 
     except Exception as exc:
+        print("db_health check failed:", exc)
         return {
             "status": "error",
-            "detail": str(exc)
         }
 
 
@@ -686,9 +727,9 @@ class AccessRequestCreate(BaseModel):
     request_reason: str
 
 class ContactMessageCreate(BaseModel):
-    name: str
-    email: str
-    message: str
+    name: str = Field(max_length=255)
+    email: str = Field(max_length=255)
+    message: str = Field(max_length=10000)
 
 class ActivationRequest(BaseModel):
     token: str
@@ -810,9 +851,15 @@ def update_profile(
                     raise HTTPException(status_code=400, detail="When a GUID is present, the username must match the GUID")
             if new_username != current_row["username"]:
                 with conn.cursor() as cur:
+                    # Checked against all three columns, not just username -
+                    # username/email/guid share one authentication namespace
+                    # (login accepts any of the three), so a new username
+                    # colliding with another user's email or guid is exactly
+                    # as ambiguous at login time as colliding with their
+                    # username would be.
                     cur.execute(
-                        "SELECT user_id FROM users WHERE username = %s AND user_id != %s",
-                        (new_username, current_row["user_id"]),
+                        "SELECT user_id FROM users WHERE (username = %s OR email = %s OR guid = %s) AND user_id != %s",
+                        (new_username, new_username, new_username, current_row["user_id"]),
                     )
                     duplicate = cur.fetchone()
                 if duplicate:
@@ -827,8 +874,8 @@ def update_profile(
             if new_email != current_row["email"]:
                 with conn.cursor() as cur:
                     cur.execute(
-                        "SELECT user_id FROM users WHERE email = %s AND user_id != %s",
-                        (new_email, current_row["user_id"]),
+                        "SELECT user_id FROM users WHERE (username = %s OR email = %s OR guid = %s) AND user_id != %s",
+                        (new_email, new_email, new_email, current_row["user_id"]),
                     )
                     duplicate = cur.fetchone()
                 if duplicate:
@@ -851,6 +898,15 @@ def update_profile(
         if payload.guid is not None:
             guid = normalize_optional(payload.guid)
             if guid != current_row["guid"]:
+                if guid:
+                    with conn.cursor() as cur:
+                        cur.execute(
+                            "SELECT user_id FROM users WHERE (username = %s OR email = %s OR guid = %s) AND user_id != %s",
+                            (guid, guid, guid, current_row["user_id"]),
+                        )
+                        duplicate = cur.fetchone()
+                    if duplicate:
+                        raise HTTPException(status_code=400, detail="GUID is already in use")
                 updates.append("guid = %s")
                 params.append(guid)
 
@@ -1493,6 +1549,8 @@ def activate_account(
                     detail="Activation token expired"
                 )
 
+            _validate_password_policy(request.password)
+
             password_hash = (
                 password_hasher.hash(
                     request.password
@@ -1582,15 +1640,25 @@ def request_password_reset(
 
             user_row = cur.fetchone()
 
+            # Always returns the same generic 200 regardless of whether the
+            # email matched a real, active account - a distinct 404/400 here
+            # would let anyone enumerate which email addresses have accounts
+            # (and which of those are inactive) just by trying them against
+            # this endpoint, no login attempt needed.
+            generic_response = {
+                "status": "success",
+                "message": "If an account exists for that email address, a password reset link has been sent.",
+            }
+
             if not user_row:
                 _log_password_reset_event(cur, "invalid_email", email, None, http_request)
                 conn.commit()
-                raise HTTPException(status_code=404, detail="No account found with that email address")
+                return generic_response
 
             if user_row["account_status"] != "ACTIVE":
                 _log_password_reset_event(cur, "inactive_account", email, user_row["user_id"], http_request)
                 conn.commit()
-                raise HTTPException(status_code=400, detail="This account is not active. Contact an administrator.")
+                return generic_response
 
             reset_token = str(uuid.uuid4())
             expires_at = datetime.utcnow() + timedelta(hours=2)
@@ -1628,10 +1696,7 @@ def request_password_reset(
                 },
             )
 
-            return {
-                "status": "success",
-                "message": "Password reset link sent to your email"
-            }
+            return generic_response
 
     finally:
         conn.close()
@@ -1763,7 +1828,12 @@ def reset_password(
 def contribution_ticker():
     """Public, unauthenticated: homepage scrolling ticker of contributor
     thank-you messages. Admin-controlled via contribution_ticker_enabled /
-    contribution_ticker_message in system_settings."""
+    contribution_ticker_message in system_settings - ships disabled with
+    no default message. Before enabling: this formats every active
+    contributor's full_name and username into the public response, and
+    username is the same field used for an institutional GUID/ID number
+    where one is configured - enabling this publishes real names and
+    institutional IDs to anyone, logged in or not."""
 
     conn = get_db_connection()
 
@@ -4628,11 +4698,22 @@ def corrections_export_csv(
         "updated_at",
     ]
 
+    def _csv_safe(value):
+        # Prevents CSV formula injection: a value starting with =/+/-/@ is
+        # interpreted as a formula by Excel/LibreOffice when the file is
+        # opened, not shown as literal text - dangerous since every column
+        # here can contain free text a site visitor submitted themselves
+        # (feedback_text, suggested_value, submitter_display_name, etc.).
+        # Prefixing with a leading apostrophe forces it to display as text.
+        if isinstance(value, str) and value[:1] in ("=", "+", "-", "@"):
+            return "'" + value
+        return value
+
     writer = csv.DictWriter(output, fieldnames=fieldnames)
     writer.writeheader()
 
     for row in rows:
-        writer.writerow({field: row.get(field) for field in fieldnames})
+        writer.writerow({field: _csv_safe(row.get(field)) for field in fieldnames})
 
     output.seek(0)
 
@@ -4824,6 +4905,10 @@ def create_site_feedback(
 
     if not feedback_text:
         raise HTTPException(status_code=400, detail="Feedback text is required")
+    if len(feedback_text) > 10000:
+        raise HTTPException(status_code=400, detail="Feedback text is too long")
+    if len(page_url or "") > 500:
+        page_url = page_url[:500]
 
     conn = get_db_connection()
 

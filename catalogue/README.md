@@ -15,7 +15,7 @@ deployment (sharing one nginx/public IP), see
 
 | Folder | What's there |
 |---|---|
-| `backend/` | FastAPI application - auth, search, corrections/feedback, access requests, reviewer/expert roles, QuPath script export, admin functions, system settings. `migrations/` holds the schema + `seed_example_data.py` seeds example data + `seed_dictionaries.py` seeds a real curated Organ/Tissue/Species/Stain vocabulary from `seed_data/dictionaries.json`. `Dockerfile` builds the `catalogue_backend` container. |
+| `backend/` | FastAPI application - auth, search, corrections/feedback, access requests, reviewer/expert roles, QuPath script export, admin functions, system settings. `migrations/` holds the schema; `app/seed_example_data.py` seeds example data and `app/seed_dictionaries.py` seeds a real curated Organ/Tissue/Species/Stain vocabulary from `app/seed_data/dictionaries.json`. `Dockerfile` builds the `catalogue_backend` container. |
 | `frontend/` | Static HTML/CSS/JS served by `catalogue_nginx`. |
 | `nginx/` | `catalogue.dev.conf` - `catalogue_nginx`'s own config (serves the frontend, `/thumbnails/`, `/documents/`, proxies `/api/` to the backend). |
 | `tools/` | Maintenance scripts (thumbnail generation etc.) - see `docs/thumbnail-maintenance.md`. |

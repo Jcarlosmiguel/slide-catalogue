@@ -38,8 +38,8 @@ read -p "Restore database '$MARIADB_DATABASE' from $BACKUP_FILE? (y/N): " CONFIR
 # catalogue_backend first if you want to guarantee no writes race the
 # restore:
 #   docker compose stop catalogue_backend
-cat "$BACKUP_FILE" | docker compose exec -T catalogue_mariadb \
-    mariadb -u root -p"$MARIADB_ROOT_PASSWORD"
+cat "$BACKUP_FILE" | docker compose exec -T -e MYSQL_PWD="$MARIADB_ROOT_PASSWORD" catalogue_mariadb \
+    mariadb -u root
 
 echo "Restore completed. Restart catalogue_backend if you stopped it:"
 echo "  docker compose start catalogue_backend"

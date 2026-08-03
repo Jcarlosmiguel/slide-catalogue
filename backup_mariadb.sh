@@ -20,9 +20,11 @@ fi
 mkdir -p "$BACKUP_DIR"
 
 # Get MariaDB version (e.g. 11.4.2-MariaDB)
+# MYSQL_PWD instead of -p<password> keeps mariadb's own argv (visible via
+# `ps` to anyone else on the host or inside the container) clean.
 MARIADB_VERSION=$(
-    docker compose exec -T catalogue_mariadb \
-        mariadb -u root -p"$MARIADB_ROOT_PASSWORD" -sNe "SELECT VERSION();" 2>/dev/null | tr -d '\r\n'
+    docker compose exec -T -e MYSQL_PWD="$MARIADB_ROOT_PASSWORD" catalogue_mariadb \
+        mariadb -u root -sNe "SELECT VERSION();" 2>/dev/null | tr -d '\r\n'
 )
 
 TIMESTAMP=$(date +"%Y-%m-%d_%H-%M-%S")
@@ -36,8 +38,8 @@ echo "Creating backup of database '$MARIADB_DATABASE' (MariaDB $MARIADB_VERSION)
 # already exist. --single-transaction takes a consistent InnoDB snapshot
 # without locking tables; --routines/--triggers include stored
 # procedures/triggers, which a plain mariadb-dump would otherwise skip.
-docker compose exec -T catalogue_mariadb \
-    mariadb-dump -u root -p"$MARIADB_ROOT_PASSWORD" \
+docker compose exec -T -e MYSQL_PWD="$MARIADB_ROOT_PASSWORD" catalogue_mariadb \
+    mariadb-dump -u root \
     --single-transaction --routines --triggers --databases \
     "$MARIADB_DATABASE" > "$BACKUP_FILE"
 

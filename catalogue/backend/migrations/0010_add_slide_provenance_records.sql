@@ -30,11 +30,11 @@
 -- assigning existing (or this repo's own) slides to a real provenance
 -- record requires knowing the actual institution/department/rights
 -- breakdown, which is a curatorial decision, not something a schema
--- migration should invent. (Contrast with omero-mvls's own copy of this
--- migration, which does backfill - every existing row there really is one
--- batch, "MVLS Archive" / University of Glasgow, so that backfill is a
--- straightforward fact rather than a guess - but that's institution-specific
--- and deliberately doesn't belong in this de-branded, public repo.)
+-- migration should invent. (A real institutional deployment's own copy
+-- of this migration might backfill this directly, if every existing row
+-- there really does come from one known real-world batch/institution -
+-- but that's deployment-specific and deliberately doesn't belong in this
+-- de-branded, general-purpose repo.)
 --
 -- Run against catalogue, e.g.:
 --   docker exec -i catalogue_mariadb mariadb -u catalogue_app -p'...' catalogue \
@@ -42,7 +42,7 @@
 
 CREATE TABLE provenance_records (
   provenance_id INT NOT NULL AUTO_INCREMENT COMMENT 'Primary key.',
-  label VARCHAR(255) NOT NULL COMMENT 'Short human-readable identifier shown when selecting an existing record during import, e.g. "University of Glasgow - MVLS Archive".',
+  label VARCHAR(255) NOT NULL COMMENT 'Short human-readable identifier shown when selecting an existing record during import, e.g. "Example University - Main Archive".',
   institution VARCHAR(255) DEFAULT NULL COMMENT 'Institution this record is attributed to.',
   department VARCHAR(255) DEFAULT NULL COMMENT 'Department/collection within the institution, if applicable.',
   specimen_category VARCHAR(100) DEFAULT NULL COMMENT 'Specimen category this record applies to, if rights differ by category within the same institution/department, e.g. "human", "animal".',

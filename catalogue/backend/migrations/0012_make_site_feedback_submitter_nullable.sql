@@ -1,4 +1,4 @@
--- site_feedback used to require login (mvlsRequireLogin() on the
+-- site_feedback used to require login (vmcRequireLogin() on the
 -- frontend, require_user on the backend), so submitter_username was
 -- always populated from the session. Opening the form to anonymous
 -- visitors too means there's no session to read a username from -

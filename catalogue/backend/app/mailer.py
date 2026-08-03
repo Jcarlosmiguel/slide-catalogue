@@ -1,5 +1,6 @@
 import os
 import smtplib
+import ssl
 from email.message import EmailMessage
 
 
@@ -40,7 +41,11 @@ def send_email(
     message.set_content(body)
 
     with smtplib.SMTP(host, port, timeout=10) as server:
-        server.starttls()
+        # Explicit default context (hostname + cert chain verified) rather
+        # than starttls()'s own implicit context, which older Python
+        # versions can leave unverified - an on-path attacker could
+        # otherwise strip/MITM this and capture SMTP_USERNAME/PASSWORD.
+        server.starttls(context=ssl.create_default_context())
         if username:
             server.login(username, password)
         server.send_message(message)

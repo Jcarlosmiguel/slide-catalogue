@@ -1,6 +1,6 @@
 import html
 import re
-import xml.etree.ElementTree as ET
+from defusedxml import ElementTree as ET
 from xml.sax.saxutils import escape as xml_escape
 
 try:

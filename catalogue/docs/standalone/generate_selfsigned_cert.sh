@@ -10,8 +10,9 @@ set -euo pipefail
 # ffdhe2048.pem to certs/nginx/ at the repo root, which is exactly what
 # that nginx config expects to find mounted at /etc/nginx/ssl/.
 #
-# Adapted from omero-mvls's own scripts/self_certificates.sh (a sibling,
-# OMERO-integrated deployment of this same catalogue) - dropped here:
+# Adapted from an OMERO-integrated deployment's own equivalent script (a
+# sibling deployment of this same catalogue, merged into an existing
+# OMERO docker-compose stack) - dropped here:
 # the OMERO-side PKCS12 bundle and OMEROGLACIER2ICESSLPASSWORD
 # requirement (nothing here needs them, this is nginx-only), and the
 # ACL grant for OMERO's fixed container UID (that workaround exists

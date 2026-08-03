@@ -5,14 +5,16 @@
 -- create duplicate slides rows.
 --
 -- This column is the provenance half of the fix: reconcile.py's new --source flag
--- writes a free-text label here (e.g. "MVLS Archive", "Vet share batch 1")
+-- writes a free-text label here (e.g. "Main Archive", "Vet share batch 1")
 -- describing which run/folder/query populated the row. The other half - the
 -- actual dedup check - compares archive_relative_path (not physical_path, which
 -- is mount-prefix-dependent and can differ across machines/runs for the same
 -- physical file) against what's already in the target catalogue before crawling.
 --
--- Existing rows all came from the one folder reconciled so far, so they're
--- backfilled accordingly rather than left blank.
+-- If your catalogue already has existing rows from before this column
+-- existed, backfill them with a real label of your own choosing, e.g.:
+--   UPDATE slides SET source = 'Main Archive' WHERE source = '';
+-- A brand-new/empty catalogue has nothing to backfill.
 --
 -- Run against catalogue, e.g.:
 --   docker exec -i catalogue_mariadb mariadb -u catalogue_app -p'...' catalogue \
@@ -20,7 +22,5 @@
 
 ALTER TABLE slides
   ADD COLUMN source VARCHAR(255) NOT NULL DEFAULT ''
-  COMMENT 'Free-text label describing which reconciler run/folder/query populated this row (e.g. "MVLS Archive", "Vet share batch 1") - set via reconcile.py --source and used to scope re-runs against archive_relative_path; not a uniqueness key itself.'
+  COMMENT 'Free-text label describing which reconciler run/folder/query populated this row (e.g. "Main Archive", "Vet share batch 1") - set via reconcile.py --source and used to scope re-runs against archive_relative_path; not a uniqueness key itself.'
   AFTER archive_relative_path;
-
-UPDATE slides SET source = 'MVLS Archive' WHERE source = '';

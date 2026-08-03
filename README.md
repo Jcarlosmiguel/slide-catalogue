@@ -17,13 +17,20 @@ The app will be available at `http://localhost:$HTTP_PORT` (see `.env`).
 Required environment variables (see `compose.yaml` for the full list):
 
 - `MARIADB_ROOT_PASSWORD`, `MARIADB_DATABASE`, `MARIADB_USER`, `MARIADB_PASSWORD`
-- `APP_ENV`, `APP_SESSION_SECRET`, `APP_BASE_URL`
+- `APP_ENV`, `APP_SESSION_SECRET`, `APP_BASE_URL`, `APP_ROOT_PATH`,
+  `APP_COOKIE_SECURE` - set the last one `true` once served over HTTPS
 - `HTTP_PORT`, `ADMINER_PORT`
 - `SHARE_ROOT_WINDOWS` / `SHARE_ROOT_MACOS` / `SHARE_ROOT_LINUX` - the mount
   paths of your slide archive share on each OS, shown to users as a
   ready-to-copy path
 - `SMTP_HOST`, `SMTP_PORT`, `SMTP_USERNAME`, `SMTP_PASSWORD`, `SMTP_FROM` -
   outgoing mail for account activation/password reset
+- `MAIL_FROM_CONTACT`, `CONTACT_NOTIFICATION_EMAIL` - the public contact
+  form's sender identity and where messages are actually delivered
+  (server-side only, never shown to visitors)
+- `INSTITUTION_ID_LABEL` - optional, what to call your institution's
+  external identity number wherever the frontend displays it (e.g.
+  "University ID", "Student/Staff Number") in place of the generic default
 
 Run database migrations after first startup and after every pull (this also
 creates the base schema automatically on a fresh, empty database):
@@ -68,3 +75,11 @@ Also safe to re-run - skips anything that already exists by name.
 For architecture, database schema, deployment, and maintenance docs, see
 `catalogue/docs/` (`docs/deployment.md` covers all four backup/restore
 scripts above).
+
+## License
+
+GNU Affero General Public License v3 (AGPL-3.0) - see [LICENSE](LICENSE).
+
+## Copyright
+
+Copyright (C) 2026 Joao Miguel.

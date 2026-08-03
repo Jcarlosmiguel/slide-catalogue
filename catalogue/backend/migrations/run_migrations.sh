@@ -9,13 +9,13 @@
 #
 # By default connects through the catalogue_mariadb docker container
 # (matching this project's compose setup) and reads the DB password from
-# ../../.env (MARIADB_PASSWORD=...). To connect directly instead (e.g. a
+# ../../../.env (MARIADB_PASSWORD=...). To connect directly instead (e.g. a
 # server where mariadb isn't containerized the same way), set MARIADB_HOST.
 #
 # Env vars (all optional):
 #   MARIADB_CONTAINER   default: catalogue_mariadb
 #   MARIADB_USER        default: catalogue_app
-#   MARIADB_PASSWORD    default: read from ../../.env
+#   MARIADB_PASSWORD    default: read from ../../../.env
 #   MARIADB_DATABASE    default: catalogue
 #   MARIADB_HOST        if set, connects directly via the mariadb CLI instead
 #                        of docker exec
@@ -48,7 +48,13 @@ run_sql() {
   if [[ -n "${MARIADB_HOST:-}" ]]; then
     MYSQL_PWD="$DB_PASSWORD" mariadb -h "$MARIADB_HOST" -P "${MARIADB_PORT:-3306}" -u "$DB_USER" "$@" "$DB_NAME"
   else
-    docker exec -i "$CONTAINER" mariadb -u "$DB_USER" -p"$DB_PASSWORD" "$@" "$DB_NAME"
+    # MYSQL_PWD instead of -p<password> keeps mariadb's own argv (visible
+    # via `ps` to anyone else inside the container) clean, matching
+    # backup_catalogue.py's own reasoning for the same thing. Note this
+    # doesn't hide it from `ps` on the *host* - the expanded value is
+    # still part of this docker exec invocation's own argv there either
+    # way; a full fix would need a temp --defaults-extra-file instead.
+    docker exec -i -e MYSQL_PWD="$DB_PASSWORD" "$CONTAINER" mariadb -u "$DB_USER" "$@" "$DB_NAME"
   fi
 }
 
