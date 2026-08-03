@@ -6,15 +6,15 @@
 -- not just moved. These columns exist to survive that.
 --
 -- ingestion_method: short free-text label for *how* a slide entered the
--- catalogue - 'dih-slide-reconciler' for everything imported by that tool,
--- but deliberately not an enforced list, since future entry methods
+-- catalogue - the importing tool's own name for everything imported that
+-- way, but deliberately not an enforced list, since future entry methods
 -- (manual donation entry, other acquisition tools) aren't fully known yet.
 --
 -- provenance_origin: *where* a slide came from - institution/collection/
--- donor - independent of file location. For existing dih-slide-reconciler
--- imports this is effectively a copy of slides.source at the time of
--- import, but conceptually distinct: source is a batch/re-run-scoping label
--- the reconciler itself relies on, provenance_origin is a durable
+-- donor - independent of file location. For existing imports this is
+-- effectively a copy of slides.source at the time of import, but
+-- conceptually distinct: source is a batch/re-run-scoping label the
+-- importing tool itself relies on, provenance_origin is a durable
 -- description meant to still make sense years later regardless of what
 -- source labelling convention any given tool used.
 --
@@ -33,11 +33,11 @@
 -- above don't capture (donor correspondence references, consent/rights
 -- details, etc.).
 --
--- Existing rows backfilled from the best available proxy for each: all
--- ~2,947 existing rows were imported by dih-slide-reconciler, so
--- ingestion_method is set accordingly; provenance_origin copies the
--- existing source value; provenance_date uses created_date (same proxy
--- already used for dih_checked_at in 0006_add_slide_dih_checked_at.sql);
+-- Existing rows backfilled from the best available proxy for each:
+-- ingestion_method is set to reflect however each row was actually
+-- imported; provenance_origin copies the existing source value;
+-- provenance_date uses created_date (same proxy already used for
+-- external_checked_at in 0006_add_slide_external_checked_at.sql);
 -- provenance_original_path copies the current archive_relative_path, which
 -- is still accurate today since no relocation has happened yet.
 --
@@ -47,7 +47,7 @@
 
 ALTER TABLE slides
   ADD COLUMN ingestion_method VARCHAR(64) NULL
-  COMMENT 'How this slide entered the catalogue - e.g. dih-slide-reconciler, manual_donation_entry, legacy_crawler_v103. Free-text, no enforced list - new ingestion methods are expected over time.'
+  COMMENT 'How this slide entered the catalogue - e.g. an importing tool''s own name, manual_donation_entry, legacy_crawler_v103. Free-text, no enforced list - new ingestion methods are expected over time.'
   AFTER is_available,
   ADD COLUMN provenance_origin VARCHAR(255) NULL
   COMMENT 'Where this slide came from - institution/collection/donor - independent of its current file location. Distinct from source, which is a batch/re-run-scoping label the reconciler relies on operationally.'
@@ -63,7 +63,7 @@ ALTER TABLE slides
   AFTER provenance_original_path;
 
 UPDATE slides SET
-  ingestion_method = 'dih-slide-reconciler',
+  ingestion_method = 'legacy_import',
   provenance_origin = source,
   provenance_date = DATE(created_date),
   provenance_original_path = archive_relative_path

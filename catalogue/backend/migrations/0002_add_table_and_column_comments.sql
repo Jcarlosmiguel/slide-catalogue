@@ -12,7 +12,7 @@
 
 ALTER TABLE `slides` COMMENT='Core catalogue record for one virtual slide file - one row per slide, joined by slide_id to slide_metadata, slide_technical_metadata, slide_annotations, and the various correction/feedback tables.';
 ALTER TABLE `slide_metadata` COMMENT='Curated organ/species/stain/description metadata and generated thumbnail paths for a slide - one row per slide_id, distinct from the raw crawler-derived data in slide_technical_metadata.';
-ALTER TABLE `slide_annotations` COMMENT='Region/point/line annotations attached to a slide - imported from the legacy Slidepath DIH database via dih-slide-reconciler (source_annotation_id preserves the original dih annotationId), or created directly by the app going forward.';
+ALTER TABLE `slide_annotations` COMMENT='Region/point/line annotations attached to a slide - imported from an external source system (source_annotation_id preserves the original identifier from that system), or created directly by the app going forward.';
 ALTER TABLE `slide_corrections` COMMENT='User-submitted feedback/correction reports awaiting admin or reviewer action - covers metadata corrections, reported annotation errors, and expert-note corrections, distinguished by feedback_source.';
 ALTER TABLE `slide_correction_actions` COMMENT='Append-only audit log of actions taken against a slide_corrections row - one row per status change or applied metadata update.';
 ALTER TABLE `users` COMMENT='Catalogue user accounts - local or LDAP-authenticated, with a role controlling what they can see and do (see role_permissions for reviewer/expert capabilities).';
@@ -91,7 +91,7 @@ ALTER TABLE `duplicate_slide_mapping`
   MODIFY COLUMN `evidence` text NULL DEFAULT NULL COMMENT 'Free-text supporting evidence for the duplicate determination.',
   MODIFY COLUMN `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'When this mapping was recorded.';
 ALTER TABLE `slide_annotations`
-  MODIFY COLUMN `annotation_id` bigint(20) NOT NULL COMMENT 'Primary key; reuses dih\'s own annotationId for imported rows so it\'s a stable global identifier.',
+  MODIFY COLUMN `annotation_id` bigint(20) NOT NULL COMMENT 'Primary key; reuses the source system\'s own annotation identifier for imported rows so it\'s a stable global identifier.',
   MODIFY COLUMN `slide_id` bigint(20) NOT NULL COMMENT 'Slide this annotation belongs to (slides.slide_id).',
   MODIFY COLUMN `annotation_type` varchar(128) NOT NULL COMMENT 'Shape/kind of annotation (e.g. rectangle, ellipse, arrow, measure, pin, drawing, polygon, scanned_region).',
   MODIFY COLUMN `rect_x` int(11) NOT NULL DEFAULT -1 COMMENT 'Bounding rectangle (or ellipse bounding box) X coordinate; -1 when not applicable to this annotation_type.',
@@ -106,7 +106,7 @@ ALTER TABLE `slide_annotations`
   MODIFY COLUMN `arrow_start_y` int(11) NOT NULL DEFAULT -1 COMMENT 'Start-point Y for line-shaped annotations (arrow, measure); -1 when not applicable.',
   MODIFY COLUMN `arrow_end_x` int(11) NOT NULL DEFAULT -1 COMMENT 'End-point X for line-shaped annotations (arrow, measure); -1 when not applicable.',
   MODIFY COLUMN `arrow_end_y` int(11) NOT NULL DEFAULT -1 COMMENT 'End-point Y for line-shaped annotations (arrow, measure); -1 when not applicable.',
-  MODIFY COLUMN `zoom` double NOT NULL COMMENT 'View-scale factor recorded at the time the annotation was drawn by the source system; whether coordinates need multiplying by this to reach full-resolution pixels is still being verified (see dih-slide-reconciler HANDOFF.md).',
+  MODIFY COLUMN `zoom` double NOT NULL COMMENT 'View-scale factor recorded at the time the annotation was drawn by the source system; whether coordinates need multiplying by this to reach full-resolution pixels is still being verified.',
   MODIFY COLUMN `focal_plane` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'Focal plane index the annotation was drawn on, for multi-focal-plane slides.',
   MODIFY COLUMN `current_frame` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'Frame/view index the annotation was drawn on, for multi-view slides.',
   MODIFY COLUMN `title` varchar(255) NOT NULL COMMENT 'Short heading/name for the annotation.',
@@ -120,7 +120,7 @@ ALTER TABLE `slide_annotations`
   MODIFY COLUMN `invisible` enum('true','false') NOT NULL DEFAULT 'false' COMMENT 'Whether the source system had this annotation marked hidden - real per-annotation data, not something to filter out by default (many slides have some or all annotations marked this way).',
   MODIFY COLUMN `tma_core` smallint(5) unsigned NULL DEFAULT NULL COMMENT 'Tissue microarray core index, for TMA slides.',
   MODIFY COLUMN `owner` int(11) NULL DEFAULT NULL COMMENT 'Numeric user id of the annotation\'s author in the source system (0 = system-recorded, e.g. scanned_region marking the scan bounds rather than a teaching annotation).',
-  MODIFY COLUMN `source_annotation_id` int(11) NULL DEFAULT NULL COMMENT 'Original annotationId from the legacy dih database, for provenance/audit; NULL for annotations created directly in the app.',
+  MODIFY COLUMN `source_annotation_id` int(11) NULL DEFAULT NULL COMMENT 'Original identifier from the external source system this annotation was imported from, for provenance/audit; NULL for annotations created directly in the app.',
   MODIFY COLUMN `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'Row creation timestamp in this catalogue.',
   MODIFY COLUMN `updated_date` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Row last-updated timestamp in this catalogue.';
 ALTER TABLE `slide_corrections`
@@ -212,7 +212,7 @@ ALTER TABLE `annotation_contributors`
   MODIFY COLUMN `contributor_id` int(11) NOT NULL COMMENT 'Primary key (matches the source system\'s own user/owner id where applicable).',
   MODIFY COLUMN `first_name` varchar(255) NULL DEFAULT NULL COMMENT 'Contributor\'s first name.',
   MODIFY COLUMN `surname` varchar(255) NULL DEFAULT NULL COMMENT 'Contributor\'s surname.',
-  MODIFY COLUMN `source_system` varchar(100) NULL DEFAULT NULL COMMENT 'Which legacy/source system this contributor record came from (e.g. dih).',
+  MODIFY COLUMN `source_system` varchar(100) NULL DEFAULT NULL COMMENT 'Which legacy/source system this contributor record came from (e.g. an external slide-management database).',
   MODIFY COLUMN `notes` text NULL DEFAULT NULL COMMENT 'Free-text notes.';
 ALTER TABLE `legacy_curation_slide_links`
   MODIFY COLUMN `legacy_curation_id` bigint(20) NOT NULL COMMENT 'The legacy_curation.curation_id being linked.',

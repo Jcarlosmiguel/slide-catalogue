@@ -48,7 +48,7 @@ CREATE TABLE provenance_records (
   specimen_category VARCHAR(100) DEFAULT NULL COMMENT 'Specimen category this record applies to, if rights differ by category within the same institution/department, e.g. "human", "animal".',
   copyright_holder VARCHAR(255) DEFAULT NULL COMMENT 'Who holds copyright for slides under this record - often the institution, but can differ (e.g. a donor retaining rights).',
   rights_notes TEXT DEFAULT NULL COMMENT 'Free-text rights/copyright terms, conditions, or embargoes.',
-  origin_description TEXT DEFAULT NULL COMMENT 'Free-text description of where/how slides under this record entered the collection - often copied directly from dih-slide-reconciler''s own report-only provenance questions.',
+  origin_description TEXT DEFAULT NULL COMMENT 'Free-text description of where/how slides under this record entered the collection - often copied directly from the importing tool''s own report-only provenance questions.',
   created_date TIMESTAMP NULL DEFAULT current_timestamp() COMMENT 'When this record was created.',
   PRIMARY KEY (provenance_id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Provenance and copyright records - one row can be shared by many slides (see slides.provenance_id), so a rights change affecting a whole batch is a single update here rather than a rewrite of every slide row.';

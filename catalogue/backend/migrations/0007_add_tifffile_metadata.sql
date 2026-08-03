@@ -1,5 +1,5 @@
--- dih-slide-reconciler now runs every file through tifffile before OpenSlide
--- or TiffSlide even attempt it - both require a well-formed TIFF/BigTIFF
+-- An importing crawler tool now runs every file through tifffile before
+-- OpenSlide or TiffSlide even attempt it - both require a well-formed TIFF/BigTIFF
 -- container for every vendor format this catalogue handles (NDPI, SCN,
 -- SVS), so a file tifffile flags as unreadable is going to fail both of
 -- them too. Without a column of its own, that check's result only ever

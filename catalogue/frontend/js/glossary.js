@@ -14,7 +14,7 @@ const VMC_GLOSSARY_TERMS = [
   ["TSL", "Thick section - a thicker-than-standard tissue section.", "slate"],
   ["MPP", "Microns per pixel - the real-world distance one image pixel represents; a measure of scan resolution.", "blue"],
   ["NDPI", "A whole-slide image file format produced by Hamamatsu NanoZoomer scanners.", "blue"],
-  ["SCN", "A whole-slide image file format produced by Leica scanners.", "blue"],
+  ["SCN", "A whole-slide image file format (.scn).", "blue"],
   ["20X", "Objective magnification - this slide was scanned at 20x magnification.", "blue"],
   ["40X", "Objective magnification - this slide was scanned at 40x magnification.", "blue"]
 ];

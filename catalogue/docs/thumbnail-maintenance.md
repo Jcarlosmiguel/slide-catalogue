@@ -31,7 +31,7 @@ thumbnails/512/
 
 ---
 
-# New Slides - First-Time Thumbnails (e.g. after a dih-slide-reconciler import)
+# New Slides - First-Time Thumbnails (e.g. after a bulk import)
 
 Script:
 

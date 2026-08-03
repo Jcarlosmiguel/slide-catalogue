@@ -13,11 +13,11 @@ _FILENAME_UNSAFE_RE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
 _SCN_IMAGE_BLOCK_RE = re.compile(r"<image .*?</image>", re.S)
 _SCN_PIXELS_RE = re.compile(r'<pixels[^>]*sizeX="(\d+)"[^>]*sizeY="(\d+)"')
 _SCN_VIEW_RE = re.compile(r'<view sizeX="(\d+)" sizeY="(\d+)" offsetX="(\d+)" offsetY="(\d+)"')
-_SCN_MACRO_SIZE_THRESHOLD = 3000  # px - Leica SCN's low-res label/macro image is always far smaller than any real tissue scan region, confirmed against real multi-region .scn files.
+_SCN_MACRO_SIZE_THRESHOLD = 3000  # px - SCN's low-res label/macro image is always far smaller than any real tissue scan region, confirmed against real multi-region .scn files.
 
 
 def _load_scn_regions(physical_path):
-    """Leica .scn files can hold more than one independently-positioned
+    """.scn files can hold more than one independently-positioned
     tissue scan region in a single file (confirmed against a real
     multi-region slide - two separate scans, "near the label" and "below", each
     its own separate scan, not a resolution pyramid of one scan). Each
@@ -123,7 +123,7 @@ def slugify_filename_hint(value, max_length=80):
 # slide. apply_zoom is kept as a param (rather than hardcoding True) only as
 # an escape hatch for a slide where this turns out not to hold.
 #
-# For multi-region .scn files specifically (a single Leica SCN file can hold
+# For multi-region .scn files specifically (a single SCN file can hold
 # more than one independently-positioned tissue scan - confirmed against
 # Pathology_23.scn, which has two, not a resolution pyramid of one scan),
 # canvas-absolute coordinates alone aren't enough: each region has its own

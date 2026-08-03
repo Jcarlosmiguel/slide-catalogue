@@ -54,7 +54,7 @@ CREATE TABLE `annotation_contributors` (
   `contributor_id` int(11) NOT NULL COMMENT 'Primary key (matches the source system''s own user/owner id where applicable).',
   `first_name` varchar(255) DEFAULT NULL COMMENT 'Contributor''s first name.',
   `surname` varchar(255) DEFAULT NULL COMMENT 'Contributor''s surname.',
-  `source_system` varchar(100) DEFAULT NULL COMMENT 'Which legacy/source system this contributor record came from (e.g. dih).',
+  `source_system` varchar(100) DEFAULT NULL COMMENT 'Which legacy/source system this contributor record came from (e.g. an external slide-management database).',
   `notes` text DEFAULT NULL COMMENT 'Free-text notes.',
   PRIMARY KEY (`contributor_id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Reference list of individuals credited as annotation contributors/authors in imported source data, for display and attribution.';
@@ -233,7 +233,7 @@ DROP TABLE IF EXISTS `slide_annotations`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
 CREATE TABLE `slide_annotations` (
-  `annotation_id` bigint(20) NOT NULL COMMENT 'Primary key; reuses dih''s own annotationId for imported rows so it''s a stable global identifier.',
+  `annotation_id` bigint(20) NOT NULL COMMENT 'Primary key; reuses the source system''s own annotation identifier for imported rows so it''s a stable global identifier.',
   `slide_id` bigint(20) NOT NULL COMMENT 'Slide this annotation belongs to (slides.slide_id).',
   `annotation_type` varchar(128) NOT NULL COMMENT 'Shape/kind of annotation (e.g. rectangle, ellipse, arrow, measure, pin, drawing, polygon, scanned_region).',
   `rect_x` int(11) NOT NULL DEFAULT -1 COMMENT 'Bounding rectangle (or ellipse bounding box) X coordinate; -1 when not applicable to this annotation_type.',
@@ -248,7 +248,7 @@ CREATE TABLE `slide_annotations` (
   `arrow_start_y` int(11) NOT NULL DEFAULT -1 COMMENT 'Start-point Y for line-shaped annotations (arrow, measure); -1 when not applicable.',
   `arrow_end_x` int(11) NOT NULL DEFAULT -1 COMMENT 'End-point X for line-shaped annotations (arrow, measure); -1 when not applicable.',
   `arrow_end_y` int(11) NOT NULL DEFAULT -1 COMMENT 'End-point Y for line-shaped annotations (arrow, measure); -1 when not applicable.',
-  `zoom` double NOT NULL COMMENT 'View-scale factor recorded at the time the annotation was drawn by the source system; whether coordinates need multiplying by this to reach full-resolution pixels is still being verified (see dih-slide-reconciler HANDOFF.md).',
+  `zoom` double NOT NULL COMMENT 'View-scale factor recorded at the time the annotation was drawn by the source system; whether coordinates need multiplying by this to reach full-resolution pixels is still being verified.',
   `focal_plane` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'Focal plane index the annotation was drawn on, for multi-focal-plane slides.',
   `current_frame` int(10) unsigned NOT NULL DEFAULT 0 COMMENT 'Frame/view index the annotation was drawn on, for multi-view slides.',
   `title` varchar(255) NOT NULL COMMENT 'Short heading/name for the annotation.',
@@ -262,13 +262,13 @@ CREATE TABLE `slide_annotations` (
   `invisible` enum('true','false') NOT NULL DEFAULT 'false' COMMENT 'Whether the source system had this annotation marked hidden - real per-annotation data, not something to filter out by default (many slides have some or all annotations marked this way).',
   `tma_core` smallint(5) unsigned DEFAULT NULL COMMENT 'Tissue microarray core index, for TMA slides.',
   `owner` int(11) DEFAULT NULL COMMENT 'Numeric user id of the annotation''s author in the source system (0 = system-recorded, e.g. scanned_region marking the scan bounds rather than a teaching annotation).',
-  `source_annotation_id` int(11) DEFAULT NULL COMMENT 'Original annotationId from the legacy dih database, for provenance/audit; NULL for annotations created directly in the app.',
+  `source_annotation_id` int(11) DEFAULT NULL COMMENT 'Original identifier from the external source system this annotation was imported from, for provenance/audit; NULL for annotations created directly in the app.',
   `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'Row creation timestamp in this catalogue.',
   `updated_date` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Row last-updated timestamp in this catalogue.',
   PRIMARY KEY (`annotation_id`),
   KEY `idx_slide_annotations_slide_id` (`slide_id`),
   CONSTRAINT `fk_slide_annotations_slide` FOREIGN KEY (`slide_id`) REFERENCES `slides` (`slide_id`) ON DELETE CASCADE
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Region/point/line annotations attached to a slide - imported from the legacy Slidepath DIH database via dih-slide-reconciler (source_annotation_id preserves the original dih annotationId), or created directly by the app going forward.';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_uca1400_ai_ci COMMENT='Region/point/line annotations attached to a slide - imported from an external source system (source_annotation_id preserves the original identifier from that system), or created directly by the app going forward.';
 
 DROP TABLE IF EXISTS `slide_correction_actions`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
@@ -364,8 +364,8 @@ CREATE TABLE `slide_metadata` (
   `created_date` timestamp NULL DEFAULT current_timestamp() COMMENT 'Row creation timestamp.',
   `updated_date` timestamp NULL DEFAULT current_timestamp() ON UPDATE current_timestamp() COMMENT 'Row last-updated timestamp.',
   `is_comparison_slide` tinyint(1) DEFAULT NULL COMMENT 'Teaching/comparison slide. NULL=not assessed or not defined. 0=single specimen with a single preparation. 1=contains multiple specimens and/or preparations intended for side-by-side comparison (e.g. PAS vs H&E, Masson vs H&E).',
-  `meaningful_view_count` int(11) DEFAULT NULL COMMENT 'Number of meaningful specimen views present in the slide after vendor-specific normalisation. Derived from crawler metadata. For Leica SCN slides the standard macro image is excluded from the count. NDPI slides with crawler view_count=0 are normalised to a single specimen view. A value greater than 1 indicates a multi-view slide and may be used by catalogue applications to identify and display multi-view slides.',
-  `image_dimensions` text DEFAULT NULL COMMENT 'Curated specimen dimensions. For Leica SCN slides the standard macro image (1616x4668) has been removed.',
+  `meaningful_view_count` int(11) DEFAULT NULL COMMENT 'Number of meaningful specimen views present in the slide after vendor-specific normalisation. Derived from crawler metadata. For SCN slides the standard macro image is excluded from the count. NDPI slides with crawler view_count=0 are normalised to a single specimen view. A value greater than 1 indicates a multi-view slide and may be used by catalogue applications to identify and display multi-view slides.',
+  `image_dimensions` text DEFAULT NULL COMMENT 'Curated specimen dimensions. For SCN slides the standard macro image (1616x4668) has been removed.',
   `thumbnail_1024_path` text DEFAULT NULL COMMENT 'Path to 1024px generated thumbnail',
   `thumbnail_2048_path` text DEFAULT NULL COMMENT 'Path to 2048px generated thumbnail',
   `thumbnail_512_path` text DEFAULT NULL COMMENT 'Path to 512px generated thumbnail',
@@ -397,7 +397,7 @@ CREATE TABLE `slide_technical_metadata` (
   `image_names` longtext DEFAULT NULL COMMENT 'Raw image names reported by the crawler.',
   `is_multiview` varchar(10) DEFAULT NULL COMMENT 'Raw crawler flag indicating multiple image views or image series. Retained for provenance and audit purposes.',
   `view_count` varchar(32) DEFAULT NULL COMMENT 'Raw crawler view count retained for provenance. Catalogue applications should use slide_metadata.meaningful_view_count instead.',
-  `z_spacing` varchar(64) DEFAULT NULL COMMENT 'Raw crawler z_spacing value retained for provenance. Investigation showed populated values occur on Leica SCN slides and not on true z-stack slides.',
+  `z_spacing` varchar(64) DEFAULT NULL COMMENT 'Raw crawler z_spacing value retained for provenance. Investigation showed populated values occur on SCN slides and not on true z-stack slides.',
   `technical_metadata_source` varchar(64) DEFAULT NULL COMMENT 'Source inventory used to populate the record, for example crawler_v103.',
   `technical_metadata_updated` timestamp NULL DEFAULT current_timestamp() COMMENT 'Timestamp when technical metadata was last imported or refreshed.',
   PRIMARY KEY (`slide_id`),

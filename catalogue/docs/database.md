@@ -77,10 +77,10 @@ Examples:
 
 ## slide_annotations
 
-Region/point/line annotations attached to a slide - imported from the
-legacy Slidepath DIH database via `dih-slide-reconciler`
-(`source_annotation_id` preserves the original dih `annotationId`), or
-created directly by the app going forward. `flagged_incorrect` is set
+Region/point/line annotations attached to a slide - imported from an
+external source system (`source_annotation_id` preserves the original
+identifier from that system), or created directly by the app going
+forward. `flagged_incorrect` is set
 automatically when an accepted correction reports the annotation as
 incorrect, and excludes it from the slide detail view (see
 `slide_corrections` below).

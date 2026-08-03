@@ -7,7 +7,7 @@ Complements the manual workflow in docs/thumbnail-maintenance.md
 built for *replacing* an existing thumbnail (it backs one up before writing
 the new one), not for creating a first one. This script is for slides that
 already have a real slide_id in the database but nothing under thumbnails/
-yet - typically a batch just imported from a dih-slide-reconciler SQL dump.
+yet - typically a batch just imported via a bulk SQL import.
 
 Safe to re-run: any slide with an existing thumbnails/2048/{slide_id}.jpg is
 skipped. Uses the same OpenSlide-first/TiffSlide-fallback + whitespace-crop
