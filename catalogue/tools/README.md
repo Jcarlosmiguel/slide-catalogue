@@ -26,13 +26,13 @@ for exact invocation.
 - `../backend/app/backup_catalogue.py` - triggered via the admin-only
   `POST /api/admin/backup` endpoint, not run standalone.
 
-## Note (found 2026-08-08, not yet fixed)
+## Note (found and fixed 2026-08-08)
 
 `populate_new_slide_thumbnails.py` and `generate_2048_png_thumbnails.py`
 both import `openslide`/`tiffslide`, but `../backend/requirements.txt`
-doesn't list `openslide-python`/`tiffslide` at all (unlike the sibling
-`omero-mvls` repo, which does). As shipped, both imports fail and
-silently fall back to `None` in the real container - thumbnail
-generation likely doesn't work via OpenSlide/TiffSlide here at all
-right now. Flagged for the maintainer to confirm/fix; not changed as
-part of this pass since it wasn't the ask.
+and `../backend/Dockerfile` were missing `openslide-python`/`tiffslide`/
+`libopenslide0` entirely (unlike the sibling `omero-mvls` repo). Both
+imports were silently failing and falling back to `None` in the real
+container - thumbnail generation via OpenSlide/TiffSlide likely never
+worked here. Fixed: both added, verified by building the image and
+confirming `import openslide`/`import tiffslide` succeed.

@@ -6,4 +6,6 @@ argon2-cffi
 Pillow
 defusedxml
 tifffile
+openslide-python
+tiffslide
 pyvips
