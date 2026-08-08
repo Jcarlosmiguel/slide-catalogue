@@ -6,3 +6,4 @@ argon2-cffi
 Pillow
 defusedxml
 tifffile
+pyvips

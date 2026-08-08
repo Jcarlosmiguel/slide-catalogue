@@ -6,9 +6,15 @@ ENV PYTHONUNBUFFERED=1
 WORKDIR /app
 
 # mariadb-client provides mariadb-dump, used by backup_catalogue.py to create
-# on-demand backups from inside this container.
+# on-demand backups from inside this container. libvips42 is the native
+# library pyvips binds to - OpenSlide/TiffSlide can't open some real Leica
+# .scn (multiple dissimilar main images) or Hamamatsu .ndpi (Z-stack)
+# files; vips reads them directly instead. Not yet wired into
+# populate_new_slide_thumbnails.py's automated path (still a manual
+# fallback as of 2026-08-08) - installed ahead of that so the image is
+# ready when it is.
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends mariadb-client && \
+    apt-get install -y --no-install-recommends mariadb-client libvips42 && \
     rm -rf /var/lib/apt/lists/*
 
 COPY requirements.txt /app/requirements.txt

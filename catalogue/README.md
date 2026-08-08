@@ -18,7 +18,7 @@ deployment (sharing one nginx/public IP), see
 | `backend/` | FastAPI application - auth, search, corrections/feedback, access requests, reviewer/expert roles, QuPath script export, admin functions, system settings. `migrations/` holds the schema; `app/seed_example_data.py` seeds example data and `app/seed_dictionaries.py` seeds a real curated Organ/Tissue/Species/Stain vocabulary from `app/seed_data/dictionaries.json`. `Dockerfile` builds the `catalogue_backend` container. |
 | `frontend/` | Static HTML/CSS/JS served by `catalogue_nginx`. |
 | `nginx/` | `catalogue.dev.conf` - `catalogue_nginx`'s own config (serves the frontend, `/thumbnails/`, `/documents/`, proxies `/api/` to the backend). |
-| `tools/` | Maintenance scripts (thumbnail generation etc.) - see `docs/thumbnail-maintenance.md`. |
+| `tools/` | Maintenance scripts (thumbnail generation etc.) - see `tools/README.md` for the full index, `docs/thumbnail-maintenance.md` for the thumbnail workflow specifically. |
 | `documents/` | User-facing documentation pages served by the app itself (About, Contact, workflow guides), not developer docs. |
 | `docs/` | Developer/maintainer documentation for the catalogue app. |
 
