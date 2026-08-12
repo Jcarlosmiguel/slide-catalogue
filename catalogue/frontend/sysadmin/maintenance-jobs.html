@@ -1,0 +1,362 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Maintenance Jobs · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+  <style>
+    .vmc-job-card {
+      border: 1px solid var(--vmc-border);
+      border-radius: 12px;
+      padding: 1rem 1.25rem;
+      margin-top: 1rem;
+    }
+    .vmc-job-card h2 {
+      margin-top: 0;
+    }
+    .vmc-job-results {
+      margin-top: 0.75rem;
+      border-collapse: collapse;
+      width: 100%;
+      font-size: 0.9rem;
+    }
+    .vmc-job-results th,
+    .vmc-job-results td {
+      text-align: left;
+      padding: 0.4rem 0.6rem;
+      border-bottom: 1px solid var(--vmc-border);
+    }
+    .vmc-job-status-CREATED { color: #14532d; font-weight: bold; }
+    .vmc-job-status-OK { color: var(--vmc-muted); }
+    .vmc-job-status-ERROR { color: #8a1f11; font-weight: bold; }
+  </style>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Maintenance Jobs</h1>
+      <p>
+        One-off maintenance tasks that don't fit anywhere else - run from
+        here instead of the command line. Visible to system administrators
+        only.
+      </p>
+      <p class="vmc-muted">
+        <a href="/sysadmin/users.html">Users</a>
+        ·
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
+        ·
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
+        ·
+        <a href="/sysadmin/backup.html">Backup</a>
+        ·
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
+        ·
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
+        ·
+        <a href="/sysadmin/annotations-export.html">Annotations Export</a>
+        ·
+        <a href="/sysadmin/maintenance-jobs.html">Maintenance Jobs</a>
+        ·
+        <a href="/sysadmin/stain-dictionary.html">Stain Dictionary</a>
+        ·
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <div class="vmc-job-card">
+        <h2>Sync manual thumbnails</h2>
+        <p>
+          Converts every PNG waiting in <code>manual_thumbnails/</code>
+          (created by hand in QuPath for slides automated generation
+          couldn't handle) into the three real thumbnail sizes. The
+          previous thumbnail for any slide being replaced is backed up
+          first, and each source PNG is removed once converted
+          successfully.
+        </p>
+        <button id="sync-thumbnails" class="vmc-button">Sync manual thumbnails</button>
+        <div id="sync-status" style="margin-top: 1rem;"></div>
+        <table id="sync-results" class="vmc-job-results" hidden>
+          <thead>
+            <tr><th>Slide ID</th><th>Result</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="vmc-job-card">
+        <h2>Sync comparison flags from stain dictionary</h2>
+        <p>
+          Sets the CMP badge (<code>slide_metadata.is_comparison_slide</code>)
+          for every slide whose stain matches a
+          <a href="/sysadmin/stain-dictionary.html">stain dictionary</a>
+          entry marked <code>Comparison slide</code>, wherever it isn't
+          already set - see <a href="/documents/review-metadata.html">Review
+          Metadata</a> for what that means. Additive only: never unmarks a
+          slide that's already CMP. Run this after curating a new
+          comparison entry, or after a bulk import, to catch anything the
+          live per-correction check didn't.
+        </p>
+        <button id="sync-cmp" class="vmc-button">Sync comparison flags</button>
+        <div id="cmp-status" style="margin-top: 1rem;"></div>
+        <table id="cmp-results" class="vmc-job-results" hidden>
+          <thead>
+            <tr><th>Slide ID</th><th>Result</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+
+      <div class="vmc-job-card">
+        <h2>Clean up old backups</h2>
+        <p>
+          Deletes full-database backups under
+          <code>catalogue/backups/database/full/</code>, keeping only the
+          most recent 3. Only ever touches this deployment's own
+          timestamped backup files - nothing else in that folder. There
+          is still no restore or browse/download facility anywhere in the
+          web app - this only ever deletes old backups, never lists,
+          reads, or restores one.
+        </p>
+        <button id="cleanup-backups" class="vmc-button">Clean up old backups (keep 3)</button>
+        <div id="cleanup-status" style="margin-top: 1rem;"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const button = document.getElementById("sync-thumbnails");
+    const status = document.getElementById("sync-status");
+    const resultsTable = document.getElementById("sync-results");
+    const resultsBody = resultsTable.querySelector("tbody");
+
+    button.addEventListener("click", async function () {
+      button.disabled = true;
+      status.textContent = "Syncing manual thumbnails...";
+      resultsTable.hidden = true;
+      resultsBody.innerHTML = "";
+
+      const response = await fetch("/api/admin/sync-manual-thumbnails", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      button.disabled = false;
+
+      if (response.status === 403) {
+        status.textContent = "System administrator access required.";
+        return;
+      }
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        status.textContent = "Sync failed: " + (body.detail || response.statusText);
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.results.length === 0) {
+        status.textContent = "Nothing to do - no PNGs waiting in manual_thumbnails/.";
+        return;
+      }
+
+      status.textContent = `${result.succeeded} succeeded, ${result.failed} failed.`;
+
+      for (const row of result.results) {
+        const tr = document.createElement("tr");
+
+        const idCell = document.createElement("td");
+        idCell.textContent = row.slide_id;
+
+        const statusCell = document.createElement("td");
+        statusCell.className = "vmc-job-status-" + row.status;
+        statusCell.textContent = row.status === "ERROR"
+          ? "Error - " + row.error
+          : row.status;
+
+        tr.appendChild(idCell);
+        tr.appendChild(statusCell);
+        resultsBody.appendChild(tr);
+      }
+
+      resultsTable.hidden = false;
+    });
+
+    const cmpButton = document.getElementById("sync-cmp");
+    const cmpStatus = document.getElementById("cmp-status");
+    const cmpResultsTable = document.getElementById("cmp-results");
+    const cmpResultsBody = cmpResultsTable.querySelector("tbody");
+
+    cmpButton.addEventListener("click", async function () {
+      cmpButton.disabled = true;
+      cmpStatus.textContent = "Syncing comparison flags...";
+      cmpResultsTable.hidden = true;
+      cmpResultsBody.innerHTML = "";
+
+      const response = await fetch("/api/admin/sync-cmp-flags", {
+        method: "POST",
+        credentials: "include"
+      });
+
+      cmpButton.disabled = false;
+
+      if (response.status === 403) {
+        cmpStatus.textContent = "System administrator access required.";
+        return;
+      }
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        cmpStatus.textContent = "Sync failed: " + (body.detail || response.statusText);
+        return;
+      }
+
+      const result = await response.json();
+
+      if (result.results.length === 0) {
+        cmpStatus.textContent = "Nothing to do - every matching slide is already flagged CMP.";
+        return;
+      }
+
+      cmpStatus.textContent = `${result.marked} slide(s) marked CMP.`;
+
+      for (const row of result.results) {
+        const tr = document.createElement("tr");
+
+        const idCell = document.createElement("td");
+        idCell.textContent = row.slide_id;
+
+        const statusCell = document.createElement("td");
+        statusCell.className = "vmc-job-status-CREATED";
+        statusCell.textContent = row.status;
+
+        tr.appendChild(idCell);
+        tr.appendChild(statusCell);
+        cmpResultsBody.appendChild(tr);
+      }
+
+      cmpResultsTable.hidden = false;
+    });
+
+    const cleanupButton = document.getElementById("cleanup-backups");
+    const cleanupStatus = document.getElementById("cleanup-status");
+
+    function formatBytes(bytes) {
+      if (bytes >= 1024 * 1024) {
+        return (bytes / (1024 * 1024)).toFixed(1) + " MB";
+      }
+      if (bytes >= 1024) {
+        return (bytes / 1024).toFixed(1) + " KB";
+      }
+      return bytes + " bytes";
+    }
+
+    async function callCleanup(dryRun) {
+      return fetch("/api/admin/cleanup-backups", {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ keep: 3, dry_run: dryRun }),
+      });
+    }
+
+    cleanupButton.addEventListener("click", async function () {
+      cleanupButton.disabled = true;
+      cleanupStatus.textContent = "Checking what would be deleted...";
+
+      const previewResponse = await callCleanup(true);
+
+      if (previewResponse.status === 403) {
+        cleanupButton.disabled = false;
+        cleanupStatus.textContent = "System administrator access required.";
+        return;
+      }
+
+      if (!previewResponse.ok) {
+        cleanupButton.disabled = false;
+        const body = await previewResponse.json().catch(() => ({}));
+        cleanupStatus.textContent = "Preview failed: " + (body.detail || previewResponse.statusText);
+        return;
+      }
+
+      const preview = await previewResponse.json();
+
+      if (preview.deleted.length === 0) {
+        cleanupButton.disabled = false;
+        cleanupStatus.textContent = `Nothing to do - only ${preview.kept.length} backup(s) exist, keeping all of them.`;
+        return;
+      }
+
+      const fileList = preview.deleted
+        .map(function (f) { return "  " + f.filename + " (" + formatBytes(f.size_bytes) + ")"; })
+        .join("\n");
+
+      const confirmed = confirm(
+        "Delete " + preview.deleted.length + " old backup(s), keeping the " +
+        preview.kept.length + " most recent?\n\n" + fileList
+      );
+
+      if (!confirmed) {
+        cleanupButton.disabled = false;
+        cleanupStatus.textContent = "Cancelled - nothing was deleted.";
+        return;
+      }
+
+      cleanupStatus.textContent = "Deleting...";
+
+      const realResponse = await callCleanup(false);
+      cleanupButton.disabled = false;
+
+      if (!realResponse.ok) {
+        const body = await realResponse.json().catch(() => ({}));
+        cleanupStatus.textContent = "Cleanup failed: " + (body.detail || realResponse.statusText);
+        return;
+      }
+
+      const result = await realResponse.json();
+      cleanupStatus.textContent = `Deleted ${result.deleted.length} old backup(s), kept ${result.kept.length}.`;
+    });
+  </script>
+</body>
+</html>

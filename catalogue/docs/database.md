@@ -176,6 +176,30 @@ in `slide_metadata.stain`, filenames, and legacy sources to canonical
 stain terminology while preserving aliases, historical names, composite
 stains, review status, confidence, and explanatory notes.
 
+`stain_family = 'Comparison slide'` (paired with `normalisation_status =
+'Comparison Preserved'`) marks stain values that indicate a genuine
+comparison slide - two or more distinct specimens side by side, each
+stained differently, not one specimen with multiple stains applied
+(a "complex stain", which is not a comparison and doesn't get this
+treatment). The existing curated entries follow an `a) STAIN1 b) STAIN2`
+convention, e.g. `a) H&E b) PAS`. This is the source of truth for
+`slides.is_comparison_slide` (the "CMP" badge) - whenever a slide's
+`stain` value matches one of these entries, `is_comparison_slide` is set
+`1`, either immediately when a stain correction is applied
+(`admin_apply_metadata_correction` in `main.py`) or in bulk via the "Sync
+comparison flags from stain dictionary" job on the sysadmin Maintenance
+Jobs page (`sync_cmp_flags.py`). The sync is additive only - it never
+resets an existing `1` back to `0`. Curated via the sysadmin Stain
+Dictionary page (`sysadmin/stain-dictionary.html`).
+
+Detecting which slides *should* be comparison slides is deliberately
+never automated - a filename alone can't distinguish a complex stain from
+a real comparison; whoever curated the existing entries did so by looking
+at each image. `catalogue/tools/find_cmp_candidates.py` surfaces
+filenames that match the *existing* curated lettering/numbering
+convention as candidates worth a human look - it's a starting point, not
+a detector.
+
 ## organ_tissue_dictionary
 
 Permanent bridge table describing curated relationships between canonical

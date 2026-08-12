@@ -54,12 +54,17 @@ def create_thumbnail(source_png, target_jpg, max_size):
 
 
 def process_png(png_file):
+    """Returns {"slide_id": str, "status": "CREATED"|"OK"|"ERROR", "error": str|None} -
+    the status/error fields let callers (e.g. the sysadmin-triggered API
+    endpoint) report exactly what happened per file, on top of the existing
+    print/log-file trail this function already writes."""
 
     slide_id = png_file.stem
 
     if not slide_id.isdigit():
-        log(f"ERROR invalid filename {png_file.name}")
-        return
+        message = f"invalid filename {png_file.name}"
+        log(f"ERROR {message}")
+        return {"slide_id": png_file.stem, "status": "ERROR", "error": message}
 
     master_jpg = THUMB_DIR / "2048" / f"{slide_id}.jpg"
     is_new = not master_jpg.exists()
@@ -81,25 +86,36 @@ def process_png(png_file):
 
         png_file.unlink()
 
-        log(f"{'CREATED' if is_new else 'OK'} {slide_id}")
+        status = "CREATED" if is_new else "OK"
+        log(f"{status} {slide_id}")
+        return {"slide_id": slide_id, "status": status, "error": None}
 
     except Exception as exc:
         log(f"ERROR {slide_id} {exc}")
+        return {"slide_id": slide_id, "status": "ERROR", "error": str(exc)}
 
-def main():
+
+def sync():
+    """Processes every pending PNG in MANUAL_DIR and returns the list of
+    per-file results (see process_png) - the shared entry point for both
+    the CLI (main(), below) and the sysadmin-triggered API endpoint."""
 
     if not MANUAL_DIR.exists():
         log(f"ERROR missing directory {MANUAL_DIR}")
-        return
+        return []
 
     pngs = sorted(MANUAL_DIR.glob("*.png"))
 
     if not pngs:
         log("INFO no PNG files found")
-        return
+        return []
 
-    for png in pngs:
-        process_png(png)
+    return [process_png(png) for png in pngs]
+
+
+def main():
+    sync()
+
 
 if __name__ == "__main__":
     main()

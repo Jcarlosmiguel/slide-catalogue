@@ -26,6 +26,9 @@ from fastapi.responses import StreamingResponse
 from app.admin_audit import log_admin_action
 from app.admin_sql import validate_statement
 from app.backup_catalogue import create_backup
+from app.sync_manual_thumbnails import sync as sync_manual_thumbnails
+from app.sync_cmp_flags import sync as sync_cmp_flags
+from app.cleanup_backups import cleanup as cleanup_backups
 from app.mailer import send_email
 from app.permissions import require_permission
 from app.annotation_ome_xml import build_ome_xml
@@ -3216,8 +3219,10 @@ def admin_dictionary_values(
                     SELECT DISTINCT
                         original_stain AS value,
                         COALESCE(canonical_stain, original_stain) AS label,
+                        canonical_stain,
                         stain_family,
-                        normalisation_status
+                        normalisation_status,
+                        notes
                     FROM stain_dictionary
                     WHERE original_stain IS NOT NULL
                     ORDER BY label, value
@@ -3351,6 +3356,71 @@ def admin_add_dictionary_value(
         "dictionary": dictionary_name,
         "value": value,
     }
+
+
+@app.post("/api/admin/dictionaries/stain/update")
+def admin_update_stain_dictionary_entry(
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Edits an existing stain_dictionary row's curated columns - unlike
+    POST /api/admin/dictionaries/{name} (add a brand-new term), this
+    requires original_stain to already exist. system_admin-only, stricter
+    than the admin-level view/add-new endpoints: this is where a curator
+    marks a stain value as stain_family='Comparison slide' (the existing
+    convention driving is_comparison_slide - see sync_cmp_flags.py and
+    the matching check in admin_apply_metadata_correction), which is a
+    judgement call, not routine data entry."""
+
+    original_stain = str(payload.get("original_stain", "")).strip()
+    if not original_stain:
+        raise HTTPException(status_code=400, detail="original_stain is required")
+
+    canonical_stain = payload.get("canonical_stain")
+    stain_family = payload.get("stain_family")
+    normalisation_status = payload.get("normalisation_status")
+    notes = payload.get("notes")
+
+    conn = get_db_connection()
+
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT 1 FROM stain_dictionary WHERE original_stain = %s",
+                (original_stain,),
+            )
+            if cur.fetchone() is None:
+                raise HTTPException(status_code=404, detail="Stain dictionary entry not found")
+
+            cur.execute(
+                """
+                UPDATE stain_dictionary
+                SET canonical_stain = %s,
+                    stain_family = %s,
+                    normalisation_status = %s,
+                    notes = %s
+                WHERE original_stain = %s
+                """,
+                (canonical_stain, stain_family, normalisation_status, notes, original_stain),
+            )
+
+            log_admin_action(
+                conn, admin_user, "update_stain_dictionary", original_stain,
+            )
+
+        conn.commit()
+
+    except HTTPException:
+        conn.rollback()
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    finally:
+        conn.close()
+
+    return {"status": "ok", "original_stain": original_stain}
 
 
 def _increment_accepted_contribution(cur, submitter_username):
@@ -3744,6 +3814,31 @@ def admin_apply_metadata_correction(
                     (new_value, slide_id),
                 )
 
+                if field_name == "stain":
+                    # Same check as sync_cmp_flags.py, applied immediately
+                    # to this one slide rather than waiting for the next
+                    # bulk run - additive only, never unmarks an existing
+                    # CMP slide. See docs/database.md's stain_dictionary
+                    # section for what this convention means.
+                    cur.execute(
+                        """
+                        SELECT stain_family FROM stain_dictionary
+                        WHERE original_stain = %s
+                        """,
+                        (new_value,),
+                    )
+                    stain_row = cur.fetchone()
+                    if stain_row and stain_row["stain_family"] == "Comparison slide":
+                        cur.execute(
+                            """
+                            UPDATE slide_metadata
+                            SET is_comparison_slide = 1
+                            WHERE slide_id = %s
+                              AND (is_comparison_slide IS NULL OR is_comparison_slide = 0)
+                            """,
+                            (slide_id,),
+                        )
+
             else:
                 # description / notes - free text, nothing to validate
                 # against a dictionary for.
@@ -3878,6 +3973,106 @@ def admin_create_backup(
         "filename": backup_file.name,
         "size_bytes": backup_file.stat().st_size,
     }
+
+
+@app.post("/api/admin/sync-manual-thumbnails")
+def admin_sync_manual_thumbnails(
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Converts every PNG waiting in /srv/manual_thumbnails (created by hand
+    in QuPath for slides automated generation couldn't handle - see
+    docs/thumbnail-maintenance.md) into the three real thumbnail sizes,
+    backing up whatever was there before under /srv/thumbnail_backups. The
+    docker-triggerable counterpart to running sync_manual_thumbnails.py
+    directly; same underlying function either way."""
+
+    try:
+        results = sync_manual_thumbnails()
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}")
+
+    succeeded = [r for r in results if r["status"] != "ERROR"]
+    failed = [r for r in results if r["status"] == "ERROR"]
+
+    conn = get_db_connection()
+    try:
+        log_admin_action(
+            conn, admin_user, "sync_manual_thumbnails",
+            f"{len(succeeded)} succeeded, {len(failed)} failed",
+        )
+        conn.commit()
+    finally:
+        conn.close()
+
+    return {"results": results, "succeeded": len(succeeded), "failed": len(failed)}
+
+
+@app.post("/api/admin/sync-cmp-flags")
+def admin_sync_cmp_flags(
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Sets slide_metadata.is_comparison_slide for every slide whose stain
+    matches a stain_dictionary entry curated as stain_family='Comparison
+    slide' (see docs/database.md's stain_dictionary section) - additive
+    only, never unmarks an existing CMP slide. See sync_cmp_flags.py."""
+
+    conn = get_db_connection()
+    try:
+        results = sync_cmp_flags(conn)
+        conn.commit()
+
+        log_admin_action(
+            conn, admin_user, "sync_cmp_flags", f"{len(results)} slide(s) marked",
+        )
+        conn.commit()
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=f"Sync failed: {exc}")
+    finally:
+        conn.close()
+
+    return {"results": results, "marked": len(results)}
+
+
+@app.post("/api/admin/cleanup-backups")
+def admin_cleanup_backups(
+    payload: dict = Body(default={}),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Deletes old full-database backups under catalogue/backups/database/full,
+    keeping only the most recent `keep` (default 3). dry_run defaults True -
+    the frontend calls this once to preview, then again with dry_run=False
+    only after the admin confirms. The only place backups are ever listed
+    or deleted from - restore and browsing/download stay CLI-only forever,
+    unchanged. See cleanup_backups.py."""
+
+    keep = payload.get("keep", 3)
+    dry_run = payload.get("dry_run", True)
+
+    try:
+        keep = int(keep)
+    except (TypeError, ValueError):
+        raise HTTPException(status_code=400, detail="keep must be a number")
+
+    try:
+        result = cleanup_backups(keep=keep, dry_run=dry_run)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=f"Cleanup failed: {exc}")
+
+    if not dry_run and result["deleted"]:
+        conn = get_db_connection()
+        try:
+            log_admin_action(
+                conn, admin_user, "cleanup_backups",
+                f"deleted {len(result['deleted'])}, kept {len(result['kept'])}",
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    return result
 
 
 @app.post("/api/admin/sql")

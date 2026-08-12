@@ -100,6 +100,42 @@
         the dictionary export on the
         <a href="/admin/dictionaries.html">Dictionaries</a> admin page.
       </p>
+      <h2>Comparison (CMP) slides</h2>
+      <p>
+        A small number of slides show two (or more) distinct specimens
+        side by side in the same image, each prepared with a different
+        stain, specifically so a viewer can compare what each stain
+        reveals on the same tissue - an early, manual precursor to modern
+        colocalisation techniques. These are marked with the
+        <strong>CMP</strong> badge.
+      </p>
+      <p>
+        <strong>This is not the same as a slide with more than one stain
+        applied to a single specimen</strong> (a "complex stain", e.g. a
+        combined H&amp;E and PAS technique on one piece of tissue) - that's
+        a single specimen, not a comparison, and doesn't get the CMP
+        badge. Telling the two apart requires actually looking at the
+        image: there's nothing in a filename or scan metadata that
+        reliably distinguishes "one specimen, two techniques" from "two
+        specimens, two stains". This is genuinely expert-judgement-only -
+        it is not, and will not be, automated.
+      </p>
+      <p>
+        A slide becomes CMP by its <code>stain</code> value matching a
+        <code>stain_dictionary</code> entry marked
+        <strong>Comparison slide</strong>. The existing convention for
+        these entries spells out each specimen, e.g.
+        <code>a) H&amp;E b) PAS</code> or <code>a) Masson b) H&amp;E</code> -
+        administrators curate these on the
+        <a href="/sysadmin/stain-dictionary.html">Stain Dictionary</a>
+        sysadmin page. Once an entry is marked Comparison slide, every
+        slide whose stain matches it - now or in the future - picks up
+        the CMP badge automatically (immediately when a stain correction
+        is applied, or via the "Sync comparison flags from stain
+        dictionary" job on
+        <a href="/sysadmin/maintenance-jobs.html">Maintenance Jobs</a> for
+        anything imported in bulk).
+      </p>
       <h2>Roles in the review workflow</h2>
       <p>
         Reviewing and improving metadata is a shared effort across three

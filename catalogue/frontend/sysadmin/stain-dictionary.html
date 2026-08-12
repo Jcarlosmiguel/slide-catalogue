@@ -1,0 +1,289 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Stain Dictionary · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+  <style>
+    .vmc-stain-table-wrap {
+      overflow-x: auto;
+      border: 1px solid var(--vmc-border);
+      border-radius: 12px;
+      margin-top: 1rem;
+    }
+    .vmc-stain-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      min-width: 900px;
+    }
+    .vmc-stain-table th,
+    .vmc-stain-table td {
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid var(--vmc-border);
+      vertical-align: top;
+    }
+    .vmc-stain-table thead th {
+      background: #f8fafc;
+      color: var(--vmc-muted);
+      font-size: 0.78rem;
+      text-transform: uppercase;
+      letter-spacing: 0.03em;
+    }
+    .vmc-stain-table tbody tr:last-child td {
+      border-bottom: none;
+    }
+    .vmc-stain-table input[type="text"] {
+      width: 100%;
+      border: 1px solid var(--vmc-border);
+      border-radius: 6px;
+      padding: 0.35rem 0.5rem;
+      font-size: 0.9rem;
+      box-sizing: border-box;
+    }
+    .vmc-stain-original {
+      font-family: "Courier New", monospace;
+      font-size: 0.85rem;
+      max-width: 260px;
+      word-break: break-word;
+    }
+    .vmc-stain-row-status {
+      font-size: 0.8rem;
+      color: var(--vmc-muted);
+      white-space: nowrap;
+    }
+    .vmc-stain-row-status.is-ok {
+      color: #14532d;
+    }
+    .vmc-stain-row-status.is-error {
+      color: #8a1f11;
+    }
+    .vmc-stain-family-comparison {
+      background: #f9e6e8;
+    }
+  </style>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Stain Dictionary</h1>
+      <p>
+        Edit the curated <code>stain_dictionary</code> entries directly -
+        canonical name, family, normalisation status, and notes. This is
+        also where a stain combination is marked as a genuine
+        <strong>comparison slide</strong> (see
+        <a href="/documents/review-metadata.html">Review Metadata</a> for
+        what that means): set <strong>Stain family</strong> to exactly
+        <code>Comparison slide</code>. Rows already marked that way are
+        highlighted. Adding a brand-new stain term (rather than editing
+        an existing one) still happens via the correction-review flow on
+        <a href="/admin/corrections-management.html">Corrections</a>.
+      </p>
+      <p class="vmc-muted">
+        <a href="/sysadmin/users.html">Users</a>
+        ·
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
+        ·
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
+        ·
+        <a href="/sysadmin/backup.html">Backup</a>
+        ·
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
+        ·
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
+        ·
+        <a href="/sysadmin/annotations-export.html">Annotations Export</a>
+        ·
+        <a href="/sysadmin/maintenance-jobs.html">Maintenance Jobs</a>
+        ·
+        <a href="/sysadmin/stain-dictionary.html">Stain Dictionary</a>
+        ·
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <div id="load-status">Loading...</div>
+      <div class="vmc-stain-table-wrap" id="table-wrap" hidden>
+        <table class="vmc-stain-table">
+          <thead>
+            <tr>
+              <th>Original stain</th>
+              <th>Canonical stain</th>
+              <th>Stain family</th>
+              <th>Normalisation status</th>
+              <th>Notes</th>
+              <th></th>
+            </tr>
+          </thead>
+          <tbody id="table-body"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const loadStatus = document.getElementById("load-status");
+    const tableWrap = document.getElementById("table-wrap");
+    const tableBody = document.getElementById("table-body");
+
+    function textInput(value) {
+      const input = document.createElement("input");
+      input.type = "text";
+      input.value = value || "";
+      return input;
+    }
+
+    function buildRow(entry) {
+      const tr = document.createElement("tr");
+      if ((entry.stain_family || "").trim() === "Comparison slide") {
+        tr.className = "vmc-stain-family-comparison";
+      }
+
+      const originalCell = document.createElement("td");
+      originalCell.className = "vmc-stain-original";
+      originalCell.textContent = entry.value;
+      tr.appendChild(originalCell);
+
+      const canonicalInput = textInput(entry.canonical_stain);
+      const canonicalCell = document.createElement("td");
+      canonicalCell.appendChild(canonicalInput);
+      tr.appendChild(canonicalCell);
+
+      const familyInput = textInput(entry.stain_family);
+      const familyCell = document.createElement("td");
+      familyCell.appendChild(familyInput);
+      tr.appendChild(familyCell);
+
+      const statusInput = textInput(entry.normalisation_status);
+      const statusCell = document.createElement("td");
+      statusCell.appendChild(statusInput);
+      tr.appendChild(statusCell);
+
+      const notesInput = textInput(entry.notes);
+      const notesCell = document.createElement("td");
+      notesCell.appendChild(notesInput);
+      tr.appendChild(notesCell);
+
+      const actionCell = document.createElement("td");
+      const saveButton = document.createElement("button");
+      saveButton.className = "vmc-button vmc-button-secondary";
+      saveButton.textContent = "Save";
+      const rowStatus = document.createElement("div");
+      rowStatus.className = "vmc-stain-row-status";
+
+      saveButton.addEventListener("click", async function () {
+        saveButton.disabled = true;
+        rowStatus.textContent = "Saving...";
+        rowStatus.className = "vmc-stain-row-status";
+
+        const response = await fetch("/api/admin/dictionaries/stain/update", {
+          method: "POST",
+          credentials: "include",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            original_stain: entry.value,
+            canonical_stain: canonicalInput.value.trim() || null,
+            stain_family: familyInput.value.trim() || null,
+            normalisation_status: statusInput.value.trim() || null,
+            notes: notesInput.value.trim() || null,
+          }),
+        });
+
+        saveButton.disabled = false;
+
+        if (response.status === 403) {
+          rowStatus.textContent = "System administrator access required.";
+          rowStatus.className = "vmc-stain-row-status is-error";
+          return;
+        }
+
+        if (!response.ok) {
+          const body = await response.json().catch(() => ({}));
+          rowStatus.textContent = "Failed: " + (body.detail || response.statusText);
+          rowStatus.className = "vmc-stain-row-status is-error";
+          return;
+        }
+
+        tr.className = familyInput.value.trim() === "Comparison slide"
+          ? "vmc-stain-family-comparison"
+          : "";
+        rowStatus.textContent = "Saved.";
+        rowStatus.className = "vmc-stain-row-status is-ok";
+      });
+
+      actionCell.appendChild(saveButton);
+      actionCell.appendChild(rowStatus);
+      tr.appendChild(actionCell);
+
+      return tr;
+    }
+
+    (async function load() {
+      const response = await fetch("/api/admin/dictionaries/stain", {
+        credentials: "include",
+      });
+
+      if (response.status === 403) {
+        loadStatus.textContent = "Admin access required.";
+        return;
+      }
+
+      if (!response.ok) {
+        loadStatus.textContent = "Failed to load stain dictionary.";
+        return;
+      }
+
+      const data = await response.json();
+
+      for (const entry of data.values) {
+        tableBody.appendChild(buildRow(entry));
+      }
+
+      loadStatus.hidden = true;
+      tableWrap.hidden = false;
+    })();
+  </script>
+</body>
+</html>
