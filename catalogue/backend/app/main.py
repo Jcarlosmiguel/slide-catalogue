@@ -1889,7 +1889,14 @@ def contribution_ticker():
 
 @app.get("/api/featured-slides")
 def featured_slides():
-    """Public (unauthenticated) - 4 random active slides for the homepage."""
+    """Public (unauthenticated) - random active slide candidates for the
+    homepage. Returns 10 candidates rather than the 4 actually displayed -
+    this endpoint has no way to know which slides have a generated
+    thumbnail (that's nginx-served static content, not something the
+    backend has filesystem access to check), so the frontend preloads each
+    candidate image client-side and renders only the first 4 that actually
+    load, silently skipping any that 404.
+    """
 
     conn = get_db_connection()
 
@@ -1904,7 +1911,7 @@ def featured_slides():
                 FROM slides
                 WHERE asset_status = 'ACTIVE'
                 ORDER BY RAND()
-                LIMIT 4
+                LIMIT 10
                 """
             )
 
@@ -3389,11 +3396,12 @@ def _send_contribution_thanks(submitter_email, slide_id, body_intro):
 
 def _update_correction_status(correction_id: int, payload: dict, acting_user: dict):
     """Shared review-decision logic for both the admin and reviewer
-    review endpoints. Rejects self-review (submitter == acting_user),
-    logs the status change to slide_correction_actions, keeps
-    slide_annotations.flagged_incorrect in sync with the current
-    decision (reversibly), and emails the submitter a thank-you the
-    first time a correction reaches 'resolved'."""
+    review endpoints. Rejects self-review (submitter == acting_user) for
+    everyone except system_admin, who has full authority and can approve
+    their own submissions, logs the status change to
+    slide_correction_actions, keeps slide_annotations.flagged_incorrect in
+    sync with the current decision (reversibly), and emails the submitter
+    a thank-you the first time a correction reaches 'resolved'."""
     status = str(payload.get("status", "")).strip()
     admin_notes = payload.get("admin_notes")
 
@@ -3420,7 +3428,10 @@ def _update_correction_status(correction_id: int, payload: dict, acting_user: di
             if correction is None:
                 raise HTTPException(status_code=404, detail="Correction not found")
 
-            if correction["submitter_username"] == acting_user.get("username"):
+            if (
+                correction["submitter_username"] == acting_user.get("username")
+                and acting_user.get("role") != "system_admin"
+            ):
                 raise HTTPException(
                     status_code=403,
                     detail="You can't review a correction you submitted yourself",
@@ -3481,7 +3492,11 @@ def _update_correction_status(correction_id: int, payload: dict, acting_user: di
                     (1 if should_flag else 0, correction["source_annotation_id"]),
                 )
 
-            reward = status == "resolved" and old_status != "resolved"
+            reward = (
+                status == "resolved"
+                and old_status != "resolved"
+                and correction["submitter_username"] != acting_user.get("username")
+            )
 
             if reward:
                 _increment_accepted_contribution(cur, correction["submitter_username"])
@@ -3775,7 +3790,10 @@ def admin_apply_metadata_correction(
                 ),
             )
 
-            reward = correction["status"] != "resolved"
+            reward = (
+                correction["status"] != "resolved"
+                and correction["submitter_username"] != admin_user.get("username")
+            )
 
             if reward:
                 _increment_accepted_contribution(cur, correction["submitter_username"])

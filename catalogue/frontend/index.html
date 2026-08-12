@@ -212,6 +212,19 @@
       const queryString = cleaned.toString();
       window.location.href = queryString ? "/results.html?" + queryString : "/results.html";
     });
+function preloadThumbnail(src) {
+  // The backend has no way to know which slides have a generated
+  // thumbnail (that's nginx-served static content) - so candidates are
+  // probed here in the browser instead, which can actually tell whether
+  // the image 404s.
+  return new Promise(function (resolve) {
+    const probe = new Image();
+    probe.onload = function () { resolve(true); };
+    probe.onerror = function () { resolve(false); };
+    probe.src = src;
+  });
+}
+
 async function loadFeaturedSlides() {
 
   const response = await fetch("/api/featured-slides");
@@ -220,13 +233,24 @@ async function loadFeaturedSlides() {
     return;
   }
 
-  const slides = await response.json();
+  const candidates = await response.json();
 
   const container = document.getElementById("featured-slides");
 
   container.innerHTML = "";
 
-  for (const slide of slides) {
+  let shown = 0;
+
+  for (const slide of candidates) {
+    if (shown >= 4) {
+      break;
+    }
+
+    const thumbSrc = "/thumbnails/512/" + slide.slide_id + ".jpg";
+    const hasThumbnail = await preloadThumbnail(thumbSrc);
+    if (!hasThumbnail) {
+      continue;
+    }
 
     const card = document.createElement("article");
     card.className = "vmc-feature-card";
@@ -241,7 +265,7 @@ async function loadFeaturedSlides() {
     });
 
     const img = document.createElement("img");
-    img.src = "/thumbnails/512/" + slide.slide_id + ".jpg";
+    img.src = thumbSrc;
     img.alt = "Featured slide " + slide.slide_id;
 
     link.appendChild(img);
@@ -257,6 +281,7 @@ async function loadFeaturedSlides() {
     card.appendChild(body);
 
     container.appendChild(card);
+    shown++;
   }
 }
 
