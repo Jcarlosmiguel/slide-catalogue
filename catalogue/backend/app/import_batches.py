@@ -78,15 +78,16 @@ def parse_report(report_text):
     apart, so this only needs one row per distinct name, with
     candidate_folders merged as a set union across every occurrence.
     """
-    summary = {
-        "real_files_crawled": 0,
-        "linked": 0,
-        "share_only": 0,
-        "ambiguous": 0,
-        "orphans": 0,
-        "annotations_imported": 0,
-        "annotations_across_slides": 0,
-    }
+    # real_files_crawled defaults to 0 since any real tool should report
+    # it - its absence more likely means a genuine parsing mismatch worth
+    # surfacing as zero. The rest are deliberately left OUT unless a
+    # matching line is actually found, rather than defaulted to 0 - a tool
+    # like slide-crawler that does no external reconciliation at all will
+    # never produce "linked"/"ambiguous"/"orphans" lines, and defaulting
+    # those to 0 would misleadingly read as "reconciled, found nothing"
+    # instead of "this tool doesn't report this". The frontend shows
+    # "not reported by this tool" for whichever keys are absent here.
+    summary = {"real_files_crawled": 0}
     ambiguous_by_filename = {}
     archive_root_name = None
 

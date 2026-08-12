@@ -23,9 +23,33 @@ generation, so statements that reference the just-inserted slide (e.g.
 sequence. `START TRANSACTION;`/`COMMIT;` may be present but are ignored -
 this page's own commit is the real transaction boundary.
 
+**Important: `slides.physical_path` must be a path `catalogue_backend`
+itself can open, not a path on whatever machine generated the `.sql`.**
+Those are frequently different - e.g. if you're generating the SQL with
+[slide-crawler](https://github.com/Jcarlosmiguel/slide-crawler) run
+directly on a host where the archive is mounted at `/mnt/archive`, but
+`catalogue_backend`'s own container mounts that same archive at
+`/srv/archive` (see `compose.yaml`'s `SHARE_ROOT_LINUX` -> `/srv/archive`
+mapping) - in that case pass slide-crawler's `--physical-path-prefix
+/srv/archive`, not `/mnt/archive`, even though `/mnt/archive` is the
+correct path *for slide-crawler itself* to read the files while crawling.
+Getting this wrong doesn't break the import or the upload - the batch
+commits fine - but every slide's thumbnail-generation step will fail
+with "Unable to open slide" until `physical_path` is corrected, since
+that's the first time anything tries to actually open the file from
+inside the container.
+
 **`.report.txt`** - plain text, line-prefix based. Only the lines below
 are parsed; everything else is ignored, so a tool is free to include
-additional human-readable detail:
+additional human-readable detail. Only `Crawled folder:` and
+`Real files crawled:` are expected from every tool - the rest
+(`linked`/`share-only`/`ambiguous`/`orphans`, the annotations line, and
+the whole `Ambiguous filenames` section) describe reconciliation against
+some other record system, which not every crawler tool does. Omit
+whichever of those don't apply rather than reporting them as `0` - the
+batch page shows "not reported by this tool" for anything absent, rather
+than a number that would misleadingly suggest reconciliation happened
+and found nothing.
 
 ```
 Crawled folder: /path/the/tool/crawled

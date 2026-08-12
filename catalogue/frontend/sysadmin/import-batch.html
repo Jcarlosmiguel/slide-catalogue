@@ -126,15 +126,24 @@
     }
 
     function renderSummary(summary) {
+      // Fields the producing tool never reported (as opposed to reporting
+      // as a real zero) are shown as "not reported by this tool", not a
+      // misleading "0" - a tool that does no external reconciliation at
+      // all (see catalogue/docs/import-batches.md) never produces
+      // linked/share-only/ambiguous/orphans lines, and 0 would read as
+      // "reconciled, found nothing" instead of "doesn't apply here".
+      function val(key) {
+        return key in summary ? summary[key] : '<span class="vmc-muted">not reported by this tool</span>';
+      }
       const el = document.getElementById("summary-content");
       el.innerHTML = `
         <ul>
           <li>Real files crawled: ${summary.real_files_crawled}</li>
-          <li>linked: ${summary.linked}</li>
-          <li>share-only: ${summary.share_only}</li>
-          <li>ambiguous: ${summary.ambiguous}</li>
-          <li>orphans: ${summary.orphans}</li>
-          <li>Annotations imported: ${summary.annotations_imported} across ${summary.annotations_across_slides} slide(s)</li>
+          <li>linked: ${val("linked")}</li>
+          <li>share-only: ${val("share_only")}</li>
+          <li>ambiguous: ${val("ambiguous")}</li>
+          <li>orphans: ${val("orphans")}</li>
+          <li>Annotations imported: ${val("annotations_imported")}${"annotations_across_slides" in summary ? ` across ${summary.annotations_across_slides} slide(s)` : ""}</li>
         </ul>
       `;
       document.getElementById("summary-section").hidden = false;

@@ -72,6 +72,17 @@
       <hr class="vmc-divider">
 
       <h2>Upload a new batch</h2>
+      <p class="vmc-muted">
+        Before generating the <code>.sql</code>: the <code>physical_path</code>
+        it writes for each slide must be a path <em>this catalogue's own
+        backend container</em> can open, not a path on whatever machine
+        generated the file - these are often different mount points for
+        the same archive. Getting it wrong doesn't block the upload or
+        commit, but thumbnail generation will fail with "Unable to open
+        slide" until it's corrected. See
+        <code>catalogue/docs/import-batches.md</code> for the full
+        explanation and an example.
+      </p>
       <div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 32rem;">
         <label>.sql file <input type="file" id="sql-file" accept=".sql"></label>
         <label>.report.txt file <input type="file" id="report-file" accept=".txt"></label>
