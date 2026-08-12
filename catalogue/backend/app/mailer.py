@@ -46,6 +46,12 @@ def send_email(
         # versions can leave unverified - an on-path attacker could
         # otherwise strip/MITM this and capture SMTP_USERNAME/PASSWORD.
         server.starttls(context=ssl.create_default_context())
-        if username:
+        # Some institutional relays (e.g. an IP-trusted internal relay) don't
+        # offer AUTH at all and don't need it - only attempt login when a
+        # password is actually configured. A blank password can never
+        # authenticate successfully anyway, and calling login() against a
+        # server that doesn't advertise AUTH raises SMTPNotSupportedError
+        # immediately, failing every send even though no auth was needed.
+        if username and password:
             server.login(username, password)
         server.send_message(message)

@@ -4845,12 +4845,14 @@ def get_contact_info():
 @app.post("/api/contact")
 def create_contact_message(payload: ContactMessageCreate, request: Request):
     """Public contact-form submission (no login required, unlike
-    site-feedback below) - emails the message straight to
-    CONTACT_NOTIFICATION_EMAIL, never storing or exposing that address to
-    the browser. Best-effort: a broken mail server shouldn't surface as a
-    confusing error to a visitor filling in a contact form, so this
-    always reports success once the message is validated, same rationale
-    as the registration/activation emails elsewhere in this file.
+    site-feedback below). Stored in contact_messages first, then emailed
+    to CONTACT_NOTIFICATION_EMAIL as a courtesy notification - never
+    storing or exposing that address to the browser. The email is
+    best-effort (a broken mail server shouldn't surface as a confusing
+    error to a visitor filling in a contact form), but a failed send no
+    longer loses the message itself: it stays in the database
+    (email_sent_at left NULL) for an admin to find via the SQL console
+    regardless of whether the notification ever arrived.
     """
     name = payload.name.strip()
     email = payload.email.strip()
@@ -4859,26 +4861,50 @@ def create_contact_message(payload: ContactMessageCreate, request: Request):
     if not name or not email or not message_text:
         raise HTTPException(status_code=400, detail="Name, email, and message are all required")
 
-    to_address = os.getenv("CONTACT_NOTIFICATION_EMAIL")
-    if to_address:
-        remote_addr = request.client.host if request.client else "unknown"
-        body = (
-            f"New contact form submission from the slide catalogue.\n\n"
-            f"Name: {name}\n"
-            f"Email: {email}\n"
-            f"Remote address: {remote_addr}\n\n"
-            f"Message:\n{message_text}"
-        )
-        try:
-            send_email(
-                to_address,
-                f"Catalogue contact form: {name}",
-                body,
-                from_override=os.getenv("MAIL_FROM_CONTACT"),
-                reply_to=email,
+    remote_addr = request.client.host if request.client else None
+    user_agent = request.headers.get("user-agent", "")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                """
+                INSERT INTO contact_messages (
+                    name, email, message_text, remote_addr, user_agent
+                )
+                VALUES (%s, %s, %s, %s, %s)
+                """,
+                (name, email, message_text, remote_addr, user_agent),
             )
-        except Exception as exc:
-            print("Failed to send contact form email:", exc)
+            message_id = cur.lastrowid
+            conn.commit()
+
+            to_address = os.getenv("CONTACT_NOTIFICATION_EMAIL")
+            if to_address:
+                body = (
+                    f"New contact form submission from the slide catalogue.\n\n"
+                    f"Name: {name}\n"
+                    f"Email: {email}\n"
+                    f"Remote address: {remote_addr or 'unknown'}\n\n"
+                    f"Message:\n{message_text}"
+                )
+                try:
+                    send_email(
+                        to_address,
+                        f"Catalogue contact form: {name}",
+                        body,
+                        from_override=os.getenv("MAIL_FROM_CONTACT"),
+                        reply_to=email,
+                    )
+                    cur.execute(
+                        "UPDATE contact_messages SET email_sent_at = NOW() WHERE message_id = %s",
+                        (message_id,),
+                    )
+                    conn.commit()
+                except Exception as exc:
+                    print("Failed to send contact form email (message safely stored, id", message_id, "):", exc)
+    finally:
+        conn.close()
 
     return {"status": "ok", "message": "Thank you - your message has been sent."}
 

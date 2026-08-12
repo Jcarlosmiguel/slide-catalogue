@@ -58,7 +58,8 @@
 		      <input id="organ"
 		             name="organ"
 		             type="text"
-		             placeholder="e.g. Kidney, Heart, Cortex">
+		             placeholder="e.g. Kidney">
+		      <small class="vmc-field-hint vmc-muted">Matches slides whose organ contains this text.</small>
 		    </div>
 
 		    <div class="vmc-field">
@@ -66,7 +67,8 @@
 		      <input id="species"
 		             name="species"
 		             type="text"
-		             placeholder="e.g. Human, Rat, Guinea pig">
+		             placeholder="e.g. Human">
+		      <small class="vmc-field-hint vmc-muted">Matches slides whose species contains this text.</small>
 		    </div>
 
 		    <div class="vmc-field">
@@ -74,7 +76,8 @@
 		      <input id="stain"
 		             name="stain"
 		             type="text"
-		             placeholder="e.g. H&E, Silver, Masson">
+		             placeholder="e.g. Silver">
+		      <small class="vmc-field-hint vmc-muted">Also matches the stain dictionary's canonical name and family.</small>
 		    </div>
 
 		    <div class="vmc-field">
@@ -82,7 +85,7 @@
 		      <input id="q"
 		             name="q"
 		             type="search"
-		             placeholder="e.g. glomeruli, hair follicle, Pacinian">
+		             placeholder="e.g. glomeruli">
 		      <small class="vmc-field-hint vmc-muted">Also matches metadata, expert contributor notes, and filenames.</small>
 		    </div>
 
@@ -92,7 +95,8 @@
 		             name="slide_id"
 		             type="number"
 		             min="1"
-		             placeholder="e.g. 17, 644, 1387">
+		             placeholder="e.g. 644">
+		      <small class="vmc-field-hint vmc-muted">Exact match on one slide ID - search multiple fields together to narrow a list instead.</small>
 		    </div>
 
 		    <div class="vmc-field">
@@ -101,6 +105,7 @@
 		             name="filename"
 		             type="text"
 		             placeholder="e.g. part of a slide's filename">
+		      <small class="vmc-field-hint vmc-muted">Matches slides whose filename contains this text.</small>
 		    </div>
 
 		  </div>
