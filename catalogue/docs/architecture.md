@@ -49,6 +49,15 @@ drives. This also means the archive itself can stay on read-only
 storage: the catalogue never needs to write to it, only OMERO's own
 import step does, and only for the slides actually being promoted.
 
+## DICOM support
+
+The catalogue can also store DICOM slides (e.g. for a medical-school
+radiology collection) alongside the usual whole-slide image formats -
+always de-identified before being catalogued, never served raw. See
+`docs/dicom.md` for the full design (two de-identification modes, where
+each is applied, the backend's own safety net, DICOM-specific thumbnail
+generation).
+
 ---
 
 # High-Level Architecture

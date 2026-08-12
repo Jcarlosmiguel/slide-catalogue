@@ -38,6 +38,13 @@ try:
 except Exception:
     TiffSlide = None
 
+try:
+    import pydicom
+    import numpy as np
+except Exception:
+    pydicom = None
+    np = None
+
 SIZES = (2048, 1024, 512)
 THUMBNAIL_SIZE = 4096
 DEFAULT_CROP_THRESHOLD = 245
@@ -87,6 +94,55 @@ def generate_for_slide(slide_path, thumbnails_root, slide_id, threshold):
             pass
 
 
+def generate_dicom_thumbnail(slide_path, thumbnails_root, slide_id):
+    """DICOM pixel data isn't touched by de-identification (only header
+    tags are - see app/dicom_deidentify.py in the backend), so it's safe to
+    read directly from physical_path here. Callers must never call this for
+    a slide whose dicom_deidentification_mode is NULL - see main()'s own
+    filtering - that's what stops a raw, un-scrubbed file being read at
+    all. Mirrors app/thumbnail_job.py's generate_dicom_thumbnail exactly
+    (see that module's own docstring for why OpenSlide/TiffSlide don't
+    apply to most real-world DICOM content)."""
+    if pydicom is None or np is None:
+        raise RuntimeError("pydicom/numpy unavailable")
+
+    ds = pydicom.dcmread(slide_path)
+    arr = ds.pixel_array
+    if arr.ndim >= 3:
+        arr = arr[arr.shape[0] // 2]
+
+    arr = arr.astype(np.float64)
+    slope = float(getattr(ds, "RescaleSlope", 1) or 1)
+    intercept = float(getattr(ds, "RescaleIntercept", 0) or 0)
+    arr = arr * slope + intercept
+
+    center = getattr(ds, "WindowCenter", None)
+    width = getattr(ds, "WindowWidth", None)
+    if center is not None and width is not None:
+        center = float(center[0] if hasattr(center, "__iter__") and not isinstance(center, str) else center)
+        width = float(width[0] if hasattr(width, "__iter__") and not isinstance(width, str) else width)
+        lo, hi = center - width / 2, center + width / 2
+    else:
+        lo, hi = float(arr.min()), float(arr.max())
+    if hi <= lo:
+        hi = lo + 1
+
+    arr = np.clip((arr - lo) / (hi - lo) * 255.0, 0, 255).astype(np.uint8)
+    if getattr(ds, "PhotometricInterpretation", "") == "MONOCHROME1":
+        arr = 255 - arr
+
+    img = Image.fromarray(arr).convert("RGB")
+    for size in SIZES:
+        size_dir = os.path.join(thumbnails_root, str(size))
+        os.makedirs(size_dir, exist_ok=True)
+        sized = img.copy()
+        sized.thumbnail((size, size), Image.Resampling.LANCZOS)
+        sized.save(
+            os.path.join(size_dir, f"{slide_id}.jpg"),
+            format="JPEG", quality=90, optimize=True,
+        )
+
+
 def main(argv=None):
     parser = argparse.ArgumentParser(
         description="Generate thumbnails for catalogue slides that don't have one yet."
@@ -122,11 +178,25 @@ def main(argv=None):
     )
     with conn.cursor() as cur:
         cur.execute(
-            "SELECT slide_id, filename, physical_path FROM slides "
+            "SELECT slide_id, filename, physical_path, slide_format, "
+            "dicom_deidentification_mode FROM slides "
             "WHERE asset_status = 'ACTIVE' ORDER BY slide_id"
         )
         slides = cur.fetchall()
     conn.close()
+
+    blocked_dicom = [
+        s for s in slides
+        if s["slide_format"] == "DICOM" and not s["dicom_deidentification_mode"]
+    ]
+    if blocked_dicom:
+        print(
+            f"{len(blocked_dicom)} DICOM slide(s) have not been de-identified yet "
+            "- skipping these entirely (never reading the raw file, even for a "
+            "thumbnail) until a de-identification pass has run. See the "
+            "sysadmin System Settings page for the site's default mode."
+        )
+    slides = [s for s in slides if s not in blocked_dicom]
 
     print(f"{len(slides)} ACTIVE slide(s) in the catalogue.")
 
@@ -148,7 +218,10 @@ def main(argv=None):
     for idx, slide in enumerate(to_process, start=1):
         slide_id, filename, physical_path = slide["slide_id"], slide["filename"], slide["physical_path"]
         try:
-            generate_for_slide(physical_path, args.thumbnails_root, slide_id, args.threshold)
+            if slide["slide_format"] == "DICOM":
+                generate_dicom_thumbnail(physical_path, args.thumbnails_root, slide_id)
+            else:
+                generate_for_slide(physical_path, args.thumbnails_root, slide_id, args.threshold)
             print(f"  [{idx}/{len(to_process)}] slide_id {slide_id} ({filename}): OK")
         except Exception as exc:
             print(f"  [{idx}/{len(to_process)}] slide_id {slide_id} ({filename}): FAILED - {exc}")

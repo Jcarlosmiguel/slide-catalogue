@@ -41,6 +41,13 @@ try:
 except Exception:
     TiffSlide = None
 
+try:
+    import pydicom
+    import numpy as np
+except Exception:
+    pydicom = None
+    np = None
+
 SIZES = (2048, 1024, 512)
 THUMBNAIL_SIZE = 4096
 DEFAULT_CROP_THRESHOLD = 245
@@ -115,6 +122,106 @@ def generate_for_slide(slide_path, slide_id, threshold=DEFAULT_CROP_THRESHOLD):
             slide.close()
         except Exception:
             pass
+
+
+def generate_dicom_thumbnail(slide_path, slide_id):
+    """DICOM pixel data isn't touched by de-identification (only header
+    tags are - see app/dicom_deidentify.py) so it's always safe to read
+    directly from physical_path here. Callers must still never invoke this
+    for a slide whose dicom_deidentification_mode is NULL - see the guard
+    in run_job() - that's what stops a raw, un-scrubbed file from ever
+    being read at all, regardless of what this function itself touches.
+
+    OpenSlide/TiffSlide don't apply here (most real-world DICOM teaching
+    content is single/multi-frame radiology, not the WSI-pyramid DICOM
+    subset OpenSlide 4.x added support for), so this reads pixel data
+    directly via pydicom and does its own basic windowing - no vendor
+    pyramid/tiling to lean on.
+    """
+    if pydicom is None or np is None:
+        raise RuntimeError("pydicom/numpy unavailable")
+
+    ds = pydicom.dcmread(slide_path)
+    arr = ds.pixel_array
+
+    # Multi-frame (or multi-frame-shaped) data - use the middle frame as a
+    # representative preview rather than the first, and never try to render
+    # every frame into one thumbnail.
+    if arr.ndim >= 3:
+        frame_count = arr.shape[0]
+        arr = arr[frame_count // 2]
+
+    arr = arr.astype(np.float64)
+    slope = float(getattr(ds, "RescaleSlope", 1) or 1)
+    intercept = float(getattr(ds, "RescaleIntercept", 0) or 0)
+    arr = arr * slope + intercept
+
+    center = getattr(ds, "WindowCenter", None)
+    width = getattr(ds, "WindowWidth", None)
+    if center is not None and width is not None:
+        center = float(center[0] if hasattr(center, "__iter__") and not isinstance(center, str) else center)
+        width = float(width[0] if hasattr(width, "__iter__") and not isinstance(width, str) else width)
+        lo, hi = center - width / 2, center + width / 2
+    else:
+        # No window hint in the file - fall back to the data's own range
+        # (min-max normalization) rather than guessing a modality-specific
+        # default.
+        lo, hi = float(arr.min()), float(arr.max())
+    if hi <= lo:
+        hi = lo + 1
+
+    arr = np.clip((arr - lo) / (hi - lo) * 255.0, 0, 255).astype(np.uint8)
+    if getattr(ds, "PhotometricInterpretation", "") == "MONOCHROME1":
+        arr = 255 - arr  # MONOCHROME1: 0=white - invert so higher values render brighter, like MONOCHROME2
+
+    img = Image.fromarray(arr).convert("RGB")
+
+    for size in SIZES:
+        size_dir = os.path.join(THUMBNAILS_ROOT, str(size))
+        os.makedirs(size_dir, exist_ok=True)
+        sized = img.copy()
+        sized.thumbnail((size, size), Image.Resampling.LANCZOS)
+        sized.save(
+            os.path.join(size_dir, f"{slide_id}.jpg"),
+            format="JPEG", quality=90, optimize=True,
+        )
+
+
+def _generate_dicom_worker(slide_path, slide_id, result_queue):
+    try:
+        generate_dicom_thumbnail(slide_path, slide_id)
+        result_queue.put(("ok", None))
+    except Exception as exc:
+        result_queue.put(("error", str(exc)))
+
+
+def generate_dicom_thumbnail_with_timeout(slide_path, slide_id, timeout_seconds=PER_SLIDE_TIMEOUT_SECONDS):
+    """Same subprocess-timeout protection as generate_for_slide_with_timeout
+    - see that function's docstring for why this can't just be an in-process
+    timeout."""
+    result_queue = _mp_context.Queue()
+    process = _mp_context.Process(
+        target=_generate_dicom_worker, args=(slide_path, slide_id, result_queue)
+    )
+    process.start()
+    process.join(timeout_seconds)
+
+    if process.is_alive():
+        process.terminate()
+        process.join(5)
+        if process.is_alive():
+            process.kill()
+            process.join(5)
+        raise RuntimeError(f"Timed out after {timeout_seconds}s (file may be stuck/corrupt)")
+
+    if result_queue.empty():
+        raise RuntimeError(
+            f"Generation process exited unexpectedly (exit code {process.exitcode}) with no result"
+        )
+
+    status, error = result_queue.get()
+    if status == "error":
+        raise RuntimeError(error)
 
 
 def _generate_worker(slide_path, slide_id, threshold, result_queue):
@@ -212,7 +319,8 @@ def run_job(job_id, slide_ids):
         for processed, slide_id in enumerate(slide_ids, start=1):
             with conn.cursor() as cur:
                 cur.execute(
-                    "SELECT filename, physical_path FROM slides WHERE slide_id=%s",
+                    "SELECT filename, physical_path, slide_format, "
+                    "dicom_deidentification_mode FROM slides WHERE slide_id=%s",
                     (slide_id,),
                 )
                 slide = cur.fetchone()
@@ -222,9 +330,27 @@ def run_job(job_id, slide_ids):
                     "slide_id": slide_id, "filename": None, "physical_path": None,
                     "error": "slide_id not found",
                 })
+            elif slide["slide_format"] == "DICOM" and not slide["dicom_deidentification_mode"]:
+                # Safety net: never read a DICOM file whose source hasn't
+                # been through a de-identification pass, even just to
+                # generate a thumbnail - de-identification only touches
+                # header tags, but the file itself may also carry
+                # burned-in PHI in the pixel data this job would otherwise
+                # render straight into a public thumbnail.
+                manual_needed.append({
+                    "slide_id": slide_id,
+                    "filename": slide["filename"],
+                    "physical_path": slide["physical_path"],
+                    "error": "DICOM slide has not been de-identified yet - see "
+                    "sysadmin > System Settings for the site's default "
+                    "de-identification mode before a thumbnail can be generated.",
+                })
             else:
                 try:
-                    generate_for_slide_with_timeout(slide["physical_path"], slide_id)
+                    if slide["slide_format"] == "DICOM":
+                        generate_dicom_thumbnail_with_timeout(slide["physical_path"], slide_id)
+                    else:
+                        generate_for_slide_with_timeout(slide["physical_path"], slide_id)
                     succeeded += 1
                 except Exception as exc:
                     manual_needed.append({

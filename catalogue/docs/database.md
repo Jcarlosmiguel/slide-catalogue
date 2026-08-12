@@ -34,6 +34,8 @@ Contains:
 - Slide identifiers
 - File locations
 - Core catalogue information
+- DICOM de-identification status (`dicom_deidentification_mode`,
+  `dicom_burned_in_annotation_warning`) - see `docs/dicom.md`
 
 ---
 

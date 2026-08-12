@@ -104,6 +104,15 @@ async function loadSettings() {
     ).value =
         settings.contribution_ticker_message || "";
 
+    const dicomMode =
+        settings.dicom_deidentification_default_mode || "full";
+
+    document.getElementById(
+        dicomMode === "non_identifying" ?
+            "dicom-mode-non-identifying" :
+            "dicom-mode-full"
+    ).checked = true;
+
 }
 
 async function saveSettings() {
@@ -198,6 +207,11 @@ async function saveSettings() {
         contribution_ticker_message:
             document.getElementById(
                 "contribution-ticker-message"
+            ).value,
+
+        dicom_deidentification_default_mode:
+            document.querySelector(
+                'input[name="dicom-deidentify-mode"]:checked'
             ).value,
 
     };

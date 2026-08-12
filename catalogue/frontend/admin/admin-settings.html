@@ -150,6 +150,44 @@
         <p><strong>Contribution Ticker Message</strong></p>
         <textarea id="contribution-ticker-message" style="width: 100%; height: 6rem;"></textarea>
 
+        <hr class="vmc-divider">
+
+        <p><strong>DICOM De-identification Default</strong></p>
+        <p class="vmc-muted">
+          Site-wide default for how a DICOM slide's header is scrubbed of
+          patient-identifying data before it's ever served. Applies whenever
+          the catalogue itself needs to de-identify a DICOM file (e.g. one
+          catalogued without already going through slide-crawler's own
+          per-run de-identification step) - it never re-processes a slide
+          that already has a mode recorded. Neither mode inspects pixel
+          data, so a scanner-burned-in text overlay is not removed by
+          either - always visually check a slide flagged with a burned-in
+          annotation warning before making it available regardless of mode.
+        </p>
+        <p>
+          <label style="display: block; margin-bottom: 0.5rem;">
+            <input type="radio" name="dicom-deidentify-mode" id="dicom-mode-full" value="full">
+            <strong>Complete anonymiser (recommended default)</strong> - removes
+            every direct identifier (name, ID, birth date, address, contact
+            details, physician names, institution, accession number, all
+            dates/times) AND every descriptive field that could narrow down
+            who the patient is even indirectly (age, size, weight, free-text
+            study/series descriptions, comments). Only the technical imaging
+            data needed to display the image is left - no context about the
+            patient or exam at all.
+          </label>
+          <label style="display: block;">
+            <input type="radio" name="dicom-deidentify-mode" id="dicom-mode-non-identifying" value="non_identifying">
+            <strong>Non-identifying (partial)</strong> - removes every direct
+            identifier as above, but keeps non-identifying descriptive
+            fields with real teaching value (patient sex, age, body part
+            examined, modality, study/series description, imaging
+            parameters). A practical subset of the DICOM standard's own
+            PS3.15 Basic De-identification Profile, not a certified
+            implementation of it.
+          </label>
+        </p>
+
         <button id="save-settings" class="vmc-button" style="margin-top: 1rem;">Save Settings</button>
         <div id="settings-status"></div>
       </div>

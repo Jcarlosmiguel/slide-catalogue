@@ -10,3 +10,5 @@ openslide-python
 tiffslide
 pyvips
 python-multipart
+pydicom
+numpy
