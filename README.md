@@ -5,6 +5,14 @@ microscopy slide archives - built for teaching use (search by organ/species/
 stain, review slide metadata, flag corrections, export QuPath annotation
 scripts, prepare slides for publication).
 
+Not a replacement for [OMERO](https://www.openmicroscopy.org/omero/) -
+a companion to it. This app indexes and curates the *entire* slide
+archive directly from the raw files (thumbnails, search, metadata,
+annotation - no OMERO import needed for any of that), while OMERO's own
+storage-intensive pyramidal processing is reserved for whichever slides
+are actually in active teaching use. See `catalogue/docs/architecture.md`
+("Relationship to OMERO") for the full rationale.
+
 ## Getting started
 
 ```bash
