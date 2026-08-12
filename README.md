@@ -13,6 +13,12 @@ storage-intensive pyramidal processing is reserved for whichever slides
 are actually in active teaching use. See `catalogue/docs/architecture.md`
 ("Relationship to OMERO") for the full rationale.
 
+Also supports DICOM slides (e.g. for a medical-school radiology
+collection) alongside the usual whole-slide image formats - every DICOM
+file is de-identified before being catalogued, never served raw. See
+`catalogue/docs/dicom.md` for the two de-identification modes and where
+each is applied.
+
 ## Getting started
 
 ```bash
