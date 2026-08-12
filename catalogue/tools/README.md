@@ -31,6 +31,23 @@ for exact invocation.
   check both call this directly; no standalone CLI usage.
 - `../backend/app/cleanup_backups.py` - triggered via the sysadmin
   Maintenance Jobs page only, not run standalone.
+- `../backend/app/resend_pending_activations.py` - resends the activation
+  invite email for any `PENDING_ACTIVATION` account whose original email
+  silently failed (e.g. during an SMTP outage) - regenerates the token
+  first if it's since expired. Run *inside* `catalogue_backend`
+  (`docker compose exec catalogue_backend python3 -m app.resend_pending_activations`
+  - must be `-m`, not a file path, so the `app.main` import resolves).
+  `--execute` to actually send (default is a dry run); `--user-id` to
+  target one account.
+- `../backend/app/resend_pending_password_resets.py` - same idea for a
+  single user's most recent password-reset email, for when someone
+  reports not receiving one. Unlike the activation script, this is never
+  a bulk sweep - a password reset is a per-request event (old, unused,
+  expired requests are completely normal, not something to resend) so
+  `--execute` always requires a specific `--email` or `--user-id`. Same
+  `-m` invocation as above; regenerates the token if the existing one has
+  since expired (2-hour lifetime, much shorter than activation's 7 days),
+  otherwise reuses it unchanged.
 
 ## Note (found and fixed 2026-08-08)
 
