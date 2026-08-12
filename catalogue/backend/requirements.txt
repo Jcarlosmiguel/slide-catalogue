@@ -9,3 +9,4 @@ tifffile
 openslide-python
 tiffslide
 pyvips
+python-multipart

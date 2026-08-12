@@ -72,6 +72,17 @@ services:
       - ./catalogue/thumbnail_backups:/srv/thumbnail_backups
       - ./catalogue/thumbnails:/srv/thumbnails
       - ./catalogue/backups/database/full:/srv/backups
+      - ./catalogue/import_batches:/srv/import_batches
+      # Read-only access to the real slide archive, for the Import
+      # Batches feature's disk-based ambiguous-file matching and
+      # thumbnail-generation job only (unlike an OMERO-side container,
+      # which would need it for serving/viewing). SHARE_ROOT_LINUX is
+      # wherever the real share is actually mounted on this host - the
+      # fixed /srv/archive container path is what import_batches.py's
+      # ARCHIVE_ROOT constant expects, so this mapping is the only place
+      # that needs to change if a deployment's host-side share path
+      # differs.
+      - "${SHARE_ROOT_LINUX}:/srv/archive:ro"
 
     depends_on:
       catalogue_mariadb:

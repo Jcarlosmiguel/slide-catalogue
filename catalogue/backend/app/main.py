@@ -20,7 +20,7 @@ from decimal import Decimal
 from typing import Any, Optional
 from pydantic import BaseModel, Field
 import pymysql
-from fastapi import FastAPI, HTTPException, Query, Request, Response, Body, Depends
+from fastapi import FastAPI, HTTPException, Query, Request, Response, Body, Depends, UploadFile, File
 from fastapi.responses import StreamingResponse
 
 from app.admin_audit import log_admin_action
@@ -38,6 +38,8 @@ from app.annotation_ome_xml import slugify_filename_hint
 from app.annotation_ome_xml import arrow_style_filename_label
 from app.annotation_ome_xml import DEFAULT_COLOR_RGB as DEFAULT_ANNOTATION_COLOR
 from app.annotation_ome_xml import DEFAULT_ARROW_STYLE as DEFAULT_ANNOTATION_ARROW_STYLE
+from app import import_batches
+from app import thumbnail_job
 
 
 app = FastAPI(
@@ -3152,6 +3154,525 @@ def get_all_slides_annotations_ome_xml_bulk(
         media_type="application/zip",
         headers={"Content-Disposition": 'attachment; filename="all_slide_annotations_ome_xml.zip"'},
     )
+
+
+IMPORT_BATCHES_ROOT = "/srv/import_batches"
+
+
+def _import_batch_row(conn, batch_id):
+    with conn.cursor() as cur:
+        cur.execute("SELECT * FROM import_batches WHERE batch_id = %s", (batch_id,))
+        batch = cur.fetchone()
+    return clean_row(batch)
+
+
+@app.post("/api/admin/import-batches")
+def create_import_batch(
+    sql_file: UploadFile = File(...),
+    report_file: UploadFile = File(...),
+    log_file: UploadFile = File(...),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Uploads a completed crawler-tool run's three output files (see
+    catalogue/docs/import-batches.md for the expected format), validates
+    the .sql and parses the .report.txt immediately (fail fast - don't
+    wait until commit to discover a bad upload), and creates the batch +
+    one import_batch_ambiguous_files row per ambiguous filename the report
+    lists. Files are stored on disk under IMPORT_BATCHES_ROOT, not in the
+    database - matching how backups already work."""
+    sql_bytes = sql_file.file.read()
+    report_bytes = report_file.file.read()
+    log_bytes = log_file.file.read()
+
+    try:
+        sql_text = sql_bytes.decode("utf-8")
+        report_text = report_bytes.decode("utf-8")
+    except UnicodeDecodeError:
+        raise HTTPException(status_code=400, detail="Uploaded files must be UTF-8 text")
+
+    try:
+        import_batches.validate_batch_sql(sql_text)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=f"Invalid .sql file: {exc}")
+
+    parsed = import_batches.parse_report(report_text)
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO import_batches (uploaded_by_user_id, uploaded_by_username, "
+                "sql_filename, report_filename, run_log_filename, storage_dir, "
+                "report_summary_json, archive_root_name) "
+                "VALUES (%s, %s, %s, %s, %s, %s, %s, %s)",
+                (
+                    admin_user.get("user_id"), admin_user.get("username"),
+                    sql_file.filename, report_file.filename, log_file.filename,
+                    "",  # storage_dir set below, once batch_id is known
+                    json.dumps(parsed["summary"]),
+                    parsed["archive_root_name"],
+                ),
+            )
+            batch_id = cur.lastrowid
+
+            storage_dir = str(batch_id)
+            cur.execute(
+                "UPDATE import_batches SET storage_dir = %s WHERE batch_id = %s",
+                (storage_dir, batch_id),
+            )
+
+            for entry in parsed["ambiguous"]:
+                cur.execute(
+                    "INSERT INTO import_batch_ambiguous_files (batch_id, filename, "
+                    "candidate_folders_json) VALUES (%s, %s, %s)",
+                    (batch_id, entry["filename"], json.dumps(entry["candidate_folders"])),
+                )
+
+        conn.commit()
+
+        batch_dir = os.path.join(IMPORT_BATCHES_ROOT, storage_dir)
+        os.makedirs(batch_dir, exist_ok=True)
+        with open(os.path.join(batch_dir, sql_file.filename), "wb") as fh:
+            fh.write(sql_bytes)
+        with open(os.path.join(batch_dir, report_file.filename), "wb") as fh:
+            fh.write(report_bytes)
+        with open(os.path.join(batch_dir, log_file.filename), "wb") as fh:
+            fh.write(log_bytes)
+
+        return {
+            "batch_id": batch_id,
+            "summary": parsed["summary"],
+            "ambiguous_count": len(parsed["ambiguous"]),
+        }
+
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/import-batches")
+def list_import_batches(admin_user: dict = Depends(require_system_admin)):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM import_batches ORDER BY batch_id DESC")
+            return clean_rows(cur.fetchall())
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/import-batches/{batch_id}")
+def get_import_batch(batch_id: int, admin_user: dict = Depends(require_system_admin)):
+    conn = get_db_connection()
+    try:
+        batch = _import_batch_row(conn, batch_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Import batch not found")
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM import_batch_ambiguous_files WHERE batch_id = %s ORDER BY ambiguous_id",
+                (batch_id,),
+            )
+            ambiguous = clean_rows(cur.fetchall())
+
+        batch["ambiguous_files"] = ambiguous
+        return batch
+    except HTTPException:
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/import-batches/{batch_id}/ambiguous/{ambiguous_id}/disk-matches")
+def get_ambiguous_disk_matches(
+    batch_id: int, ambiguous_id: int,
+    rescan: bool = Query(False, description="Force a fresh disk scan even if matches already exist - see docstring."),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Returns the real files found on disk for this ambiguous filename.
+    Only scans the disk (and inserts fresh rows) the FIRST time this is
+    called for a given ambiguous_id - every subsequent call just returns
+    the existing rows as-is, resolution state included. This matters:
+    the frontend's loadBatch() re-fetches every ambiguous entry's matches
+    after EVERY resolve click (to redraw the whole page) - a plain GET
+    that always deleted-and-reinserted would silently wipe out the
+    resolution the user just set. Pass ?rescan=true to force a fresh disk
+    scan (e.g. if files were added/moved) - this DOES still wipe unresolved
+    ('pending') matches, but never touches ones already resolved, by
+    design (never silently discard a sysadmin's decision).
+    Returns each match plus a duplicate_group id (matches sharing the same
+    content_hash get the same group - a NULL hash never groups with
+    anything, since that means hashing failed, not that content differs)."""
+    conn = get_db_connection()
+    try:
+        batch = _import_batch_row(conn, batch_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Import batch not found")
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM import_batch_ambiguous_files WHERE ambiguous_id = %s AND batch_id = %s",
+                (ambiguous_id, batch_id),
+            )
+            row = cur.fetchone()
+        if row is None:
+            raise HTTPException(status_code=404, detail="Ambiguous file entry not found")
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM import_batch_ambiguous_file_matches WHERE ambiguous_id = %s ORDER BY match_id",
+                (ambiguous_id,),
+            )
+            matches = clean_rows(cur.fetchall())
+
+        if not matches or rescan:
+            found = import_batches.find_disk_matches(batch["archive_root_name"], row["filename"])
+            with conn.cursor() as cur:
+                # Only ever remove matches that are still 'pending' - a
+                # resolved one (unlinked/skipped) is a sysadmin decision
+                # already made and is never silently discarded by a rescan.
+                cur.execute(
+                    "DELETE FROM import_batch_ambiguous_file_matches WHERE ambiguous_id = %s AND resolution = 'pending'",
+                    (ambiguous_id,),
+                )
+                existing_paths = {m["physical_path"] for m in matches if m["resolution"] != "pending"}
+                for m in found:
+                    if m["physical_path"] in existing_paths:
+                        continue
+                    cur.execute(
+                        "INSERT INTO import_batch_ambiguous_file_matches (ambiguous_id, relative_path, "
+                        "physical_path, file_size_bytes, content_hash, width_pixels, height_pixels, "
+                        "slide_vendor, objective_magnification) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)",
+                        (
+                            ambiguous_id, m["relative_path"], m["physical_path"], m["file_size_bytes"], m["content_hash"],
+                            m["width_pixels"], m["height_pixels"], m["slide_vendor"], m["objective_magnification"],
+                        ),
+                    )
+                cur.execute(
+                    "SELECT * FROM import_batch_ambiguous_file_matches WHERE ambiguous_id = %s ORDER BY match_id",
+                    (ambiguous_id,),
+                )
+                matches = clean_rows(cur.fetchall())
+            conn.commit()
+
+        hash_to_group = {}
+        for m in matches:
+            h = m["content_hash"]
+            if h is not None:
+                hash_to_group.setdefault(h, len(hash_to_group) + 1)
+            m["duplicate_group"] = hash_to_group.get(h) if h is not None else None
+
+        return {"matches": matches}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.patch("/api/admin/import-batches/{batch_id}/ambiguous/{ambiguous_id}/matches/{match_id}")
+def resolve_ambiguous_match(
+    batch_id: int,
+    ambiguous_id: int,
+    match_id: int,
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """{resolution: 'unlinked'|'skipped'}. Resolves one specific real-file
+    match, not the whole ambiguous filename group - a filename with 2-3
+    real files needs each decided independently (see import_batches.py's
+    module docstring for why). physical_path is never part of the request
+    body - it's already known from the disk find, nothing to trust or
+    validate from the client here."""
+    resolution = payload.get("resolution")
+    if resolution not in ("unlinked", "skipped"):
+        raise HTTPException(status_code=400, detail="resolution must be unlinked or skipped")
+
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT m.* FROM import_batch_ambiguous_file_matches m "
+                "JOIN import_batch_ambiguous_files a ON a.ambiguous_id = m.ambiguous_id "
+                "WHERE m.match_id = %s AND m.ambiguous_id = %s AND a.batch_id = %s",
+                (match_id, ambiguous_id, batch_id),
+            )
+            match_row = cur.fetchone()
+            cur.execute(
+                "SELECT * FROM import_batch_ambiguous_files WHERE ambiguous_id = %s AND batch_id = %s",
+                (ambiguous_id, batch_id),
+            )
+            ambiguous_row = cur.fetchone()
+        if match_row is None or ambiguous_row is None:
+            raise HTTPException(status_code=404, detail="Match not found")
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE import_batch_ambiguous_file_matches SET resolution = %s, "
+                "resolved_by_user_id = %s, resolved_at = NOW() WHERE match_id = %s",
+                (resolution, admin_user.get("user_id"), match_id),
+            )
+        conn.commit()
+        return {"status": "success", "resolution": resolution}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/import-batches/{batch_id}/provenance")
+def set_import_batch_provenance(
+    batch_id: int,
+    payload: dict = Body(...),
+    admin_user: dict = Depends(require_system_admin),
+):
+    """Either {existing_provenance_id} to reuse a prior provenance_records
+    row, or the full field set to create a new one."""
+    conn = get_db_connection()
+    try:
+        batch = _import_batch_row(conn, batch_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Import batch not found")
+
+        existing_id = payload.get("existing_provenance_id")
+        if existing_id:
+            with conn.cursor() as cur:
+                cur.execute("SELECT provenance_id FROM provenance_records WHERE provenance_id = %s", (existing_id,))
+                if cur.fetchone() is None:
+                    raise HTTPException(status_code=400, detail="existing_provenance_id not found")
+            provenance_id = existing_id
+        else:
+            label = payload.get("label")
+            if not label:
+                raise HTTPException(status_code=400, detail="label is required when creating a new provenance record")
+            with conn.cursor() as cur:
+                cur.execute(
+                    "INSERT INTO provenance_records (label, institution, department, specimen_category, "
+                    "copyright_holder, rights_notes, origin_description) VALUES (%s, %s, %s, %s, %s, %s, %s)",
+                    (
+                        label, payload.get("institution"), payload.get("department"),
+                        payload.get("specimen_category"), payload.get("copyright_holder"),
+                        payload.get("rights_notes"), payload.get("origin_description"),
+                    ),
+                )
+                provenance_id = cur.lastrowid
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "UPDATE import_batches SET provenance_id = %s WHERE batch_id = %s",
+                (provenance_id, batch_id),
+            )
+        conn.commit()
+        return {"status": "success", "provenance_id": provenance_id}
+    except HTTPException:
+        raise
+    except Exception as exc:
+        conn.rollback()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/import-batches/{batch_id}/commit")
+def commit_import_batch(batch_id: int, admin_user: dict = Depends(require_system_admin)):
+    """Re-checks preconditions server-side (every real-file match resolved,
+    provenance set) before committing - never trusts that the frontend
+    actually enforced them. Runs the whole import (base .sql + ambiguous
+    resolution statements) as one transaction on one connection."""
+    conn = get_db_connection()
+    try:
+        batch = _import_batch_row(conn, batch_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Import batch not found")
+        if batch["status"] not in ("awaiting_resolution", "ready"):
+            raise HTTPException(status_code=400, detail=f"Batch is already {batch['status']}")
+        if not batch["provenance_id"]:
+            raise HTTPException(status_code=400, detail="Provenance must be set before committing")
+
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT ambiguous_id, filename FROM import_batch_ambiguous_files WHERE batch_id = %s",
+                (batch_id,),
+            )
+            ambiguous_entries = clean_rows(cur.fetchall())
+
+            cur.execute(
+                "SELECT m.* FROM import_batch_ambiguous_file_matches m "
+                "JOIN import_batch_ambiguous_files a ON a.ambiguous_id = m.ambiguous_id "
+                "WHERE a.batch_id = %s",
+                (batch_id,),
+            )
+            match_rows = clean_rows(cur.fetchall())
+
+        # An ambiguous filename with zero match rows means /disk-matches was
+        # never called for it (or found nothing) - the "every match
+        # resolved" check below would otherwise pass vacuously for it,
+        # silently skipping something the sysadmin never actually saw.
+        matched_ambiguous_ids = {m["ambiguous_id"] for m in match_rows}
+        unscanned = [e for e in ambiguous_entries if e["ambiguous_id"] not in matched_ambiguous_ids]
+        if unscanned:
+            names = ", ".join(e["filename"] for e in unscanned)
+            raise HTTPException(
+                status_code=400,
+                detail=f"{len(unscanned)} ambiguous filename(s) need their disk matches loaded before committing: {names}",
+            )
+
+        pending = [m for m in match_rows if m["resolution"] == "pending"]
+        if pending:
+            raise HTTPException(
+                status_code=400,
+                detail=f"{len(pending)} real file match(es) still need a resolution before committing",
+            )
+
+        with conn.cursor() as cur:
+            cur.execute("UPDATE import_batches SET status = 'committing' WHERE batch_id = %s", (batch_id,))
+        conn.commit()
+
+        batch["_storage_path"] = os.path.join(IMPORT_BATCHES_ROOT, batch["storage_dir"])
+        source_label = f"import-batch-{batch_id}"
+
+        try:
+            new_slide_ids = import_batches.commit_batch(conn, batch, match_rows, source_label)
+
+            if new_slide_ids:
+                placeholders = ", ".join(["%s"] * len(new_slide_ids))
+                with conn.cursor() as cur:
+                    cur.execute(
+                        f"UPDATE slides SET provenance_id = %s WHERE slide_id IN ({placeholders})",
+                        [batch["provenance_id"]] + new_slide_ids,
+                    )
+            conn.commit()
+        except Exception:
+            conn.rollback()
+            raise
+
+        skipped_count = len([m for m in match_rows if m["resolution"] == "skipped"])
+
+        status_conn = get_db_connection()
+        try:
+            with status_conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE import_batches SET status = 'committed', committed_at = NOW(), "
+                    "imported_slide_ids = %s, skipped_ambiguous_count = %s WHERE batch_id = %s",
+                    (json.dumps(new_slide_ids), skipped_count, batch_id),
+                )
+            status_conn.commit()
+        finally:
+            status_conn.close()
+
+        log_admin_action(conn, admin_user, "import_batch_commit", f"batch_id={batch_id}, {len(new_slide_ids)} slide(s)")
+        conn.commit()
+
+        return {
+            "status": "committed",
+            "imported_slide_count": len(new_slide_ids),
+            "new_slide_ids": new_slide_ids,
+            "skipped_count": skipped_count,
+        }
+
+    except HTTPException:
+        status_conn = get_db_connection()
+        try:
+            with status_conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE import_batches SET status = 'failed' WHERE batch_id = %s AND status = 'committing'",
+                    (batch_id,),
+                )
+            status_conn.commit()
+        finally:
+            status_conn.close()
+        raise
+    except Exception as exc:
+        status_conn = get_db_connection()
+        try:
+            with status_conn.cursor() as cur:
+                cur.execute(
+                    "UPDATE import_batches SET status = 'failed', error_message = %s WHERE batch_id = %s",
+                    (str(exc), batch_id),
+                )
+            status_conn.commit()
+        finally:
+            status_conn.close()
+        raise HTTPException(status_code=500, detail=str(exc))
+    finally:
+        conn.close()
+
+
+@app.post("/api/admin/import-batches/{batch_id}/generate-thumbnails")
+def generate_batch_thumbnails(batch_id: int, admin_user: dict = Depends(require_system_admin)):
+    conn = get_db_connection()
+    try:
+        batch = _import_batch_row(conn, batch_id)
+        if batch is None:
+            raise HTTPException(status_code=404, detail="Import batch not found")
+        if batch["status"] != "committed":
+            raise HTTPException(status_code=400, detail="Batch must be committed before generating thumbnails")
+
+        slide_ids = json.loads(batch["imported_slide_ids"] or "[]")
+        if not slide_ids:
+            raise HTTPException(status_code=400, detail="This batch has no imported slides")
+
+        try:
+            job_id = thumbnail_job.start_job(slide_ids, batch_id, admin_user)
+        except ValueError as exc:
+            raise HTTPException(status_code=409, detail=str(exc))
+
+        log_admin_action(conn, admin_user, "thumbnail_job_start", f"batch_id={batch_id}, job_id={job_id}, {len(slide_ids)} slide(s)")
+        conn.commit()
+        return {"job_id": job_id}
+    except HTTPException:
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/thumbnail-jobs/{job_id}")
+def get_thumbnail_job(job_id: int, admin_user: dict = Depends(require_system_admin)):
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("SELECT * FROM thumbnail_jobs WHERE job_id = %s", (job_id,))
+            job = clean_row(cur.fetchone())
+        if job is None:
+            raise HTTPException(status_code=404, detail="Thumbnail job not found")
+        job["manual_needed_detail"] = json.loads(job.pop("manual_needed_detail_json") or "[]")
+        return job
+    except HTTPException:
+        raise
+    finally:
+        conn.close()
+
+
+@app.get("/api/admin/import-batches/{batch_id}/thumbnail-job")
+def get_batch_thumbnail_job(batch_id: int, admin_user: dict = Depends(require_system_admin)):
+    """Returns the most recent thumbnail job triggered for this batch, if
+    any - lets the page resume showing progress (or the finished summary
+    and failed-list) after a reload/navigation, without already knowing the
+    job_id. {"job": null} if none has ever been triggered for this batch."""
+    conn = get_db_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT * FROM thumbnail_jobs WHERE batch_id = %s ORDER BY job_id DESC LIMIT 1",
+                (batch_id,),
+            )
+            job = clean_row(cur.fetchone())
+        if job is None:
+            return {"job": None}
+        job["manual_needed_detail"] = json.loads(job.pop("manual_needed_detail_json") or "[]")
+        return {"job": job}
+    finally:
+        conn.close()
 
 
 @app.get("/api/admin/dictionaries/{dictionary_name}")

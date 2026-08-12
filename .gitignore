@@ -42,6 +42,10 @@ manual_thumbnails/
 # Historical thumbnail backups.
 thumbnail_backups/
 
+# Uploaded Import Batches files (.sql/.report.txt/.run.log per batch) -
+# real data, not source.
+import_batches/
+
 # Generated documentation
 slide-catalogue_tree.txt
 

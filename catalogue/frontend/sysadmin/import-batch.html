@@ -1,0 +1,501 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Import Batch · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Import batch <span id="batch-title"></span></h1>
+      <p class="vmc-muted"><a href="/sysadmin/import-batches.html">&larr; All import batches</a></p>
+
+      <div id="load-status">Loading...</div>
+
+      <div id="summary-section" hidden>
+        <h2>Report summary</h2>
+        <div id="summary-content"></div>
+      </div>
+
+      <div id="ambiguous-section" hidden>
+        <hr class="vmc-divider">
+        <h2>Ambiguous files</h2>
+        <p class="vmc-muted">Each real file found on disk for a given ambiguous filename is resolved independently, as either imported or left out.</p>
+        <div id="ambiguous-list"></div>
+      </div>
+
+      <div id="provenance-section" hidden>
+        <hr class="vmc-divider">
+        <h2>Provenance</h2>
+        <div id="provenance-form" style="display:flex; flex-direction:column; gap:0.5rem; max-width:32rem;">
+          <label>Existing record
+            <select id="provenance-existing"><option value="">-- create new --</option></select>
+          </label>
+          <div id="provenance-new-fields" style="display:flex; flex-direction:column; gap:0.5rem;">
+            <label>Label <input type="text" id="prov-label" placeholder="e.g. Institution Name - Department"></label>
+            <label>Institution <input type="text" id="prov-institution"></label>
+            <label>Department <input type="text" id="prov-department"></label>
+            <label>Specimen category <input type="text" id="prov-specimen-category"></label>
+            <label>Copyright holder <input type="text" id="prov-copyright-holder"></label>
+            <label>Rights notes <textarea id="prov-rights-notes"></textarea></label>
+            <label>Origin description <textarea id="prov-origin-description"></textarea></label>
+          </div>
+          <button id="save-provenance" class="vmc-button" style="align-self:flex-start;">Save provenance</button>
+        </div>
+        <div id="provenance-status" style="margin-top:0.5rem;"></div>
+      </div>
+
+      <div id="commit-section" hidden>
+        <hr class="vmc-divider">
+        <button id="commit-button" class="vmc-button">Commit import</button>
+        <div id="commit-status" style="margin-top:0.5rem;"></div>
+      </div>
+
+      <div id="thumbnail-section" hidden>
+        <hr class="vmc-divider">
+        <h2>Thumbnails</h2>
+        <button id="generate-thumbnails-button" class="vmc-button">Generate thumbnails now</button>
+        <div id="thumbnail-progress" style="margin-top:0.5rem;"></div>
+        <div id="thumbnail-summary" style="margin-top:1rem;"></div>
+      </div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const batchId = new URLSearchParams(window.location.search).get("batch_id");
+    document.getElementById("batch-title").textContent = "#" + batchId;
+
+    let currentBatch = null;
+
+    async function apiGet(path) {
+      const response = await fetch(path, { credentials: "include" });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || response.statusText);
+      return response.json();
+    }
+
+    async function apiSend(method, path, body) {
+      const response = await fetch(path, {
+        method,
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: body ? JSON.stringify(body) : undefined,
+      });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).detail || response.statusText);
+      return response.json();
+    }
+
+    function renderSummary(summary) {
+      const el = document.getElementById("summary-content");
+      el.innerHTML = `
+        <ul>
+          <li>Real files crawled: ${summary.real_files_crawled}</li>
+          <li>linked: ${summary.linked}</li>
+          <li>share-only: ${summary.share_only}</li>
+          <li>ambiguous: ${summary.ambiguous}</li>
+          <li>orphans: ${summary.orphans}</li>
+          <li>Annotations imported: ${summary.annotations_imported} across ${summary.annotations_across_slides} slide(s)</li>
+        </ul>
+      `;
+      document.getElementById("summary-section").hidden = false;
+    }
+
+    function formatBytes(bytes) {
+      if (bytes >= 1024 ** 3) return (bytes / 1024 ** 3).toFixed(2) + " GB";
+      if (bytes >= 1024 ** 2) return (bytes / 1024 ** 2).toFixed(1) + " MB";
+      if (bytes >= 1024) return (bytes / 1024).toFixed(1) + " KB";
+      return bytes + " bytes";
+    }
+
+    async function resolveMatch(ambiguousId, matchId, payload) {
+      return apiSend("PATCH", `/api/admin/import-batches/${batchId}/ambiguous/${ambiguousId}/matches/${matchId}`, payload);
+    }
+
+    // Which copy to suggest by default in a duplicate group - the one
+    // whose technical metadata was actually readable, or just the first
+    // one found if none were. This is only ever a labeled suggestion, never
+    // pre-applied: nothing is selected until the sysadmin clicks a radio
+    // themselves - see renderMatchRow's three states below.
+    function pickSuggestedMatchId(matches) {
+      const withMetadata = matches.find((m) => m.width_pixels && m.height_pixels);
+      return (withMetadata || matches[0]).match_id;
+    }
+
+    function renderMatchRow(ambiguousRow, match, groupCounts, suggestedMatchId, onResolved) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "padding:0.6rem 0.25rem; border-top:1px solid var(--vmc-border);";
+
+      let groupNote;
+      if (match.content_hash === null) {
+        groupNote = "hash unavailable (unsupported/corrupt format) - review manually";
+      } else if (groupCounts[match.duplicate_group] > 1) {
+        groupNote = `${groupCounts[match.duplicate_group]} identical copies found`;
+      } else {
+        groupNote = "⚠ different content despite same name - review carefully";
+      }
+
+      const header = document.createElement("div");
+      header.innerHTML = `<code>${match.relative_path}</code> - ${formatBytes(match.file_size_bytes)} - <strong>${groupNote}</strong>`;
+      wrap.appendChild(header);
+
+      const technical = document.createElement("div");
+      technical.style.cssText = "color:var(--vmc-muted); font-size:0.9rem; margin:0.15rem 0 0.4rem;";
+      const dims = match.width_pixels && match.height_pixels ? `${match.width_pixels} x ${match.height_pixels} px` : "dimensions unavailable";
+      const vendor = match.slide_vendor || "unknown vendor";
+      const magnification = match.objective_magnification ? `${match.objective_magnification}x objective` : "magnification unknown";
+      technical.textContent = `${dims} - ${vendor} - ${magnification}`;
+      wrap.appendChild(technical);
+
+      // Three states, always visible (never hidden once decided, so a
+      // choice can be reviewed or changed) - "pending" is a real,
+      // selectable state and the only one pre-checked, specifically so a
+      // suggested copy is never treated as approved until the sysadmin
+      // clicks it themselves.
+      const radioName = `resolution-${match.match_id}`;
+      const currentState = match.resolution === "skipped" ? "skipped" : match.resolution === "pending" ? "pending" : "import";
+
+      function makeOption(value, labelText) {
+        const optLabel = document.createElement("label");
+        optLabel.style.cssText = "display:flex; align-items:flex-start; gap:0.4rem; cursor:pointer; margin-bottom:0.2rem;";
+        const input = document.createElement("input");
+        input.type = "radio";
+        input.name = radioName;
+        input.value = value;
+        input.checked = currentState === value;
+        input.style.marginTop = "0.2rem";
+        const span = document.createElement("span");
+        span.innerHTML = labelText;
+        optLabel.appendChild(input);
+        optLabel.appendChild(span);
+        return { optLabel, input };
+      }
+
+      const optionsWrap = document.createElement("div");
+
+      const pendingOpt = makeOption("pending", "Not decided yet");
+      optionsWrap.appendChild(pendingOpt.optLabel);
+
+      const suggestedNote = match.match_id === suggestedMatchId ? " <em>(suggested)</em>" : "";
+      const importOpt = makeOption(
+        "import",
+        `Import this file as its own slide, independently of any other copy${suggestedNote}`
+      );
+      importOpt.input.addEventListener("change", async function () {
+        await resolveMatch(ambiguousRow.ambiguous_id, match.match_id, { resolution: "unlinked" });
+        onResolved();
+      });
+      optionsWrap.appendChild(importOpt.optLabel);
+
+      const skippedOpt = makeOption("skipped", "Leave this file out of the import entirely");
+      skippedOpt.input.addEventListener("change", async function () {
+        await resolveMatch(ambiguousRow.ambiguous_id, match.match_id, { resolution: "skipped" });
+        onResolved();
+      });
+      optionsWrap.appendChild(skippedOpt.optLabel);
+
+      wrap.appendChild(optionsWrap);
+      return wrap;
+    }
+
+    async function renderAmbiguousEntry(row) {
+      const wrap = document.createElement("div");
+      wrap.style.cssText = "border:1px solid var(--vmc-border); border-radius:8px; padding:0.75rem; margin-bottom:0.75rem; transition: background-color 0.3s ease;";
+      const folders = JSON.parse(row.candidate_folders_json);
+
+      const titleRow = document.createElement("div");
+      titleRow.style.cssText = "display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:0.5rem; margin-bottom:0.3rem;";
+      const titleText = document.createElement("div");
+      titleText.innerHTML = `<strong>${row.filename}</strong> - candidate folders: ${folders.join(", ")}`;
+      titleRow.appendChild(titleText);
+
+      const bulkBtn = document.createElement("button");
+      bulkBtn.type = "button";
+      bulkBtn.className = "vmc-button vmc-button-secondary";
+      bulkBtn.textContent = "Import all copies";
+      bulkBtn.title = "Resolves every real file found for this name as its own independent slide, regardless of how similar they are to each other";
+      titleRow.appendChild(bulkBtn);
+      wrap.appendChild(titleRow);
+
+      const matchesArea = document.createElement("div");
+      matchesArea.textContent = "Searching the archive for real files matching this name...";
+      wrap.appendChild(matchesArea);
+
+      async function refresh() {
+        const data = await apiGet(`/api/admin/import-batches/${batchId}/ambiguous/${row.ambiguous_id}/disk-matches`);
+        matchesArea.innerHTML = "";
+        if (!data.matches.length) {
+          matchesArea.textContent = "No real files found on disk matching this filename under the archive root.";
+          wrap.style.background = "";
+          return;
+        }
+        const groupCounts = {};
+        for (const m of data.matches) {
+          if (m.duplicate_group !== null) groupCounts[m.duplicate_group] = (groupCounts[m.duplicate_group] || 0) + 1;
+        }
+        const suggestedMatchId = pickSuggestedMatchId(data.matches);
+        for (const m of data.matches) {
+          matchesArea.appendChild(renderMatchRow(row, m, groupCounts, suggestedMatchId, refresh));
+        }
+        const importedCount = data.matches.filter((m) => m.resolution === "unlinked").length;
+        const allResolved = data.matches.every((m) => m.resolution !== "pending");
+        if (importedCount > 1) {
+          // More than one copy chosen to import within the same
+          // filename - not necessarily wrong (see "Import all copies"),
+          // but worth flagging since most of these groups are true
+          // duplicates, and importing several is easy to do by accident.
+          wrap.style.background = "#fff8e1";
+        } else if (allResolved) {
+          wrap.style.background = "#eafbea";
+        } else {
+          wrap.style.background = "";
+        }
+      }
+
+      bulkBtn.addEventListener("click", async function () {
+        const data = await apiGet(`/api/admin/import-batches/${batchId}/ambiguous/${row.ambiguous_id}/disk-matches`);
+        for (const m of data.matches) {
+          if (m.resolution === "pending") {
+            await resolveMatch(row.ambiguous_id, m.match_id, { resolution: "unlinked" });
+          }
+        }
+        refresh();
+      });
+
+      try {
+        await refresh();
+      } catch (err) {
+        matchesArea.textContent = "Error loading disk matches: " + err.message;
+      }
+
+      return wrap;
+    }
+
+    async function renderAmbiguous(batch) {
+      const section = document.getElementById("ambiguous-section");
+      if (!batch.ambiguous_files.length) {
+        section.hidden = true;
+        return;
+      }
+      section.hidden = false;
+      const list = document.getElementById("ambiguous-list");
+      list.innerHTML = "";
+      for (const row of batch.ambiguous_files) {
+        list.appendChild(await renderAmbiguousEntry(row));
+      }
+    }
+
+    async function loadProvenanceOptions() {
+      // No dedicated list endpoint for provenance_records exists yet -
+      // the "create new" path always works; reuse is opportunistic only
+      // when the sysadmin already knows the provenance_id they want.
+    }
+
+    async function loadBatch() {
+      const batch = await apiGet(`/api/admin/import-batches/${batchId}`);
+      currentBatch = batch;
+
+      renderSummary(JSON.parse(batch.report_summary_json));
+      await renderAmbiguous(batch);
+
+      document.getElementById("load-status").hidden = true;
+
+      if (batch.status === "committed") {
+        document.getElementById("provenance-section").hidden = true;
+        document.getElementById("commit-section").hidden = true;
+        document.getElementById("commit-status").textContent =
+          `Committed - ${JSON.parse(batch.imported_slide_ids).length} slide(s) imported.`;
+        document.getElementById("commit-section").hidden = false;
+        document.getElementById("commit-button").hidden = true;
+        document.getElementById("thumbnail-section").hidden = false;
+        await resumeThumbnailJob();
+        return;
+      }
+
+      document.getElementById("provenance-section").hidden = false;
+      document.getElementById("commit-section").hidden = false;
+
+      // Whether every real-file match is actually resolved is re-checked
+      // server-side regardless (with a clear error message) - the ambiguous
+      // section above already shows per-match resolution state, so this
+      // button is only gated on the cheap, always-correct client-side
+      // check (provenance set), rather than trying to duplicate the
+      // server's own per-match validation here.
+      const commitButton = document.getElementById("commit-button");
+      const ready = !!batch.provenance_id;
+      commitButton.disabled = !ready;
+      commitButton.title = ready ? "" : "Set provenance first";
+    }
+
+    document.getElementById("save-provenance").addEventListener("click", async function () {
+      const existing = document.getElementById("provenance-existing").value;
+      const status = document.getElementById("provenance-status");
+      try {
+        if (existing) {
+          await apiSend("POST", `/api/admin/import-batches/${batchId}/provenance`, { existing_provenance_id: Number(existing) });
+        } else {
+          await apiSend("POST", `/api/admin/import-batches/${batchId}/provenance`, {
+            label: document.getElementById("prov-label").value,
+            institution: document.getElementById("prov-institution").value,
+            department: document.getElementById("prov-department").value,
+            specimen_category: document.getElementById("prov-specimen-category").value,
+            copyright_holder: document.getElementById("prov-copyright-holder").value,
+            rights_notes: document.getElementById("prov-rights-notes").value,
+            origin_description: document.getElementById("prov-origin-description").value,
+          });
+        }
+        status.textContent = "Provenance saved.";
+        loadBatch();
+      } catch (err) {
+        status.textContent = "Error: " + err.message;
+      }
+    });
+
+    document.getElementById("commit-button").addEventListener("click", async function () {
+      const status = document.getElementById("commit-status");
+      status.textContent = "Committing...";
+      try {
+        const result = await apiSend("POST", `/api/admin/import-batches/${batchId}/commit`);
+        status.textContent = `Committed - ${result.imported_slide_count} slide(s) imported, ${result.skipped_count} skipped.`;
+        loadBatch();
+      } catch (err) {
+        status.textContent = "Error: " + err.message;
+      }
+    });
+
+    let pollTimer = null;
+
+    document.getElementById("generate-thumbnails-button").addEventListener("click", async function () {
+      const progress = document.getElementById("thumbnail-progress");
+      try {
+        const result = await apiSend("POST", `/api/admin/import-batches/${batchId}/generate-thumbnails`);
+        progress.textContent = "Job started...";
+        document.getElementById("thumbnail-summary").innerHTML = "";
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => pollJob(result.job_id), 2000);
+      } catch (err) {
+        progress.textContent = "Error: " + err.message;
+      }
+    });
+
+    function downloadManualNeededCsv(items) {
+      const esc = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+      const header = "slide_id,filename,physical_path,error\n";
+      const rows = items.map((d) => [esc(d.slide_id), esc(d.filename), esc(d.physical_path), esc(d.error)].join(","));
+      const blob = new Blob([header + rows.join("\n") + "\n"], { type: "text/csv" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `batch-${batchId}-manual-thumbnails-needed.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function renderJobResult(job) {
+      const progress = document.getElementById("thumbnail-progress");
+      progress.textContent = `${job.status}: ${job.processed_slides}/${job.total_slides} processed, ${job.succeeded_slides} succeeded`;
+
+      const summary = document.getElementById("thumbnail-summary");
+      summary.innerHTML = "";
+      if (job.status !== "completed" && job.status !== "failed") {
+        return;
+      }
+      if (job.manual_needed_detail.length) {
+        const items = job.manual_needed_detail.map((d) =>
+          `<li>slide_id ${d.slide_id} - <code>${d.physical_path || "?"}</code>: ${d.error}</li>`
+        ).join("");
+        const textPart = document.createElement("div");
+        textPart.innerHTML = `
+          <p><strong>${job.manual_needed_detail.length} slide(s) need a manually-created thumbnail.</strong>
+          Export a thumbnail PNG from QuPath for each, save it as
+          <code>manual_thumbnails/&lt;slide_id&gt;.png</code>, then run
+          <code>sync_manual_thumbnails.py</code> to pick it up.</p>
+          <ul>${items}</ul>
+        `;
+        summary.appendChild(textPart);
+
+        const downloadBtn = document.createElement("button");
+        downloadBtn.type = "button";
+        downloadBtn.className = "vmc-button vmc-button-secondary";
+        downloadBtn.textContent = "Download list (CSV: slide_id, filename, physical_path, error)";
+        downloadBtn.addEventListener("click", () => downloadManualNeededCsv(job.manual_needed_detail));
+        summary.appendChild(downloadBtn);
+      } else {
+        summary.textContent = "All thumbnails generated successfully.";
+      }
+    }
+
+    async function pollJob(jobId) {
+      const job = await apiGet(`/api/admin/thumbnail-jobs/${jobId}`);
+      if (job.status === "completed" || job.status === "failed") {
+        clearInterval(pollTimer);
+      }
+      renderJobResult(job);
+    }
+
+    async function resumeThumbnailJob() {
+      // Lets this page show the right thing after a reload/navigation-back,
+      // without needing to already know a job_id: queued/running resumes
+      // polling, completed/failed shows the summary (and CSV download)
+      // immediately, and no job ever triggered just leaves the "Generate
+      // thumbnails now" button as the first thing to click.
+      const data = await apiGet(`/api/admin/import-batches/${batchId}/thumbnail-job`);
+      if (!data.job) {
+        return;
+      }
+      if (data.job.status === "queued" || data.job.status === "running") {
+        document.getElementById("thumbnail-progress").textContent = "Resuming progress...";
+        if (pollTimer) clearInterval(pollTimer);
+        pollTimer = setInterval(() => pollJob(data.job.job_id), 2000);
+      } else {
+        renderJobResult(data.job);
+      }
+    }
+
+    loadBatch().catch((err) => {
+      document.getElementById("load-status").textContent = "Error: " + err.message;
+    });
+  </script>
+</body>
+</html>

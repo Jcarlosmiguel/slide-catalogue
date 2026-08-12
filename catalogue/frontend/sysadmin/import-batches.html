@@ -1,0 +1,197 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Import Batches · Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">Search, review and prepare teaching slides from the virtual microscopy archive.</p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/results.html">Search slides</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/help.html">Help</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+        <a href="/sysadmin/users.html" class="vmc-system-admin-nav">Sysadmin</a>
+      </nav>
+    </div>
+  </header>
+
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Import Batches</h1>
+      <p>
+        Uploads a matching <code>.sql</code>/<code>.report.txt</code>/<code>.run.log</code>
+        trio from an external crawler tool (see this repo's
+        <code>catalogue/docs/import-batches.md</code> for the expected file
+        format) and walks through resolving anything left ambiguous,
+        recording where the batch came from, committing the import, and
+        generating thumbnails for the newly-imported slides. Visible to
+        system administrators only.
+      </p>
+      <p class="vmc-muted">
+        <a href="/sysadmin/users.html">Users</a>
+        ·
+        <a href="/sysadmin/blocked-access-requests.html">Blocked Requests</a>
+        ·
+        <a href="/sysadmin/password-reset-log.html">Password Reset Log</a>
+        ·
+        <a href="/sysadmin/backup.html">Backup</a>
+        ·
+        <a href="/sysadmin/sql-console.html">SQL Console</a>
+        ·
+        <a href="/sysadmin/audit-log.html">Audit Log</a>
+        ·
+        <a href="/sysadmin/annotations-export.html">Annotations Export</a>
+        ·
+        <a href="/sysadmin/import-batches.html">Import Batches</a>
+        ·
+        <a href="/sysadmin/maintenance-jobs.html">Maintenance Jobs</a>
+        ·
+        <a href="/sysadmin/stain-dictionary.html">Stain Dictionary</a>
+        ·
+        <a href="/admin/corrections-management.html">&larr; Admin</a>
+      </p>
+
+      <hr class="vmc-divider">
+
+      <h2>Upload a new batch</h2>
+      <div style="display: flex; flex-direction: column; gap: 0.75rem; max-width: 32rem;">
+        <label>.sql file <input type="file" id="sql-file" accept=".sql"></label>
+        <label>.report.txt file <input type="file" id="report-file" accept=".txt"></label>
+        <label>.run.log file <input type="file" id="log-file" accept=".log"></label>
+        <button id="upload-button" class="vmc-button" style="align-self: flex-start;">Upload</button>
+      </div>
+      <div id="upload-status" style="margin-top: 1rem;"></div>
+
+      <hr class="vmc-divider">
+
+      <h2>Past batches</h2>
+      <div id="batch-list">Loading...</div>
+    </section>
+  </main>
+
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        ·
+        <a href="/documents/contact.html">Contact</a>
+        ·
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+
+  <script>
+    const uploadButton = document.getElementById("upload-button");
+    const uploadStatus = document.getElementById("upload-status");
+    const batchList = document.getElementById("batch-list");
+
+    function formatDate(value) {
+      return value ? new Date(value).toLocaleString() : "-";
+    }
+
+    async function loadBatches() {
+      const response = await fetch("/api/admin/import-batches", { credentials: "include" });
+      if (!response.ok) {
+        batchList.textContent = "Failed to load batches.";
+        return;
+      }
+      const batches = await response.json();
+      if (!batches.length) {
+        batchList.textContent = "No import batches yet.";
+        return;
+      }
+
+      const table = document.createElement("table");
+      table.style.width = "100%";
+      table.style.borderCollapse = "collapse";
+      table.innerHTML = `
+        <thead>
+          <tr>
+            <th style="text-align:left; padding:0.5rem; border-bottom:2px solid var(--vmc-border);">Batch</th>
+            <th style="text-align:left; padding:0.5rem; border-bottom:2px solid var(--vmc-border);">Uploaded</th>
+            <th style="text-align:left; padding:0.5rem; border-bottom:2px solid var(--vmc-border);">By</th>
+            <th style="text-align:left; padding:0.5rem; border-bottom:2px solid var(--vmc-border);">Status</th>
+            <th style="text-align:left; padding:0.5rem; border-bottom:2px solid var(--vmc-border);">Imported</th>
+          </tr>
+        </thead>
+      `;
+      const tbody = document.createElement("tbody");
+      for (const batch of batches) {
+        const imported = batch.imported_slide_ids ? JSON.parse(batch.imported_slide_ids).length : "-";
+        const tr = document.createElement("tr");
+        tr.innerHTML = `
+          <td style="padding:0.5rem; border-bottom:1px solid var(--vmc-border);">
+            <a href="/sysadmin/import-batch.html?batch_id=${batch.batch_id}">${batch.sql_filename}</a>
+          </td>
+          <td style="padding:0.5rem; border-bottom:1px solid var(--vmc-border);">${formatDate(batch.uploaded_at)}</td>
+          <td style="padding:0.5rem; border-bottom:1px solid var(--vmc-border);">${batch.uploaded_by_username}</td>
+          <td style="padding:0.5rem; border-bottom:1px solid var(--vmc-border);">${batch.status}</td>
+          <td style="padding:0.5rem; border-bottom:1px solid var(--vmc-border);">${imported}</td>
+        `;
+        tbody.appendChild(tr);
+      }
+      table.appendChild(tbody);
+      batchList.innerHTML = "";
+      batchList.appendChild(table);
+    }
+
+    uploadButton.addEventListener("click", async function () {
+      const sqlInput = document.getElementById("sql-file");
+      const reportInput = document.getElementById("report-file");
+      const logInput = document.getElementById("log-file");
+
+      if (!sqlInput.files[0] || !reportInput.files[0] || !logInput.files[0]) {
+        uploadStatus.textContent = "Please choose all three files.";
+        return;
+      }
+
+      const formData = new FormData();
+      formData.append("sql_file", sqlInput.files[0]);
+      formData.append("report_file", reportInput.files[0]);
+      formData.append("log_file", logInput.files[0]);
+
+      uploadButton.disabled = true;
+      uploadStatus.textContent = "Uploading...";
+
+      const response = await fetch("/api/admin/import-batches", {
+        method: "POST",
+        credentials: "include",
+        body: formData,
+      });
+
+      uploadButton.disabled = false;
+
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        uploadStatus.textContent = "Upload failed: " + (body.detail || response.statusText);
+        return;
+      }
+
+      const result = await response.json();
+      window.location.href = "/sysadmin/import-batch.html?batch_id=" + result.batch_id;
+    });
+
+    loadBatches();
+  </script>
+</body>
+</html>
