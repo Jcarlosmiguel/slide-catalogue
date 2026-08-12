@@ -423,7 +423,7 @@ def notify_registration_event(cur, event: str, context: dict) -> None:
     body = message_template.format_map(safe_context)
 
     try:
-        send_email(to_address, subject, body)
+        send_email(to_address, subject, body, from_override=os.getenv("MAIL_FROM_REGISTRATION"))
     except Exception as exc:
         print(f"Failed to send registration {event} notification email:", exc)
 
@@ -462,7 +462,7 @@ def send_activation_invite(cur, context: dict) -> None:
     body = message_template.format_map(safe_context)
 
     try:
-        send_email(context["email"], subject, body)
+        send_email(context["email"], subject, body, from_override=os.getenv("MAIL_FROM_REGISTRATION"))
     except Exception as exc:
         print("Failed to send activation invite email:", exc)
 
@@ -502,7 +502,7 @@ def send_password_reset_email(cur, context: dict) -> None:
     body = message_template.format_map(safe_context)
 
     try:
-        send_email(context["email"], subject, body)
+        send_email(context["email"], subject, body, from_override=os.getenv("MAIL_FROM_REGISTRATION"))
     except Exception as exc:
         print("Failed to send password reset email:", exc)
 
@@ -542,7 +542,7 @@ def send_activation_confirmation_email(cur, context: dict) -> None:
     body = message_template.format_map(safe_context)
 
     try:
-        send_email(context["email"], subject, body)
+        send_email(context["email"], subject, body, from_override=os.getenv("MAIL_FROM_REGISTRATION"))
     except Exception as exc:
         print("Failed to send activation confirmation email:", exc)
 
@@ -1039,7 +1039,7 @@ def _notify_system_admins_of_blocked_request(cur, email, full_name, reason_text)
 
     for row in cur.fetchall():
         try:
-            send_email(row["email"], subject, body)
+            send_email(row["email"], subject, body, from_override=os.getenv("MAIL_FROM_REGISTRATION"))
         except Exception as exc:
             print("Failed to send blocked-request alert to", row["email"], ":", exc)
 

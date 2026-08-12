@@ -51,7 +51,9 @@ services:
       # "Catalogue Contact" <SMTP_FROM's real address>. Point it at a
       # real address instead once one exists - no code change needed
       # (app/mailer.py's send_email() just uses whatever's given).
+      MAIL_FROM_REGISTRATION: ${MAIL_FROM_REGISTRATION}
       MAIL_FROM_CONTACT: ${MAIL_FROM_CONTACT}
+      MAIL_FROM_ACCESS: ${MAIL_FROM_ACCESS}
 
       # Where the public contact form (catalogue/documents/contact.html)
       # actually delivers messages. Kept server-side only, never sent to
