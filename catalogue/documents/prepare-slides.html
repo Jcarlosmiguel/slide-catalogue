@@ -76,8 +76,21 @@
         Click around the specimen to create a polygon annotation. Include all required tissue while excluding unwanted artefacts, debris and excess background.
       </p>
 
+      <h2>Step 5 – Reconcile Existing Annotations (If Any)</h2>
       <p>
-        With the region of interest annotated, continue to
+        Check the slide's detail page in the catalogue for a "Slide annotations" section. If
+        it has one, its annotations must be recreated on the original image and translated
+        into the crop's coordinates <strong>before</strong> exporting, or they will not line
+        up with the cropped file. If the slide has no annotations, skip straight to exporting.
+      </p>
+      <p>
+        Full instructions: <a href="/documents/script_annotation.html#slide-annotations-crop" target="_blank"
+        rel="noopener">Applying a slide's annotations in QuPath</a> (opens in a new tab).
+      </p>
+
+      <p>
+        With the region of interest annotated (and any existing annotations reconciled),
+        continue to
         <a href="/documents/export-ome-tiff.html">Export as OME-TIFF</a>.
       </p>
     </section>

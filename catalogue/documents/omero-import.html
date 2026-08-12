@@ -33,10 +33,315 @@
   </header>
   <main class="vmc-page">
     <section class="vmc-card">
-      <h1>OMERO Import</h1>
+      <h1>Import a slide into OMERO</h1>
+
       <p>
-        Replace this text with the purpose of the page.
+        This page walks through importing one OME-TIFF slide from your Windows
+        <code>Documents</code> folder into OMERO, filing it under a project named for the
+        course and a dataset named for the topic. The worked example uses the project
+        <strong>MedYear1</strong> and the dataset <strong>GeneralHistology</strong>.
       </p>
+      <p>
+        Imports run through OMERO.insight, the desktop client. The catalogue and OMERO.web
+        cannot upload slide files themselves.
+      </p>
+
+      <h2>Before you start</h2>
+      <ul>
+        <li>OMERO.insight installed on your PC, from the OMERO downloads page.</li>
+        <li>Your OMERO username and password, and membership of the group the slides belong in.</li>
+        <li>
+          The slide saved locally at <code>C:\Users\&lt;your username&gt;\Documents\</code>.
+          If Documents syncs to OneDrive, right-click the file and choose
+          <em>Always keep on this device</em> first, so Insight reads a real file rather than
+          a placeholder.
+        </li>
+        <li>Any companion files that came with the OME-TIFF kept in the same folder. A fileset split across folders will not import cleanly.</li>
+        <li>Network access to reach the server on port 4064 (VPN if the server isn't otherwise reachable from where you're working).</li>
+      </ul>
+
+      <h2>Where the slide ends up</h2>
+
+      <p>
+        <svg viewBox="0 0 720 132" width="720" style="max-width:100%;height:auto" role="img" aria-labelledby="vmc-omero-map-title">
+          <title id="vmc-omero-map-title">
+            OMERO stores images inside datasets, datasets inside projects, and projects inside
+            a group. In this example the group contains the project MedYear1, which contains
+            the dataset GeneralHistology, which contains the imported slide file.
+          </title>
+          <g fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="1" y="1" width="718" height="130" rx="6" opacity="0.35"/>
+            <rect x="24" y="34" width="672" height="80" rx="5" opacity="0.5"/>
+            <rect x="48" y="58" width="624" height="44" rx="4" opacity="0.7"/>
+            <rect x="72" y="70" width="576" height="22" rx="3"/>
+          </g>
+          <g fill="currentColor" font-family="monospace" font-size="11" letter-spacing="0.08em">
+            <text x="16" y="21" opacity="0.6">GROUP &#183; teaching</text>
+            <text x="40" y="51" opacity="0.7">PROJECT &#183; MedYear1</text>
+            <text x="64" y="75" opacity="0.85" font-size="10">DATASET &#183; GeneralHistology</text>
+          </g>
+          <g fill="currentColor" font-family="monospace" font-size="11">
+            <text x="86" y="86">slide-01.ome.tiff</text>
+          </g>
+        </svg>
+      </p>
+
+      <p>
+        Keep to that shape across the archive: one project per course, one dataset per topic
+        within it. It keeps the catalogue's links predictable and makes later duplication into
+        teaching accounts far simpler.
+      </p>
+
+      <h2>Importing the slide</h2>
+
+      <ol>
+
+        <!-- ==================================================================
+             SCREENSHOT: OMERO.insight login window, server configuration panel
+             open showing the host and port 4064. Blur the username field.
+             Save as /assets/guides/omero-import/01-login.png
+             ================================================================== -->
+        <li>
+          <h3>Sign in to OMERO.insight</h3>
+          <p>
+            Open OMERO.insight. In the login window, click the spanner or gear beside the
+            server name to check the server address and port, then enter your username and
+            password and click <strong>Login</strong>.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/01-login.png"
+                 style="max-width:100%;height:auto"
+                 alt="The OMERO.insight login window with the server configuration panel open, showing the server address and port 4064.">
+            <figcaption>Server address and port are set once and remembered for later sessions.</figcaption>
+          </figure>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: Insight data browser with the group selector menu open,
+             showing the available groups.
+             Save as /assets/guides/omero-import/02-group.png
+             ================================================================== -->
+        <li>
+          <h3>Check you are in the right group</h3>
+          <p>
+            The group selector sits at the top of the data browser. If you belong to more than
+            one group, switch to the one that owns the teaching archive before creating
+            anything &mdash; a project created in the wrong group has to be moved afterwards.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/02-group.png"
+                 style="max-width:100%;height:auto"
+                 alt="The OMERO.insight data browser with the group selector menu open, listing the groups the user belongs to.">
+            <figcaption>Everything you import lands in the group that is active here.</figcaption>
+          </figure>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: Create Project dialog with "MedYear1" typed in and the
+             description field filled.
+             Save as /assets/guides/omero-import/03-new-project.png
+             ================================================================== -->
+        <li>
+          <h3>Create the project</h3>
+          <p>
+            Right-click an empty part of the data tree and choose <strong>New</strong> &rarr;
+            <strong>Project</strong>. Name it <strong>MedYear1</strong>, add a short
+            description such as the course title and the academic session, and save.
+          </p>
+          <p>
+            If the project already exists, skip to the next step. Do not create a second
+            project with a variant spelling.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/03-new-project.png"
+                 style="max-width:100%;height:auto"
+                 alt="The Create Project dialog in OMERO.insight with the name MedYear1 entered.">
+            <figcaption>One project per course. The name is what students and staff will see in the catalogue.</figcaption>
+          </figure>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: data tree with MedYear1 right-clicked and New > Dataset
+             highlighted, or the dialog with "GeneralHistology" typed in.
+             Save as /assets/guides/omero-import/04-new-dataset.png
+             ================================================================== -->
+        <li>
+          <h3>Create the dataset inside it</h3>
+          <p>
+            Right-click <strong>MedYear1</strong> and choose <strong>New</strong> &rarr;
+            <strong>Dataset</strong>. Name it <strong>GeneralHistology</strong>. Creating it
+            from the project this way links the two automatically; a dataset made at the top
+            level has to be dragged into place later.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/04-new-dataset.png"
+                 style="max-width:100%;height:auto"
+                 alt="Creating the dataset GeneralHistology inside the MedYear1 project in the OMERO.insight data tree.">
+            <figcaption>The dataset is the folder images actually live in. Projects hold datasets, not images.</figcaption>
+          </figure>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: importer window as it first opens, empty queue, so both
+             halves of the window are clear.
+             Save as /assets/guides/omero-import/05-importer.png
+             ================================================================== -->
+        <li>
+          <h3>Open the importer</h3>
+          <p>
+            Choose <strong>File</strong> &rarr; <strong>Import Data&hellip;</strong>, or click
+            the import arrow on the toolbar. The importer opens in its own window: a file
+            browser on the left, the import queue on the right.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/05-importer.png"
+                 style="max-width:100%;height:auto"
+                 alt="The OMERO.insight importer window, showing the file browser on the left and the empty import queue on the right.">
+            <figcaption>The importer stays open while you work; you can queue several slides before starting.</figcaption>
+          </figure>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: importer file browser open at the Documents folder with
+             the .ome.tiff file selected and the queue button visible.
+             Save as /assets/guides/omero-import/06-select-file.png
+             ================================================================== -->
+        <li>
+          <h3>Find the slide in Documents</h3>
+          <p>
+            In the file browser, navigate to
+            <code>C:\Users\&lt;your username&gt;\Documents</code> and select your
+            <code>.ome.tiff</code> file. Click the arrow, or <strong>Add to the Queue</strong>,
+            to move it across.
+          </p>
+          <p>
+            Insight lists the file once even when the fileset is several files on disk. That is
+            expected &mdash; it imports the set as a unit.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/06-select-file.png"
+                 style="max-width:100%;height:auto"
+                 alt="The importer file browser open at the Windows Documents folder with an OME-TIFF slide selected.">
+            <figcaption>Select the file, not the folder, unless you intend to import everything inside it.</figcaption>
+          </figure>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: the import location panel with group, project MedYear1
+             and dataset GeneralHistology all selected. The most important
+             screenshot on the page &mdash; make it legible.
+             Save as /assets/guides/omero-import/07-destination.png
+             ================================================================== -->
+        <li>
+          <h3>Set the destination</h3>
+          <p>
+            In the import location panel, set the group, then pick <strong>MedYear1</strong> as
+            the project and <strong>GeneralHistology</strong> as the dataset. Check this panel
+            every time: the importer remembers the last destination you used, which is the most
+            common way slides end up in the wrong dataset.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/07-destination.png"
+                 style="max-width:100%;height:auto"
+                 alt="The import location panel showing the group, the project MedYear1 and the dataset GeneralHistology selected as the destination.">
+            <figcaption>You can also create a project or dataset from here if you skipped the two steps above.</figcaption>
+          </figure>
+          <p>
+            <strong>Note.</strong> Leave the file-naming and annotation options at their
+            defaults unless you have a reason to change them. Tags are easier to add after
+            import, once you can see the image.
+          </p>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: importer mid-run, showing the progress bar and status
+             text for the file being uploaded.
+             Save as /assets/guides/omero-import/08-progress.png
+             ================================================================== -->
+        <li>
+          <h3>Start the import</h3>
+          <p>
+            Click <strong>Import</strong>. Each file shows a progress bar while it uploads,
+            then reports that the server is processing it. Whole-slide images are large, so
+            expect the upload to take a while and leave the window open until it finishes.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/08-progress.png"
+                 style="max-width:100%;height:auto"
+                 alt="The importer running, showing upload progress and status for the slide being imported.">
+            <figcaption>A green tick means the server has accepted the file and finished processing it.</figcaption>
+          </figure>
+        </li>
+
+        <!-- ==================================================================
+             SCREENSHOT: data tree expanded to MedYear1 > GeneralHistology with
+             the imported slide thumbnail visible.
+             Save as /assets/guides/omero-import/09-verify.png
+             ================================================================== -->
+        <li>
+          <h3>Check it arrived</h3>
+          <p>
+            Back in the data browser, refresh the tree and expand <strong>MedYear1</strong>
+            &rarr; <strong>GeneralHistology</strong>. The slide should be listed with a
+            thumbnail. Open it and confirm the whole slide is there and the magnification looks
+            right.
+          </p>
+          <figure>
+            <img src="/assets/guides/omero-import/09-verify.png"
+                 style="max-width:100%;height:auto"
+                 alt="The OMERO.insight data tree expanded to show the imported slide inside MedYear1 and GeneralHistology.">
+            <figcaption>The image also appears in OMERO.web straight away, under the same project and dataset.</figcaption>
+          </figure>
+          <p>
+            <strong>Note.</strong> A grey or missing thumbnail immediately after a large import
+            usually means the server is still building the zoom pyramid. Give it a few minutes
+            and refresh before assuming anything is wrong.
+          </p>
+        </li>
+
+      </ol>
+
+      <h2>If something goes wrong</h2>
+
+      <dl>
+        <dt><strong>The client cannot reach the server</strong></dt>
+        <dd>
+          Check your network/VPN access, and that the port in the server settings
+          is 4064. A connection that hangs rather than refusing is usually the firewall.
+        </dd>
+
+        <dt><strong>The file greys out in the browser, or Insight says it cannot read it</strong></dt>
+        <dd>
+          Most often a OneDrive placeholder that has not been downloaded, or a file still being
+          written. Make it available offline, then reopen the importer.
+        </dd>
+
+        <dt><strong>The import fails part way through</strong></dt>
+        <dd>
+          Note the message shown against the file and try that single slide again on its own.
+          If it fails a second time, send the message and the file name to the catalogue
+          administrator rather than retrying repeatedly.
+        </dd>
+
+        <dt><strong>The slide imported into the wrong dataset</strong></dt>
+        <dd>
+          Nothing is lost. Drag the image to the correct dataset in the data tree, or use
+          <strong>Move to</strong> from its right-click menu. Do not re-import it.
+        </dd>
+
+        <dt><strong>The image opens but looks blank or very low resolution</strong></dt>
+        <dd>
+          Wait for pyramid generation to finish, then reopen it. If it is still wrong, the
+          source file may be incomplete &mdash; check it opens correctly on your PC before
+          importing again.
+        </dd>
+      </dl>
+
+      <p>
+        Stuck on something not covered here?
+        <a href="/documents/contact.html">Contact the archive team</a>.
+      </p>
+
     </section>
   </main>
  <footer class="vmc-footer">
@@ -71,4 +376,3 @@ document.addEventListener(
 </script>
 </body>
 </html>
-
