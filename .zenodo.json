@@ -1,0 +1,29 @@
+{
+    "upload_type": "software",
+    "title": "slide-catalogue: a searchable, self-hosted catalogue for virtual microscopy slide archives",
+    "version": "1.0.0",
+    "language": "eng",
+    "access_right": "open",
+    "license": "agpl-3.0",
+    "creators": [
+        {
+            "name": "Miguel, J Carlos",
+            "orcid": "0000-0002-3371-5630",
+            "affiliation": "Glasgow Dental School, University of Glasgow"
+        }
+    ],
+    "keywords": [
+        "OMERO",
+        "virtual microscopy",
+        "whole-slide imaging",
+        "digital pathology",
+        "histology",
+        "DICOM",
+        "SlidePath",
+        "legacy data recovery",
+        "dental education",
+        "veterinary education",
+        "research data management"
+    ],
+    "description": "<p>slide-catalogue is a self-hosted web application for browsing, searching and annotating a collection of digitised microscopy slides used in teaching. It is designed to work alongside OMERO, the open-source platform many institutions use to host and view such slides for active use, rather than replace it.</p><p><strong>Why it was needed.</strong> A teaching archive typically accumulates far more slides than are ever loaded into a viewing platform at once, because preparing each one for smooth real-time viewing is storage-intensive. slide-catalogue lets every slide in an archive &mdash; not only the subset currently in active teaching use &mdash; remain searchable and reviewable by organ, species, stain and other metadata, leaving the decision to promote any individual slide into a full viewing platform as a deliberate, later step rather than a precondition for cataloguing it at all.</p><ul><li><strong>Searchable by biological and technical metadata,</strong> using a curated reference dictionary of organs, tissues, species and stains.</li><li><strong>Review and correction workflow.</strong> Staff with reviewer or expert roles can approve or reject metadata corrections and annotation reports submitted by other users.</li><li><strong>Exports annotation scripts</strong> compatible with QuPath, the open-source bioimage analysis platform, to support preparing slides for further use.</li><li><strong>Optional DICOM support,</strong> for institutions holding radiology or other DICOM-format teaching material alongside conventional whole-slide images, with mandatory removal of patient-identifying header data before any such slide is catalogued.</li></ul><p><strong>Origin.</strong> This software was written to recover the University of Glasgow's MVLS virtual microscopy archive, a collection of some 3,000 teaching histology slides whose original SlidePath / Digital Image Hub management system was discontinued following successive acquisitions, leaving the images intact but the catalogue that described them unusable. It is released for other institutions holding collections stranded in the same way.</p><p>Developed at Glasgow Dental School, University of Glasgow, in support of the MVLS virtual microscopy teaching platform.</p>"
+}

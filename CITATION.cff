@@ -1,0 +1,27 @@
+cff-version: 1.2.0
+message: "If you use this software, please cite it as below."
+type: software
+title: "slide-catalogue"
+version: "1.0.0"
+date-released: "2026-08-03"
+authors:
+  - family-names: "Miguel"
+    given-names: "J Carlos"
+    orcid: "https://orcid.org/0000-0002-3371-5630"
+    affiliation: "Glasgow Dental School, University of Glasgow"
+license: "AGPL-3.0-or-later"
+repository-code: "https://github.com/Jcarlosmiguel/slide-catalogue"
+url: "https://github.com/Jcarlosmiguel/slide-catalogue"
+abstract: "A self-hosted web application for browsing, searching and annotating a virtual microscopy slide archive, designed as a companion to OMERO rather than a replacement. Written to recover the University of Glasgow's MVLS virtual microscopy archive after its original SlidePath / Digital Image Hub management system was discontinued, and released for other institutions holding collections stranded in the same way."
+keywords:
+  - OMERO
+  - "virtual microscopy"
+  - "whole-slide imaging"
+  - "digital pathology"
+  - histology
+  - DICOM
+  - SlidePath
+  - "legacy data recovery"
+  - "dental education"
+  - "veterinary education"
+  - "research data management"
