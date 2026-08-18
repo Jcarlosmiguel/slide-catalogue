@@ -1,0 +1,223 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>Virtual Microscopy Catalogue</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="/css/catalogue.css">
+  <script src="/js/auth.js"></script>
+  <style>
+    .vmc-cps-note {
+      background: var(--vmc-light);
+      border: 1px solid var(--vmc-border);
+      border-radius: 8px;
+      padding: 0.85rem 1.1rem;
+      color: var(--vmc-muted);
+      font-size: 0.92rem;
+      margin-bottom: 1.5rem;
+    }
+    .vmc-cps-table-wrap {
+      overflow-x: auto;
+      margin: 1rem 0 1.5rem;
+    }
+    table.vmc-cps-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.95rem;
+    }
+    table.vmc-cps-table th,
+    table.vmc-cps-table td {
+      text-align: left;
+      padding: 0.55rem 0.75rem;
+      border-bottom: 1px solid var(--vmc-border);
+      vertical-align: top;
+    }
+    table.vmc-cps-table th {
+      background: var(--vmc-light);
+      font-weight: 700;
+    }
+    .vmc-cps-legal-note {
+      border-left: 3px solid var(--vmc-border);
+      background: var(--vmc-light);
+      padding: 0.85rem 1.1rem;
+      margin: 1.25rem 0;
+      font-size: 0.95rem;
+    }
+    section.vmc-card h2 {
+      margin-top: 2.25rem;
+    }
+    section.vmc-card h3 {
+      margin-top: 1.5rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="vmc-top-strip">
+    Your Institution · Virtual Microscopy Catalogue
+  </div>
+  <header class="vmc-header">
+    <div class="vmc-header-inner">
+      <div class="vmc-brand-block">
+        <a href="https://example.edu"><img class="vmc-brand-logo" src="/assets/placeholders/brand-logo.svg" alt="Institution logo"></a>
+        <div class="vmc-brand-text">
+          <h1 class="vmc-title"><a href="https://example.edu">Virtual Microscopy Catalogue</a></h1>
+          <p class="vmc-subtitle">
+            Search, review and prepare teaching slides from the virtual microscopy archive.
+          </p>
+        </div>
+      </div>
+      <nav class="vmc-nav" aria-label="Main navigation">
+        <a href="/">Home</a>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/admin/corrections-management.html" class="vmc-admin-nav">Admin</a>
+      </nav>
+    </div>
+  </header>
+  <main class="vmc-page">
+    <section class="vmc-card">
+      <h1>Content Protection Safeguards</h1>
+      <p class="vmc-subtitle" style="margin-top: -0.5rem;">
+        Reference architecture: how this catalogue protects content-provider copyright, supports jurisdiction-specific controls on sensitive specimen material, and de-identifies clinical imaging metadata.
+      </p>
+
+      <div class="vmc-cps-note">
+        This document describes safeguards built into the Virtual Microscopy Catalogue software itself, and a design pattern deployers can extend for their own regulatory requirements. It is written for administrators and legal reviewers at any institution deploying this catalogue &mdash; it does not describe the requirements of any specific law, and is not legal advice. Part 2 in particular needs to be adapted to whichever legislation actually governs your specimen material; consult your own institution&rsquo;s legal process before relying on it.
+      </div>
+
+      <h2>Purpose</h2>
+      <p>This document covers three areas:</p>
+      <ol>
+        <li>The rights of <strong>content providers and donor institutions</strong> &mdash; control over whether, and to whom, their material is shown, and a permanent record of where it came from and who holds copyright in it. <em>Built in, live.</em></li>
+        <li>A <strong>design pattern for jurisdiction-specific controls</strong> on sensitive specimen material (for example, legislation governing the use of human tissue) &mdash; what this software's architecture is built to support, and what each deployment needs to configure for itself. <em>Pattern, not a built-in feature</em> &mdash; see Part 2.</li>
+        <li>The privacy of <strong>patients named in source imaging metadata</strong> &mdash; for DICOM-format material specifically, removing identifying information from a file&rsquo;s own internal records at the point it is collected into the catalogue. <em>Built in, live.</em></li>
+      </ol>
+
+      <hr class="vmc-divider">
+
+      <h2>Part 1 &mdash; Protecting copyright and provenance</h2>
+
+      <h3>1.1 The availability switch</h3>
+      <p>
+        Every slide in the catalogue carries a single yes/no flag controlling whether it can be shown at all. This exists specifically so that a donor or rights-holder&rsquo;s wishes about visibility can be honoured directly, without having to delete or alter the underlying record.
+      </p>
+      <ul>
+        <li>Defaults to <strong>available</strong> when a slide is added, matching ordinary expectations for newly catalogued content.</li>
+        <li>Can be switched off for any individual slide, at any time, by a system administrator &mdash; immediately removing it from anything a user can see or search, while preserving the underlying data, metadata, and file for administrative purposes.</li>
+        <li>Is a single, general-purpose switch &mdash; a slide can be turned off for any reason a rights-holder or the institution decides matters (a donor withdrawing consent, a rights dispute, a request to pause display while provenance is being confirmed, or a jurisdiction-specific restriction under Part 2 below).</li>
+      </ul>
+
+      <h3>1.2 Provenance and copyright records</h3>
+      <p>
+        A dedicated rights record holds the copyright and rights information for each collection of material catalogued: which institution or department a batch is attributed to, who holds copyright, and free-text rights or embargo conditions. This is a linked record, not a value copied onto every slide &mdash; a single correction or update to a collection&rsquo;s rights status applies to every slide drawn from it in one step, rather than requiring each slide to be edited individually. The same structure supports splitting a collection further later &mdash; for example, separating out one donor&rsquo;s material, or a sub-collection under different terms &mdash; without any change to the underlying schema.
+      </p>
+
+      <h3>1.3 Per-slide provenance history</h3>
+      <p>
+        Independently of the shared rights record above, every slide also carries its own frozen provenance detail, recorded once when it entered the catalogue and never silently overwritten:
+      </p>
+      <ul>
+        <li><strong>How</strong> it entered the catalogue (which import process, and when).</li>
+        <li><strong>Where</strong> it came from &mdash; institution, collection, or donor &mdash; kept distinct from the file&rsquo;s current storage location, so a future storage reorganisation cannot erase the history of where a specimen originally came from.</li>
+        <li><strong>When</strong> it entered the collection, distinct from when the database record itself was created (which can lag behind the real acquisition date).</li>
+        <li>Free-text notes for anything the structured fields don&rsquo;t capture &mdash; for example, a reference to donor correspondence or a specific consent record.</li>
+      </ul>
+
+      <h3>1.4 What the catalogue does, and does not, hold</h3>
+      <p>
+        The provenance information described above is institutional and collection-level &mdash; which archive, which batch, which import process, which dates. By its nature, the catalogue does not store personal information about any individual a specimen may relate to (name, contact details, or similar). Any such personal information that exists would be held in the original documentation created at the time a specimen was collected or donated &mdash; consent forms, clinical or departmental records, correspondence &mdash; and those original documents are not themselves stored in, or copied into, the catalogue.
+      </p>
+      <p>
+        What the catalogue does hold is enough of a stable reference &mdash; the specific specimen&rsquo;s identity, its archive location, and which batch or collection it was drawn from &mdash; to trace any given piece of content back to that original documentation on request, held in the relevant institution&rsquo;s own records. This is what makes it possible to identify and act on a removal or restriction request without the catalogue needing to hold personal data itself: it only needs to reliably point back to where the fuller record sits, and to provide the means (&sect;1.1) to act immediately once a request is identified.
+      </p>
+
+      <h3>1.5 Who can act, and the audit trail</h3>
+      <p>
+        Everything described in this section is a system-administrator-only action. Every grant, change, or availability toggle is written to a permanent, append-only administrative log recording who made the change and when, so the catalogue can show a complete history of any content-visibility decision if ever asked.
+      </p>
+
+      <hr class="vmc-divider">
+
+      <h2>Part 2 &mdash; A design pattern for jurisdiction-specific sensitive-material controls</h2>
+
+      <div class="vmc-cps-legal-note">
+        <strong>This part describes an architectural pattern, not a feature this software currently implements out of the box.</strong> Institutions cataloguing biological specimen images are often subject to legislation governing the use of human tissue or similarly regulated material &mdash; and that legislation varies significantly by country and region (for example, the Human Tissue Act 2004 in England, Wales and Northern Ireland; the Human Tissue (Scotland) Act 2006 in Scotland; equivalent legislation exists in many other jurisdictions too). This software does not assume, and cannot correctly assume, which of these applies to any given deployment. What follows is the pattern the existing architecture (&sect;1.1&ndash;&sect;1.5 above) is well-suited to extend, for an institution whose own legal review determines it needs this level of control.
+      </div>
+
+      <h3>2.1 Why a collection-wide switch isn&rsquo;t enough</h3>
+      <p>
+        A single collection of teaching material routinely mixes regulated and non-regulated specimens, and &mdash; where regulated material is involved &mdash; specimens under genuinely different circumstances (for example, material old enough to fall outside a jurisdiction&rsquo;s disapplication threshold, alongside recently acquired material that does not). A rule applied at the level of a whole collection or folder cannot correctly express this. Any implementation of this pattern should control access at the level of the <strong>individual specimen</strong>, never the collection it happens to sit in.
+      </p>
+
+      <h3>2.2 The pattern's building blocks</h3>
+      <p>
+        Building on the same mechanisms already described in Part 1, a per-specimen sensitive-material control typically needs:
+      </p>
+      <ul>
+        <li><strong>A classification field per specimen</strong>, with states an institution defines for itself &mdash; typically something like <em>not applicable</em>, <em>exempt</em> (actively reviewed and cleared, under whatever legal basis applies), <em>restricted</em>, and <em>pending review</em>.</li>
+        <li><strong>A fail-safe default.</strong> Any specimen newly identified as falling within scope should default to the most cautious state (<em>pending review</em>, not <em>exempt</em>) until a curator actively reviews it &mdash; nothing should become open purely through default inaction.</li>
+        <li><strong>An access gate independent of ordinary login</strong> &mdash; typically, a separate acknowledgement that a viewer has agreed to whatever code of conduct or terms the institution requires for this category of material, recorded per user, revocable at any time, and never bundled automatically into a role or a general collection grant.</li>
+        <li><strong>The ability to reclassify a specimen at any moment, in either direction</strong>, including restricting material that was previously visible &mdash; for example, on a family member&rsquo;s request &mdash; without that request needing to prove legal standing before the material is hidden. Restriction should be immediate and reversible, not something that waits on a formal process to complete first.</li>
+        <li><strong>A permanent audit trail</strong> of every classification and access decision, extending the same administrative log already described in &sect;1.5.</li>
+      </ul>
+      <p>
+        None of the specific states, thresholds, or legal bases above should be taken as a recommendation &mdash; they exist here only to describe the shape of the pattern. The actual states and rules that matter depend entirely on the legislation applicable to a given deployment, and should be defined with that institution&rsquo;s own legal advice.
+      </p>
+
+      <hr class="vmc-divider">
+
+      <h2>Part 3 &mdash; De-identifying DICOM imaging at the point of collection</h2>
+      <p>
+        Some source material may arrive in the DICOM format used by clinical imaging equipment, which &mdash; unlike the scanned-slide formats most of this catalogue is built around &mdash; carries patient-identifying information directly inside the file&rsquo;s own internal records (name, date of birth, referring clinician, institution, and similar). Where this format is used, that information is stripped out as part of collecting the file into the catalogue, before it is stored or made available to anyone. Full technical detail is in <code>catalogue/docs/dicom.md</code>; the summary below covers what matters for a non-technical reader.
+      </p>
+
+      <h3>3.1 Two de-identification modes</h3>
+      <p>Whoever runs the collection process chooses one of two modes, applied per file:</p>
+      <ul>
+        <li><strong>Full</strong> (the default) &mdash; removes every direct patient/institution identifier, and additionally removes every descriptive field that could narrow down who the patient is even indirectly (age, size, weight, free-text descriptions). What remains is only the technical imaging information needed to display and study the image.</li>
+        <li><strong>Non-identifying</strong> &mdash; removes the same direct identifiers, but deliberately retains non-identifying descriptive fields that carry real teaching value (patient sex, age, body part examined, modality, study description, imaging parameters).</li>
+      </ul>
+      <p>
+        Both modes also regenerate the file&rsquo;s internal cross-reference identifiers, so a de-identified file cannot be linked back to the source clinical system&rsquo;s own records for that patient.
+      </p>
+
+      <h3>3.2 An honest limitation, and the safeguard for it</h3>
+      <p>
+        This process only inspects the file&rsquo;s internal header records &mdash; it does not, and cannot, inspect the image itself. Some scanners burn identifying text directly onto the visible image; no header-stripping process can detect or remove that. Where a source file&rsquo;s own metadata claims this has happened, the catalogue records a specific warning flag against it, so that file can be routed for manual visual review before it is made available.
+      </p>
+      <p>
+        This process is deliberately described as a practical, conservative approach rather than a certified implementation of any formal de-identification standard, and its output is expected to be spot-checked before being treated as safe to publish.
+      </p>
+
+      <hr class="vmc-divider">
+
+      <h2>Summary</h2>
+      <div class="vmc-cps-table-wrap">
+        <table class="vmc-cps-table">
+          <thead>
+            <tr><th>Protects against</th><th>Mechanism</th><th>Status</th></tr>
+          </thead>
+          <tbody>
+            <tr><td>Showing content a rights-holder wants hidden</td><td>Availability switch</td><td>Built in</td></tr>
+            <tr><td>Losing the record of who holds copyright / where material came from</td><td>Linked provenance &amp; copyright records + frozen per-specimen history</td><td>Built in</td></tr>
+            <tr><td>Holding personal data the catalogue doesn&rsquo;t need, while staying able to trace and act on a removal request</td><td>Institutional/collection-level provenance only; original documentation stays outside the catalogue, referenced not copied</td><td>Built in</td></tr>
+            <tr><td>Showing regulated specimen material without appropriate authorisation under applicable law</td><td>Per-specimen classification, fail-safe default, independent code-of-conduct acceptance, reclassification at any time</td><td>Design pattern &mdash; configure per your own legislation</td></tr>
+            <tr><td>Untraceable access-control decisions</td><td>Administrative audit log of every grant, revoke, and classification change</td><td>Built in</td></tr>
+            <tr><td>Patient-identifying information in source DICOM imaging metadata</td><td>Header de-identification at point of collection, with manual-review routing for suspected burned-in identifiers</td><td>Built in</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+  <footer class="vmc-footer">
+    <div class="vmc-footer-inner">
+      <div>Virtual Microscopy Catalogue</div>
+      <div>
+        <a href="/documents/about.html">About</a>
+        <a href="/documents/contact.html">Contact</a>
+        <a href="/documents/feedback.html">Feedback</a>
+      </div>
+    </div>
+  </footer>
+</body>
+</html>
